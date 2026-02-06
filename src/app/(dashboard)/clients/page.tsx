@@ -124,7 +124,7 @@ export default function ClientsPage() {
   }
 
   const handleDeleteClick = (client: Client) => deleteModal.open(client)
-  const handleDeleteConfirm = () => { setPendingAction({ type: 'delete', data: deleteModal.data! }); deleteModal.close(); passwordModal.open() }
+  const handleDeleteConfirm = async () => { setPendingAction({ type: 'delete', data: deleteModal.data! }); deleteModal.close(); passwordModal.open() }
   const handleToggleStatus = (client: Client) => { setPendingAction({ type: 'toggle', data: client }); passwordModal.open() }
   const handleViewClient = (client: Client) => viewModal.open(client)
   const handleEditClient = (client: Client) => {
