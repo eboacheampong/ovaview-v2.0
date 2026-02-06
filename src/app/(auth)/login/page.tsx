@@ -6,8 +6,8 @@ import { useAuth } from '@/hooks/use-auth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { loginSchema } from '@/lib/validations'
+import { Loader2, Mail, Lock, ArrowRight } from 'lucide-react'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -41,59 +41,89 @@ export default function LoginPage() {
   }
 
   return (
-    <Card>
-      <CardHeader className="space-y-1">
-        <div className="flex items-center justify-center mb-4">
-          <div className="text-3xl font-bold text-orange-500">OVAVIEW</div>
+    <div className="w-full max-w-md animate-fadeIn">
+      {/* Logo */}
+      <div className="text-center mb-8">
+        <h1 className="text-4xl font-bold text-gradient mb-2">OVAVIEW</h1>
+        <p className="text-gray-500">Media Monitoring & Analysis</p>
+      </div>
+
+      {/* Login Card */}
+      <div className="glass-card rounded-2xl p-8">
+        <div className="text-center mb-6">
+          <h2 className="text-2xl font-semibold text-gray-800">Welcome back</h2>
+          <p className="text-gray-500 mt-1">Sign in to continue to your dashboard</p>
         </div>
-        <CardTitle className="text-2xl text-center">Sign in</CardTitle>
-        <CardDescription className="text-center">
-          Enter your credentials to access your account
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
+
+        <form onSubmit={handleSubmit} className="space-y-5">
           {error && (
-            <div className="p-3 text-sm text-red-500 bg-red-50 rounded-md">
+            <div className="p-4 text-sm text-red-600 bg-red-50 rounded-xl border border-red-100 animate-fadeIn">
               {error}
             </div>
           )}
           
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="name@example.com"
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              disabled={isLoading}
-            />
+            <Label htmlFor="email" className="text-gray-700 font-medium">Email</Label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <Input
+                id="email"
+                type="email"
+                placeholder="name@example.com"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                disabled={isLoading}
+                className="pl-10 h-12 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 transition-all"
+              />
+            </div>
             {validationErrors.email && (
               <p className="text-sm text-red-500">{validationErrors.email}</p>
             )}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              type="password"
-              placeholder="Enter your password"
-              value={formData.password}
-              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              disabled={isLoading}
-            />
+            <Label htmlFor="password" className="text-gray-700 font-medium">Password</Label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <Input
+                id="password"
+                type="password"
+                placeholder="Enter your password"
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                disabled={isLoading}
+                className="pl-10 h-12 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 transition-all"
+              />
+            </div>
             {validationErrors.password && (
               <p className="text-sm text-red-500">{validationErrors.password}</p>
             )}
           </div>
 
-          <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? 'Signing in...' : 'Sign in'}
+          <Button 
+            type="submit" 
+            className="w-full h-12 rounded-xl gradient-primary hover:opacity-90 transition-all text-white font-medium text-base group"
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                Signing in...
+              </>
+            ) : (
+              <>
+                Sign in
+                <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+              </>
+            )}
           </Button>
         </form>
-      </CardContent>
-    </Card>
+      </div>
+
+      {/* Footer */}
+      <p className="text-center text-gray-400 text-sm mt-8">
+        © {new Date().getFullYear()} Ovaview. All rights reserved.
+      </p>
+    </div>
   )
 }

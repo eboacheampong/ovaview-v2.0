@@ -6,8 +6,7 @@ import { usePathname } from 'next/navigation'
 import { ChevronDown, ChevronRight, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/use-auth'
-import { navigationSections, bottomNavItems, dashboardItem, NavSection, NavItem } from '@/constants/navigation'
-import { UserProfile } from './user-profile'
+import { navigationSections, bottomNavItems, dashboardItem, NavItem, NavSubSection } from '@/constants/navigation'
 
 interface SidebarProps {
   isCollapsed: boolean
@@ -16,14 +15,9 @@ interface SidebarProps {
 
 export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   const pathname = usePathname()
-  const { user, logout, hasRole } = useAuth()
-  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
-    'USER MANAGEMENT': true,
-    'MANAGEMENT': true,
-    'LOG MANAGEMENT': false,
-    'MEDIA': true,
-    'BUSINESS': true,
-  })
+  const { logout, hasRole } = useAuth()
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({})
+  const [expandedSubSections, setExpandedSubSections] = useState<Record<string, boolean>>({})
 
   const toggleSection = (title: string) => {
     setExpandedSections(prev => ({
@@ -32,9 +26,28 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
     }))
   }
 
+  const toggleSubSection = (title: string) => {
+    setExpandedSubSections(prev => ({
+      ...prev,
+      [title]: !prev[title],
+    }))
+  }
+
   const isActive = (href: string) => {
     if (href === '/dashboard') return pathname === '/dashboard'
-    return pathname.startsWith(href)
+    return pathname === href || pathname.startsWith(href + '/')
+  }
+
+  const isSubSectionActive = (subSection: NavSubSection) => {
+    return subSection.items.some(item => isActive(item.href))
+  }
+
+  const isSectionActive = (section: typeof navigationSections[0]) => {
+    // Check if any direct items are active
+    if (section.items?.some(item => isActive(item.href))) return true
+    // Check if any sub-section items are active
+    if (section.subSections?.some(subSection => isSubSectionActive(subSection))) return true
+    return false
   }
 
   const filterItemsByRole = (items: NavItem[]) => {
@@ -50,9 +63,9 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
 
   if (isCollapsed) {
     return (
-      <aside className="fixed left-0 top-0 z-40 h-screen w-16 bg-white border-r border-gray-200 flex flex-col">
-        <div className="p-4 border-b border-gray-200">
-          <button onClick={onToggle} className="text-orange-500 font-bold text-xl">
+      <aside className="fixed left-0 top-0 z-40 h-screen w-20 bg-white flex flex-col">
+        <div className="p-4 flex justify-center">
+          <button onClick={onToggle} className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center text-white font-bold text-lg">
             O
           </button>
         </div>
@@ -61,68 +74,130 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   }
 
   return (
-    <aside className="fixed left-0 top-0 z-40 h-screen w-64 bg-white border-r border-gray-200 flex flex-col overflow-hidden">
+    <aside className="fixed left-0 top-0 z-40 h-screen w-72 bg-white flex flex-col">
       {/* Logo */}
-      <div className="p-4 border-b border-gray-200">
-        <Link href="/dashboard" className="text-orange-500 font-bold text-2xl">
-          OVAVIEW
+      <div className="p-6">
+        <Link href="/dashboard" className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center text-white font-bold text-lg">
+            O
+          </div>
+          <div>
+            <span className="text-xl font-bold text-gradient">OVAVIEW</span>
+            <p className="text-[10px] text-gray-400 uppercase tracking-wider">Media Monitoring</p>
+          </div>
         </Link>
-        <p className="text-xs text-gray-500 mt-1">MEDIA MONITORING & ANALYSIS</p>
       </div>
 
-      {/* User Profile */}
-      {user && <UserProfile user={user} />}
-
       {/* Dashboard Link */}
-      <div className="px-2 py-2">
+      <div className="px-4 py-3">
         <Link
           href={dashboardItem.href}
           className={cn(
-            'flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors',
+            'flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200',
             isActive(dashboardItem.href)
-              ? 'bg-orange-500 text-white'
-              : 'text-gray-700 hover:bg-gray-100'
+              ? 'gradient-primary text-white shadow-md'
+              : 'text-gray-600 hover:bg-gray-50'
           )}
         >
-          <dashboardItem.icon className="h-4 w-4" />
+          <dashboardItem.icon className="h-5 w-5" />
           {dashboardItem.label}
         </Link>
       </div>
 
       {/* Navigation Sections */}
-      <nav className="flex-1 overflow-y-auto px-2 py-2">
+      <nav className="flex-1 overflow-y-auto px-4 py-2 space-y-2">
         {navigationSections.map((section) => {
-          const filteredItems = filterItemsByRole(section.items)
-          if (filteredItems.length === 0) return null
+          const filteredItems = section.items ? filterItemsByRole(section.items) : []
+          const hasSubSections = section.subSections && section.subSections.length > 0
+          const hasItems = filteredItems.length > 0
+
+          if (!hasSubSections && !hasItems) return null
 
           return (
-            <div key={section.title} className="mb-2">
+            <div key={section.title} className="mb-1">
               <button
                 onClick={() => toggleSection(section.title)}
-                className="flex items-center justify-between w-full px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider hover:bg-gray-50 rounded-md"
+                className="flex items-center justify-between w-full px-3 py-2 text-[11px] font-semibold text-gray-400 uppercase tracking-wider hover:text-gray-600 transition-colors"
               >
                 {section.title}
-                {expandedSections[section.title] ? (
+                {(expandedSections[section.title] || isSectionActive(section)) ? (
                   <ChevronDown className="h-4 w-4" />
                 ) : (
                   <ChevronRight className="h-4 w-4" />
                 )}
               </button>
               
-              {expandedSections[section.title] && (
-                <div className="mt-1 space-y-1">
+              {(expandedSections[section.title] || isSectionActive(section)) && (
+                <div className="mt-1 space-y-1 animate-fadeIn">
+                  {/* Render sub-sections (collapsible groups like Media types) */}
+                  {section.subSections?.map((subSection) => {
+                    const subSectionExpanded = expandedSubSections[subSection.title] || isSubSectionActive(subSection)
+                    const SubIcon = subSection.icon
+                    
+                    return (
+                      <div key={subSection.title} className="mb-1">
+                        <button
+                          onClick={() => toggleSubSection(subSection.title)}
+                          className={cn(
+                            'flex items-center justify-between w-full px-4 py-2.5 rounded-xl text-sm transition-all duration-200',
+                            subSectionExpanded
+                              ? 'gradient-primary text-white'
+                              : 'text-gray-600 hover:bg-gray-50'
+                          )}
+                        >
+                          <div className="flex items-center gap-3">
+                            <SubIcon className="h-4 w-4" />
+                            {subSection.title}
+                          </div>
+                          {subSectionExpanded ? (
+                            <ChevronDown className="h-4 w-4" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4" />
+                          )}
+                        </button>
+                        
+                        {subSectionExpanded && (
+                          <div className="mt-1 ml-4 space-y-1 border-l-2 border-gray-100 pl-2">
+                            {filterItemsByRole(subSection.items).map((item) => (
+                              <Link
+                                key={item.href}
+                                href={item.href}
+                                className={cn(
+                                  'flex items-center gap-3 px-4 py-2 rounded-xl text-sm transition-all duration-200',
+                                  isActive(item.href)
+                                    ? 'bg-orange-50 text-orange-600 font-medium'
+                                    : 'text-gray-600 hover:bg-gray-50'
+                                )}
+                              >
+                                <item.icon className={cn(
+                                  'h-4 w-4',
+                                  isActive(item.href) ? 'text-orange-500' : 'text-gray-400'
+                                )} />
+                                {item.label}
+                              </Link>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+
+                  {/* Render regular items */}
                   {filteredItems.map((item) => (
                     <Link
                       key={item.href}
                       href={item.href}
                       className={cn(
-                        'flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors',
+                        'flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm transition-all duration-200',
                         isActive(item.href)
-                          ? 'bg-orange-500 text-white'
-                          : 'text-gray-700 hover:bg-gray-100'
+                          ? 'bg-orange-50 text-orange-600 font-medium'
+                          : 'text-gray-600 hover:bg-gray-50'
                       )}
                     >
-                      <item.icon className="h-4 w-4" />
+                      <item.icon className={cn(
+                        'h-4 w-4',
+                        isActive(item.href) ? 'text-orange-500' : 'text-gray-400'
+                      )} />
                       {item.label}
                     </Link>
                   ))}
@@ -134,25 +209,28 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
       </nav>
 
       {/* Bottom Navigation */}
-      <div className="border-t border-gray-200 px-2 py-2">
+      <div className="border-t border-gray-100 px-4 py-4 space-y-1">
         {bottomNavItems.map((item) => (
           <Link
             key={item.href}
             href={item.href}
             className={cn(
-              'flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors',
+              'flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm transition-all duration-200',
               isActive(item.href)
-                ? 'bg-orange-500 text-white'
-                : 'text-gray-700 hover:bg-gray-100'
+                ? 'bg-orange-50 text-orange-600 font-medium'
+                : 'text-gray-600 hover:bg-gray-50'
             )}
           >
-            <item.icon className="h-4 w-4" />
+            <item.icon className={cn(
+              'h-4 w-4',
+              isActive(item.href) ? 'text-orange-500' : 'text-gray-400'
+            )} />
             {item.label}
           </Link>
         ))}
         <button
           onClick={handleLogout}
-          className="flex items-center gap-3 px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-100 w-full"
+          className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm text-gray-600 hover:bg-red-50 hover:text-red-600 w-full transition-all duration-200"
         >
           <LogOut className="h-4 w-4" />
           Logout

@@ -2,10 +2,10 @@
 
 import { useEffect } from 'react'
 import { useAuthStore } from '@/store/auth-store'
-import { LoginCredentials, UserRole } from '@/types/user'
+import { LoginCredentials, UserRole, User } from '@/types/user'
 
 export interface UseAuthReturn {
-  user: ReturnType<typeof useAuthStore>['user']
+  user: User | null
   isLoading: boolean
   isAuthenticated: boolean
   error: string | null

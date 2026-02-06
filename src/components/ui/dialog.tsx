@@ -2,7 +2,6 @@
 
 import * as React from 'react'
 import { cn } from '@/lib/utils'
-import { X } from 'lucide-react'
 
 interface DialogProps {
   open: boolean
@@ -11,12 +10,33 @@ interface DialogProps {
 }
 
 const Dialog = ({ open, onOpenChange, children }: DialogProps) => {
+  // Handle escape key
+  React.useEffect(() => {
+    if (!open) return
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onOpenChange(false)
+    }
+    document.addEventListener('keydown', handleEscape)
+    return () => document.removeEventListener('keydown', handleEscape)
+  }, [open, onOpenChange])
+
+  // Prevent body scroll when modal is open
+  React.useEffect(() => {
+    if (open) {
+      document.body.style.overflow = 'hidden'
+    }
+    return () => { 
+      document.body.style.overflow = '' 
+    }
+  }, [open])
+
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50">
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      {/* Backdrop - modern frosted glass effect */}
       <div 
-        className="fixed inset-0 bg-black/80" 
+        className="fixed inset-0 bg-gray-900/20 backdrop-blur-sm transition-opacity" 
         onClick={() => onOpenChange(false)}
       />
       {children}
@@ -31,21 +51,12 @@ const DialogContent = React.forwardRef<
   <div
     ref={ref}
     className={cn(
-      'fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 sm:rounded-lg',
+      'relative z-50 w-full max-w-lg bg-white rounded-xl shadow-2xl border border-gray-200/50 animate-in fade-in-0 zoom-in-95 duration-200',
       className
     )}
     {...props}
   >
     {children}
-    {onClose && (
-      <button
-        className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-        onClick={onClose}
-      >
-        <X className="h-4 w-4" />
-        <span className="sr-only">Close</span>
-      </button>
-    )}
   </div>
 ))
 DialogContent.displayName = 'DialogContent'

@@ -4,7 +4,7 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
+    --background: 220 20% 97%;
     --foreground: 222.2 84% 4.9%;
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
@@ -23,28 +23,28 @@
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
     --ring: 24 95% 53%;
-    --radius: 0.5rem;
+    --radius: 0.75rem;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --background: 224 71% 4%;
+    --foreground: 213 31% 91%;
+    --card: 224 71% 8%;
+    --card-foreground: 213 31% 91%;
+    --popover: 224 71% 8%;
+    --popover-foreground: 213 31% 91%;
     --primary: 24 95% 53%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 217.2 32.6% 17.5%;
+    --secondary: 222 47% 11%;
     --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 223 47% 11%;
+    --muted-foreground: 215 20% 65%;
     --accent: 24 95% 53%;
     --accent-foreground: 0 0% 100%;
-    --destructive: 0 62.8% 30.6%;
+    --destructive: 0 63% 31%;
     --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
+    --border: 216 34% 17%;
+    --input: 216 34% 17%;
     --ring: 24 95% 53%;
   }
 }
@@ -54,6 +54,117 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
   }
+}
+
+@layer utilities {
+  /* Glassmorphism effects */
+  .glass {
+    @apply bg-white/70 backdrop-blur-xl border border-white/20 shadow-lg;
+  }
+  
+  .glass-dark {
+    @apply bg-gray-900/70 backdrop-blur-xl border border-white/10 shadow-lg;
+  }
+  
+  .glass-card {
+    @apply bg-white/80 backdrop-blur-md border border-gray-200/50 shadow-sm hover:shadow-md transition-all duration-300;
+  }
+  
+  /* Gradient backgrounds */
+  .gradient-primary {
+    @apply bg-gradient-to-r from-orange-500 to-amber-500;
+  }
+  
+  .gradient-secondary {
+    @apply bg-gradient-to-r from-violet-500 to-purple-500;
+  }
+  
+  .gradient-success {
+    @apply bg-gradient-to-r from-emerald-500 to-teal-500;
+  }
+  
+  .gradient-info {
+    @apply bg-gradient-to-r from-blue-500 to-cyan-500;
+  }
+  
+  .gradient-bg {
+    @apply bg-gradient-to-br from-slate-50 via-white to-orange-50;
+  }
+  
+  /* Modern shadows */
+  .shadow-soft {
+    box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.06), 0 2px 8px -2px rgba(0, 0, 0, 0.04);
+  }
+  
+  .shadow-glow {
+    box-shadow: 0 0 40px -10px rgba(249, 115, 22, 0.3);
+  }
+  
+  /* Smooth transitions */
+  .transition-smooth {
+    @apply transition-all duration-300 ease-in-out;
+  }
+  
+  /* Text gradients */
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-orange-500 to-amber-600;
+  }
+  
+  /* Hover lift effect */
+  .hover-lift {
+    @apply hover:-translate-y-1 hover:shadow-lg transition-all duration-300;
+  }
+  
+  /* Animated border */
+  .border-gradient {
+    position: relative;
+    background: linear-gradient(white, white) padding-box,
+                linear-gradient(135deg, #f97316, #fbbf24) border-box;
+    border: 2px solid transparent;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-gray-100 rounded-full;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-300 rounded-full hover:bg-gray-400 transition-colors;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(-20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.4s ease-out forwards;
+}
+
+.animate-slideIn {
+  animation: slideIn 0.3s ease-out forwards;
+}
+
+.animate-pulse-soft {
+  animation: pulse-soft 2s ease-in-out infinite;
 }

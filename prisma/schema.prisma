@@ -1,0 +1,368 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  ADMIN
+  USER
+  CLIENT_USER
+}
+
+enum MediaType {
+  WEB
+  TV
+  RADIO
+  PRINT
+}
+
+// User Management
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      UserRole @default(USER)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  clientId String?
+  client   Client? @relation(fields: [clientId], references: [id])
+
+  webStories   WebStory[]
+  tvStories    TVStory[]
+  radioStories RadioStory[]
+  printStories PrintStory[]
+}
+
+// Client Management
+model Client {
+  id        String   @id @default(cuid())
+  name      String
+  email     String?
+  phone     String?
+  address   String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users      User[]
+  industries ClientIndustry[]
+}
+
+// Industry Classification
+model Industry {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  subIndustries SubIndustry[]
+  clients       ClientIndustry[]
+  webStories    WebStory[]
+  tvStories     TVStory[]
+  radioStories  RadioStory[]
+  printStories  PrintStory[]
+}
+
+model SubIndustry {
+  id         String   @id @default(cuid())
+  name       String
+  industryId String
+  industry   Industry @relation(fields: [industryId], references: [id], onDelete: Cascade)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  webStories   WebStorySubIndustry[]
+  tvStories    TVStorySubIndustry[]
+  radioStories RadioStorySubIndustry[]
+  printStories PrintStorySubIndustry[]
+
+  @@unique([name, industryId])
+}
+
+model ClientIndustry {
+  id         String   @id @default(cuid())
+  clientId   String
+  client     Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  industryId String
+  industry   Industry @relation(fields: [industryId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([clientId, industryId])
+}
+
+// Web Publications
+model WebPublication {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  website   String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  stories WebStory[]
+}
+
+// TV Stations and Programs
+model TVStation {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  channel   String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  programs TVProgram[]
+  stories  TVStory[]
+}
+
+model TVProgram {
+  id        String    @id @default(cuid())
+  name      String
+  stationId String
+  station   TVStation @relation(fields: [stationId], references: [id], onDelete: Cascade)
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  stories TVStory[]
+
+  @@unique([name, stationId])
+}
+
+// Radio Stations and Programs
+model RadioStation {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  frequency String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  programs RadioProgram[]
+  stories  RadioStory[]
+}
+
+model RadioProgram {
+  id        String       @id @default(cuid())
+  name      String
+  stationId String
+  station   RadioStation @relation(fields: [stationId], references: [id], onDelete: Cascade)
+  isActive  Boolean      @default(true)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  stories RadioStory[]
+
+  @@unique([name, stationId])
+}
+
+// Print Publications and Issues
+model PrintPublication {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  issues  PrintIssue[]
+  stories PrintStory[]
+}
+
+model PrintIssue {
+  id            String           @id @default(cuid())
+  name          String
+  publicationId String
+  publication   PrintPublication @relation(fields: [publicationId], references: [id], onDelete: Cascade)
+  issueDate     DateTime?
+  isActive      Boolean          @default(true)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  stories PrintStory[]
+
+  @@unique([name, publicationId])
+}
+
+// Web Stories
+model WebStory {
+  id                String          @id @default(cuid())
+  title             String
+  slug              String          @unique
+  content           String?         @db.Text
+  summary           String?         @db.Text
+  author            String?
+  sourceUrl         String?
+  keywords          String?
+  date              DateTime
+  publicationId     String?
+  publication       WebPublication? @relation(fields: [publicationId], references: [id])
+  industryId        String?
+  industry          Industry?       @relation(fields: [industryId], references: [id])
+  createdById       String?
+  createdBy         User?           @relation(fields: [createdById], references: [id])
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  sentimentPositive Float?
+  sentimentNeutral  Float?
+  sentimentNegative Float?
+  overallSentiment  String?
+
+  subIndustries WebStorySubIndustry[]
+  images        WebStoryImage[]
+}
+
+model WebStorySubIndustry {
+  id            String      @id @default(cuid())
+  webStoryId    String
+  webStory      WebStory    @relation(fields: [webStoryId], references: [id], onDelete: Cascade)
+  subIndustryId String
+  subIndustry   SubIndustry @relation(fields: [subIndustryId], references: [id], onDelete: Cascade)
+
+  @@unique([webStoryId, subIndustryId])
+}
+
+model WebStoryImage {
+  id         String   @id @default(cuid())
+  webStoryId String
+  webStory   WebStory @relation(fields: [webStoryId], references: [id], onDelete: Cascade)
+  url        String
+  caption    String?
+  createdAt  DateTime @default(now())
+}
+
+// TV Stories
+model TVStory {
+  id                String     @id @default(cuid())
+  title             String
+  slug              String     @unique
+  content           String?    @db.Text
+  summary           String?    @db.Text
+  presenters        String?
+  keywords          String?
+  videoUrl          String?
+  videoTitle        String?
+  date              DateTime
+  stationId         String?
+  station           TVStation? @relation(fields: [stationId], references: [id])
+  programId         String?
+  program           TVProgram? @relation(fields: [programId], references: [id])
+  industryId        String?
+  industry          Industry?  @relation(fields: [industryId], references: [id])
+  createdById       String?
+  createdBy         User?      @relation(fields: [createdById], references: [id])
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+  sentimentPositive Float?
+  sentimentNeutral  Float?
+  sentimentNegative Float?
+  overallSentiment  String?
+
+  subIndustries TVStorySubIndustry[]
+}
+
+model TVStorySubIndustry {
+  id            String      @id @default(cuid())
+  tvStoryId     String
+  tvStory       TVStory     @relation(fields: [tvStoryId], references: [id], onDelete: Cascade)
+  subIndustryId String
+  subIndustry   SubIndustry @relation(fields: [subIndustryId], references: [id], onDelete: Cascade)
+
+  @@unique([tvStoryId, subIndustryId])
+}
+
+// Radio Stories
+model RadioStory {
+  id                String        @id @default(cuid())
+  title             String
+  slug              String        @unique
+  content           String?       @db.Text
+  summary           String?       @db.Text
+  presenters        String?
+  keywords          String?
+  audioUrl          String?
+  audioTitle        String?
+  date              DateTime
+  stationId         String?
+  station           RadioStation? @relation(fields: [stationId], references: [id])
+  programId         String?
+  program           RadioProgram? @relation(fields: [programId], references: [id])
+  industryId        String?
+  industry          Industry?     @relation(fields: [industryId], references: [id])
+  createdById       String?
+  createdBy         User?         @relation(fields: [createdById], references: [id])
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  sentimentPositive Float?
+  sentimentNeutral  Float?
+  sentimentNegative Float?
+  overallSentiment  String?
+
+  subIndustries RadioStorySubIndustry[]
+}
+
+model RadioStorySubIndustry {
+  id            String      @id @default(cuid())
+  radioStoryId  String
+  radioStory    RadioStory  @relation(fields: [radioStoryId], references: [id], onDelete: Cascade)
+  subIndustryId String
+  subIndustry   SubIndustry @relation(fields: [subIndustryId], references: [id], onDelete: Cascade)
+
+  @@unique([radioStoryId, subIndustryId])
+}
+
+// Print Stories
+model PrintStory {
+  id                String            @id @default(cuid())
+  title             String
+  slug              String            @unique
+  content           String?           @db.Text
+  summary           String?           @db.Text
+  author            String?
+  pageNumbers       String?
+  keywords          String?
+  date              DateTime
+  publicationId     String?
+  publication       PrintPublication? @relation(fields: [publicationId], references: [id])
+  issueId           String?
+  issue             PrintIssue?       @relation(fields: [issueId], references: [id])
+  industryId        String?
+  industry          Industry?         @relation(fields: [industryId], references: [id])
+  createdById       String?
+  createdBy         User?             @relation(fields: [createdById], references: [id])
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  sentimentPositive Float?
+  sentimentNeutral  Float?
+  sentimentNegative Float?
+  overallSentiment  String?
+
+  subIndustries PrintStorySubIndustry[]
+  images        PrintStoryImage[]
+}
+
+model PrintStorySubIndustry {
+  id            String      @id @default(cuid())
+  printStoryId  String
+  printStory    PrintStory  @relation(fields: [printStoryId], references: [id], onDelete: Cascade)
+  subIndustryId String
+  subIndustry   SubIndustry @relation(fields: [subIndustryId], references: [id], onDelete: Cascade)
+
+  @@unique([printStoryId, subIndustryId])
+}
+
+model PrintStoryImage {
+  id           String     @id @default(cuid())
+  printStoryId String
+  printStory   PrintStory @relation(fields: [printStoryId], references: [id], onDelete: Cascade)
+  url          String
+  caption      String?
+  createdAt    DateTime   @default(now())
+}

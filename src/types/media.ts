@@ -43,6 +43,10 @@ export interface WebStory extends MediaStory {
   publicationId: string
   publication?: Publication
   url: string
+  summary?: string
+  author?: string
+  images?: string[]
+  keywords?: string
 }
 
 export interface Publication {
