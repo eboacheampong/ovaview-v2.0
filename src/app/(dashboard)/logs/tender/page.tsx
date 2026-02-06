@@ -11,7 +11,7 @@ const mockTenderLogs: TenderLog[] = [
   {
     id: '1',
     userId: 'user-1',
-    user: { id: 'user-1', username: 'john.doe', email: 'john@acme.com', role: 'client', isActive: true, createdAt: new Date(), updatedAt: new Date() },
+    user: { id: 'user-1', username: 'john.doe', email: 'john@acme.com', role: 'client_user', isActive: true, createdAt: new Date(), updatedAt: new Date() },
     tenderId: 'tender-123',
     tender: { id: 'tender-123', title: 'IT Infrastructure Upgrade', description: '', deadline: new Date(), typeId: '1', industries: [], status: 'open', createdAt: new Date(), updatedAt: new Date() },
     viewedAt: new Date('2024-01-15T10:30:00'),
@@ -19,7 +19,7 @@ const mockTenderLogs: TenderLog[] = [
   {
     id: '2',
     userId: 'user-2',
-    user: { id: 'user-2', username: 'jane.smith', email: 'jane@globalmedia.com', role: 'client', isActive: true, createdAt: new Date(), updatedAt: new Date() },
+    user: { id: 'user-2', username: 'jane.smith', email: 'jane@globalmedia.com', role: 'client_user', isActive: true, createdAt: new Date(), updatedAt: new Date() },
     tenderId: 'tender-456',
     tender: { id: 'tender-456', title: 'Marketing Services Contract', description: '', deadline: new Date(), typeId: '2', industries: [], status: 'open', createdAt: new Date(), updatedAt: new Date() },
     viewedAt: new Date('2024-01-14T09:00:00'),
@@ -27,7 +27,7 @@ const mockTenderLogs: TenderLog[] = [
   {
     id: '3',
     userId: 'user-1',
-    user: { id: 'user-1', username: 'john.doe', email: 'john@acme.com', role: 'client', isActive: true, createdAt: new Date(), updatedAt: new Date() },
+    user: { id: 'user-1', username: 'john.doe', email: 'john@acme.com', role: 'client_user', isActive: true, createdAt: new Date(), updatedAt: new Date() },
     tenderId: 'tender-789',
     tender: { id: 'tender-789', title: 'Office Supplies Procurement', description: '', deadline: new Date(), typeId: '1', industries: [], status: 'closed', createdAt: new Date(), updatedAt: new Date() },
     viewedAt: new Date('2024-01-13T15:45:00'),

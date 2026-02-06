@@ -12,7 +12,7 @@ const mockVisitLogs: VisitLog[] = [
   {
     id: '1',
     userId: 'user-1',
-    user: { id: 'user-1', username: 'john.doe', email: 'john@acme.com', role: 'client', isActive: true, createdAt: new Date(), updatedAt: new Date() },
+    user: { id: 'user-1', username: 'john.doe', email: 'john@acme.com', role: 'client_user', isActive: true, createdAt: new Date(), updatedAt: new Date() },
     ipAddress: '192.168.1.100',
     page: '/media/print/story/123',
     articleId: 'art-123',
@@ -22,7 +22,7 @@ const mockVisitLogs: VisitLog[] = [
   {
     id: '2',
     userId: 'user-2',
-    user: { id: 'user-2', username: 'jane.smith', email: 'jane@globalmedia.com', role: 'client', isActive: true, createdAt: new Date(), updatedAt: new Date() },
+    user: { id: 'user-2', username: 'jane.smith', email: 'jane@globalmedia.com', role: 'client_user', isActive: true, createdAt: new Date(), updatedAt: new Date() },
     ipAddress: '192.168.1.101',
     page: '/tenders/456',
     visitedAt: new Date('2024-01-14T09:00:00'),
@@ -30,7 +30,7 @@ const mockVisitLogs: VisitLog[] = [
   {
     id: '3',
     userId: 'user-1',
-    user: { id: 'user-1', username: 'john.doe', email: 'john@acme.com', role: 'client', isActive: true, createdAt: new Date(), updatedAt: new Date() },
+    user: { id: 'user-1', username: 'john.doe', email: 'john@acme.com', role: 'client_user', isActive: true, createdAt: new Date(), updatedAt: new Date() },
     ipAddress: '192.168.1.100',
     page: '/media/tv/story/789',
     articleId: 'art-789',

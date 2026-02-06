@@ -4,7 +4,7 @@ interface MockUser {
   id: string
   username: string
   email: string
-  role: 'admin' | 'client'
+  role: 'admin' | 'data_entry' | 'client_user'
   isActive: boolean
   clientId?: string
 }
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
         id: '2',
         username: 'Client User',
         email,
-        role: 'client',
+        role: 'client_user',
         isActive: true,
         clientId: 'client-1',
       }
@@ -50,8 +50,8 @@ export async function POST(request: NextRequest) {
 
     // Generate mock token
     const token = {
-      accessToken: `token-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      refreshToken: `refresh-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      accessToken: `token-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
+      refreshToken: `refresh-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
       expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
     }
 
