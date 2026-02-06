@@ -126,7 +126,7 @@ export default function UsersPage() {
     deleteModal.open(user)
   }
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
     setPendingAction({ type: 'delete', data: deleteModal.data! })
     deleteModal.close()
     passwordModal.open()

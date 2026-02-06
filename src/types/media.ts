@@ -5,6 +5,7 @@ export type MediaType = 'print' | 'radio' | 'tv' | 'web'
 export interface MediaStory {
   id: string
   title: string
+  slug: string
   content: string
   mediaType: MediaType
   date: Date
