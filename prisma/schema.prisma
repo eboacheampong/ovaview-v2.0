@@ -41,17 +41,55 @@ model User {
 
 // Client Management
 model Client {
+  id             String    @id @default(cuid())
+  name           String
+  email          String?
+  phone          String?
+  address        String?
+  postalAddress  String?
+  webAddress     String?
+  contactPerson  String?
+  logoUrl        String?
+  expiryDate     DateTime?
+  isActive       Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  // News update config
+  newsEmailAlerts Boolean @default(false)
+  newsSmsAlerts   Boolean @default(false)
+  newsKeywords    String?
+
+  // Tender update config
+  tenderEmailAlerts Boolean @default(false)
+  tenderSmsAlerts   Boolean @default(false)
+  tenderKeywords    String?
+
+  users      User[]
+  industries ClientIndustry[]
+  keywords   ClientKeyword[]
+}
+
+// Keyword Management
+model Keyword {
   id        String   @id @default(cuid())
-  name      String
-  email     String?
-  phone     String?
-  address   String?
+  name      String   @unique
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users      User[]
-  industries ClientIndustry[]
+  clients ClientKeyword[]
+}
+
+model ClientKeyword {
+  id        String   @id @default(cuid())
+  clientId  String
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  keywordId String
+  keyword   Keyword  @relation(fields: [keywordId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([clientId, keywordId])
 }
 
 // Industry Classification

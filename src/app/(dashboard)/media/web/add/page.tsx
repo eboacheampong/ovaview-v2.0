@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { RichTextEditor } from '@/components/ui/rich-text-editor'
 import { SentimentDisplay } from '@/components/ui/sentiment-display'
+import { KeywordInput } from '@/components/ui/keyword-input'
 import { Camera, ChevronRight, ChevronLeft, Link2, Loader2, Sparkles, X, Globe, Calendar, User, FileText, Image as ImageIcon, Trash2, Wand2 } from 'lucide-react'
 
 interface Publication {
@@ -25,10 +26,16 @@ interface Industry {
   subIndustries: SubIndustry[]
 }
 
+interface Keyword {
+  id: string
+  name: string
+}
+
 export default function AddWebStoryPage() {
   const router = useRouter()
   const [publications, setPublications] = useState<Publication[]>([])
   const [industries, setIndustries] = useState<Industry[]>([])
+  const [availableKeywords, setAvailableKeywords] = useState<Keyword[]>([])
   const [formData, setFormData] = useState({
     title: '',
     author: '',
@@ -63,12 +70,14 @@ export default function AddWebStoryPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [pubRes, indRes] = await Promise.all([
+        const [pubRes, indRes, keywordRes] = await Promise.all([
           fetch('/api/web-publications'),
           fetch('/api/industries'),
+          fetch('/api/keywords'),
         ])
         if (pubRes.ok) setPublications(await pubRes.json())
         if (indRes.ok) setIndustries(await indRes.json())
+        if (keywordRes.ok) setAvailableKeywords(await keywordRes.json())
       } catch (err) {
         console.error('Failed to load form data:', err)
       }
@@ -177,6 +186,17 @@ export default function AddWebStoryPage() {
 
       if (data.summary) {
         setFormData(prev => ({ ...prev, summary: data.summary }))
+      }
+
+      // Update industry and keywords from AI suggestions
+      if (data.suggestedIndustryId) {
+        setFormData(prev => ({ ...prev, industryId: data.suggestedIndustryId }))
+      }
+      if (data.suggestedKeywords?.length > 0) {
+        setFormData(prev => ({ ...prev, keywords: data.suggestedKeywords.join(', ') }))
+      }
+      if (data.suggestedSubIndustryIds?.length > 0) {
+        setSelectedSubIndustries(data.suggestedSubIndustryIds)
       }
 
       if (data.sentiment) {
@@ -355,7 +375,12 @@ export default function AddWebStoryPage() {
             </div>
             <div>
               <Label htmlFor="keywords" className="text-gray-600 mb-2 block">Keywords</Label>
-              <Input id="keywords" value={formData.keywords} onChange={(e) => setFormData({ ...formData, keywords: e.target.value })} placeholder="technology, news, africa..." className="h-11" />
+              <KeywordInput
+                value={formData.keywords}
+                onChange={(value) => setFormData({ ...formData, keywords: value })}
+                availableKeywords={availableKeywords}
+                placeholder="Type to search keywords..."
+              />
             </div>
           </div>
         </div>

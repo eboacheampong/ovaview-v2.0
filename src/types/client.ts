@@ -7,14 +7,26 @@ export interface UpdateConfig {
 export interface Client {
   id: string
   name: string
-  contactEmail: string
+  contactEmail?: string
   contactPhone?: string
   address?: string
-  newsUpdateConfig: UpdateConfig
-  tenderUpdateConfig: UpdateConfig
+  postalAddress?: string
+  webAddress?: string
+  contactPerson?: string
+  logoUrl?: string
+  expiryDate?: Date | null
+  newsUpdateConfig?: UpdateConfig
+  tenderUpdateConfig?: UpdateConfig
+  newsEmailAlerts?: boolean
+  newsSmsAlerts?: boolean
+  newsKeywords?: string
+  tenderEmailAlerts?: boolean
+  tenderSmsAlerts?: boolean
+  tenderKeywords?: string
   isActive: boolean
   createdAt: Date
   updatedAt: Date
+  users?: { id: string }[]
 }
 
 export interface ClientFormData {

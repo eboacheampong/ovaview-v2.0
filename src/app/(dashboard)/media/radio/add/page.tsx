@@ -6,8 +6,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { SentimentDisplay } from '@/components/ui/sentiment-display'
+import { KeywordInput } from '@/components/ui/keyword-input'
 import { useWhisperTranscription } from '@/hooks/use-whisper-transcription'
-import { ChevronRight, ChevronLeft, Play, Pause, Loader2, ArrowLeft, Upload, X, Music, Wand2, FileText, Mic } from 'lucide-react'
+import { ChevronRight, ChevronLeft, Play, Pause, Loader2, ArrowLeft, Upload, X, Music, Wand2, FileText, Mic }from 'lucide-react'
 
 interface Station {
   id: string
@@ -32,6 +33,11 @@ interface Industry {
   subIndustries: SubIndustry[]
 }
 
+interface Keyword {
+  id: string
+  name: string
+}
+
 export default function AddRadioStoryPage() {
   const router = useRouter()
   const audioRef = useRef<HTMLAudioElement>(null)
@@ -40,6 +46,7 @@ export default function AddRadioStoryPage() {
   
   const [stations, setStations] = useState<Station[]>([])
   const [industries, setIndustries] = useState<Industry[]>([])
+  const [availableKeywords, setAvailableKeywords] = useState<Keyword[]>([])
   const [formData, setFormData] = useState({
     title: '',
     stationId: '',
@@ -71,12 +78,14 @@ export default function AddRadioStoryPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [stationRes, indRes] = await Promise.all([
+        const [stationRes, indRes, keywordRes] = await Promise.all([
           fetch('/api/radio-stations'),
           fetch('/api/industries'),
+          fetch('/api/keywords'),
         ])
         if (stationRes.ok) setStations(await stationRes.json())
         if (indRes.ok) setIndustries(await indRes.json())
+        if (keywordRes.ok) setAvailableKeywords(await keywordRes.json())
       } catch (err) {
         console.error('Failed to load form data:', err)
       }
@@ -157,7 +166,21 @@ export default function AddRadioStoryPage() {
       })
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Failed to refine')
-      setFormData(prev => ({ ...prev, title: data.title || prev.title, summary: data.transcription || prev.summary }))
+      
+      // Update form with AI suggestions
+      setFormData(prev => ({ 
+        ...prev, 
+        title: data.title || prev.title, 
+        summary: data.transcription || prev.summary,
+        industryId: data.suggestedIndustryId || prev.industryId,
+        keywords: data.suggestedKeywords?.length > 0 ? data.suggestedKeywords.join(', ') : prev.keywords,
+      }))
+      
+      // Update sub-industries if industry was suggested
+      if (data.suggestedSubIndustryIds?.length > 0) {
+        setSelectedSubIndustries(data.suggestedSubIndustryIds)
+      }
+      
       setSentimentData({ positive: data.sentiment.positive, neutral: data.sentiment.neutral, negative: data.sentiment.negative, overallSentiment: data.overallSentiment })
     } catch (error) {
       setRefineError(error instanceof Error ? error.message : 'Failed to refine')
@@ -359,7 +382,13 @@ export default function AddRadioStoryPage() {
         {/* Keywords */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
           <Label htmlFor="keywords" className="text-gray-700 font-medium">Keywords</Label>
-          <Input id="keywords" className="mt-1 h-11" value={formData.keywords} onChange={(e) => setFormData({ ...formData, keywords: e.target.value })} placeholder="politics, economy, sports..." />
+          <KeywordInput
+            value={formData.keywords}
+            onChange={(value) => setFormData({ ...formData, keywords: value })}
+            availableKeywords={availableKeywords}
+            placeholder="Type to search keywords..."
+            className="mt-1"
+          />
         </div>
 
         {/* Industry Classification */}

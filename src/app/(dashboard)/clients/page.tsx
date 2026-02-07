@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { ColumnDef } from '@tanstack/react-table'
 import { DataTable, DataTableColumnHeader } from '@/components/data-table'
 import { Button } from '@/components/ui/button'
@@ -11,28 +11,13 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { ConfirmDialog, PasswordConfirmModal, ViewModal, FormModal } from '@/components/modals'
 import { useModal } from '@/hooks/use-modal'
 import { Client } from '@/types/client'
-import { Trash2, Users, Calendar, Camera, Pencil, ChevronRight, ChevronLeft, Building2 } from 'lucide-react'
+import { Trash2, Users, Camera, Pencil, ChevronRight, ChevronLeft, Building2, Loader2, X } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
-const mockClients: Client[] = [
-  { id: '1', name: 'TechVision Solutions', contactEmail: 'contact@techvision.com', contactPhone: '+1234567890', newsUpdateConfig: { enabled: true, frequency: 'daily', industries: ['tech'] }, tenderUpdateConfig: { enabled: true, frequency: 'weekly', industries: ['tech'] }, isActive: true, createdAt: new Date('2024-01-01'), updatedAt: new Date('2024-01-01') },
-  { id: '2', name: 'Global Finance Corp', contactEmail: 'info@globalfinance.com', newsUpdateConfig: { enabled: true, frequency: 'realtime', industries: ['banking'] }, tenderUpdateConfig: { enabled: false, frequency: 'daily', industries: [] }, isActive: true, createdAt: new Date('2024-02-01'), updatedAt: new Date('2024-02-01') },
-  { id: '3', name: 'MediCare Health', contactEmail: 'info@medicare.com', newsUpdateConfig: { enabled: true, frequency: 'daily', industries: ['healthcare'] }, tenderUpdateConfig: { enabled: true, frequency: 'daily', industries: ['healthcare'] }, isActive: false, createdAt: new Date('2024-02-15'), updatedAt: new Date('2024-02-15') },
-  { id: '4', name: 'EcoEnergy Ltd', contactEmail: 'contact@ecoenergy.com', newsUpdateConfig: { enabled: true, frequency: 'weekly', industries: ['energy'] }, tenderUpdateConfig: { enabled: true, frequency: 'weekly', industries: ['energy'] }, isActive: true, createdAt: new Date('2024-03-01'), updatedAt: new Date('2024-03-01') },
-  { id: '5', name: 'Urban Builders Inc', contactEmail: 'info@urbanbuilders.com', newsUpdateConfig: { enabled: false, frequency: 'daily', industries: [] }, tenderUpdateConfig: { enabled: true, frequency: 'daily', industries: ['construction'] }, isActive: true, createdAt: new Date('2024-03-10'), updatedAt: new Date('2024-03-10') },
-]
-
-const industries = [
-  'Agriculture, Food & Beverages', 'Automobile', 'Aviation', 'Banking, Financial Services & Insurance',
-  'Consulting', 'Education & Training', 'Energy, Power & Electricity', 'Healthcare & Pharmaceuticals',
-  'Information Technology', 'Manufacturing', 'Media & Entertainment', 'Real Estate & Construction',
-  'Retail & Consumer Goods', 'Telecommunications', 'Transportation & Logistics',
-]
-
-const subIndustriesMap: Record<string, string[]> = {
-  'Information Technology': ['Software', 'Hardware', 'AI/ML', 'Cybersecurity', 'Cloud Computing'],
-  'Banking, Financial Services & Insurance': ['Banking', 'Insurance', 'Investment', 'Fintech'],
-  'Healthcare & Pharmaceuticals': ['Pharmaceuticals', 'Medical Devices', 'Hospitals', 'Biotech'],
+interface Industry {
+  id: string
+  name: string
+  subIndustries: { id: string; name: string }[]
 }
 
 type TabType = 'list' | 'create'
@@ -40,10 +25,17 @@ type ConfigTab = 'news' | 'tenders'
 
 export default function ClientsPage() {
   const router = useRouter()
-  const [clients, setClients] = useState<Client[]>(mockClients)
+  const logoInputRef = useRef<HTMLInputElement>(null)
+  const editLogoInputRef = useRef<HTMLInputElement>(null)
+  const [clients, setClients] = useState<Client[]>([])
+  const [industries, setIndustries] = useState<Industry[]>([])
   const [activeTab, setActiveTab] = useState<TabType>('list')
   const [configTab, setConfigTab] = useState<ConfigTab>('news')
-  const [isLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [logoFile, setLogoFile] = useState<File | null>(null)
+  const [logoPreview, setLogoPreview] = useState<string | null>(null)
+  const [editLogoFile, setEditLogoFile] = useState<File | null>(null)
+  const [editLogoPreview, setEditLogoPreview] = useState<string | null>(null)
 
   const [formData, setFormData] = useState({
     name: '', email: '', postalAddress: '', physicalAddress: '', webAddress: '',
@@ -82,12 +74,81 @@ export default function ClientsPage() {
   const [editTendersSmsAlerts, setEditTendersSmsAlerts] = useState(false)
   const [editTendersKeywords, setEditTendersKeywords] = useState('')
   const [editTendersSelectedIndustries, setEditTendersSelectedIndustries] = useState<string[]>([])
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const editAvailableSubIndustries = editNewsIndustryId ? (subIndustriesMap[editNewsIndustryId] || []).filter(s => !editNewsSelectedSubIndustries.includes(s)) : []
-  const editAvailableIndustries = industries.filter(i => !editTendersSelectedIndustries.includes(i))
+  useEffect(() => {
+    fetchClients()
+    fetchIndustries()
+  }, [])
 
-  const availableSubIndustries = newsIndustryId ? (subIndustriesMap[newsIndustryId] || []).filter(s => !newsSelectedSubIndustries.includes(s)) : []
-  const availableIndustries = industries.filter(i => !tendersSelectedIndustries.includes(i))
+  const fetchClients = async () => {
+    try {
+      const res = await fetch('/api/clients')
+      if (res.ok) {
+        const data = await res.json()
+        setClients(data.map((c: Record<string, unknown>) => ({
+          ...c,
+          contactEmail: c.email,
+          contactPhone: c.phone,
+          newsUpdateConfig: { enabled: c.newsEmailAlerts || c.newsSmsAlerts, frequency: 'daily', industries: [] },
+          tenderUpdateConfig: { enabled: c.tenderEmailAlerts || c.tenderSmsAlerts, frequency: 'daily', industries: [] },
+          createdAt: new Date(c.createdAt as string),
+          updatedAt: new Date(c.updatedAt as string),
+        })))
+      }
+    } catch (err) {
+      console.error('Failed to fetch clients:', err)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const fetchIndustries = async () => {
+    try {
+      const res = await fetch('/api/industries')
+      if (res.ok) setIndustries(await res.json())
+    } catch (err) {
+      console.error('Failed to fetch industries:', err)
+    }
+  }
+
+  const selectedIndustry = industries.find(i => i.id === newsIndustryId)
+  const availableSubIndustries = selectedIndustry?.subIndustries.filter(s => !newsSelectedSubIndustries.includes(s.id)) || []
+  const availableIndustries = industries.filter(i => !tendersSelectedIndustries.includes(i.id))
+  const editSelectedIndustry = industries.find(i => i.id === editNewsIndustryId)
+  const editAvailableSubIndustries = editSelectedIndustry?.subIndustries.filter(s => !editNewsSelectedSubIndustries.includes(s.id)) || []
+  const editAvailableIndustries = industries.filter(i => !editTendersSelectedIndustries.includes(i.id))
+
+  const handleLogoSelect = (e: React.ChangeEvent<HTMLInputElement>, isEdit = false) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      if (!file.type.startsWith('image/')) { alert('Please select an image file'); return }
+      if (file.size > 5 * 1024 * 1024) { alert('Image must be less than 5MB'); return }
+      if (isEdit) {
+        setEditLogoFile(file)
+        setEditLogoPreview(URL.createObjectURL(file))
+      } else {
+        setLogoFile(file)
+        setLogoPreview(URL.createObjectURL(file))
+      }
+    }
+  }
+
+  const uploadLogo = async (file: File): Promise<string | null> => {
+    const formDataUpload = new FormData()
+    formDataUpload.append('file', file)
+    formDataUpload.append('folder', 'client-logos')
+    try {
+      const res = await fetch('/api/upload', { method: 'POST', body: formDataUpload })
+      if (res.ok) {
+        const { url } = await res.json()
+        return url
+      }
+    } catch (err) {
+      console.error('Logo upload failed:', err)
+    }
+    return null
+  }
 
   const validatePassword = async (password: string): Promise<boolean> => {
     await new Promise(resolve => setTimeout(resolve, 500))
@@ -103,74 +164,117 @@ export default function ClientsPage() {
 
   const handlePasswordConfirm = async (password: string) => {
     await validatePassword(password)
-    if (pendingAction?.type === 'create') {
-      const data = pendingAction.data as typeof formData
-      const newClient: Client = {
-        id: String(Date.now()), name: data.name, contactEmail: data.email, contactPhone: data.phoneNumber,
-        address: data.physicalAddress, newsUpdateConfig: { enabled: newsEmailAlerts || newsSmsAlerts, frequency: 'daily', industries: newsSelectedSubIndustries },
-        tenderUpdateConfig: { enabled: tendersEmailAlerts || tendersSmsAlerts, frequency: 'daily', industries: tendersSelectedIndustries },
-        isActive: data.isActive, createdAt: new Date(), updatedAt: new Date(),
+    setIsSubmitting(true)
+    try {
+      if (pendingAction?.type === 'create') {
+        let logoUrl = null
+        if (logoFile) logoUrl = await uploadLogo(logoFile)
+        
+        const res = await fetch('/api/clients', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: formData.name, email: formData.email, phone: formData.phoneNumber,
+            address: formData.physicalAddress, postalAddress: formData.postalAddress,
+            webAddress: formData.webAddress, contactPerson: formData.contactPerson,
+            expiryDate: formData.expiryDate || null, isActive: formData.isActive, logoUrl,
+            newsEmailAlerts, newsSmsAlerts, newsKeywords,
+            newsIndustryIds: newsSelectedSubIndustries,
+            tenderEmailAlerts: tendersEmailAlerts, tenderSmsAlerts: tendersSmsAlerts,
+            tenderKeywords: tendersKeywords, tenderIndustryIds: tendersSelectedIndustries,
+          }),
+        })
+        if (res.ok) {
+          await fetchClients()
+          resetForm()
+          setActiveTab('list')
+        }
+      } else if (pendingAction?.type === 'delete') {
+        const client = pendingAction.data as Client
+        const res = await fetch(`/api/clients/${client.id}`, { method: 'DELETE' })
+        if (res.ok) setClients(clients.filter(c => c.id !== client.id))
+      } else if (pendingAction?.type === 'toggle') {
+        const client = pendingAction.data as Client
+        const res = await fetch(`/api/clients/${client.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ isActive: !client.isActive }),
+        })
+        if (res.ok) setClients(clients.map(c => c.id === client.id ? { ...c, isActive: !c.isActive } : c))
       }
-      setClients([...clients, newClient])
-      setFormData({ name: '', email: '', postalAddress: '', physicalAddress: '', webAddress: '', phoneNumber: '', contactPerson: '', expiryDate: '', isActive: false })
-      setActiveTab('list')
-    } else if (pendingAction?.type === 'delete') {
-      setClients(clients.filter(c => c.id !== (pendingAction.data as Client).id))
-    } else if (pendingAction?.type === 'toggle') {
-      const client = pendingAction.data as Client
-      setClients(clients.map(c => c.id === client.id ? { ...c, isActive: !c.isActive } : c))
+    } finally {
+      setIsSubmitting(false)
+      setPendingAction(null)
     }
-    setPendingAction(null)
+  }
+
+  const resetForm = () => {
+    setFormData({ name: '', email: '', postalAddress: '', physicalAddress: '', webAddress: '', phoneNumber: '', contactPerson: '', expiryDate: '', isActive: false })
+    setNewsEmailAlerts(false); setNewsSmsAlerts(false); setNewsKeywords(''); setNewsIndustryId(''); setNewsSelectedSubIndustries([])
+    setTendersEmailAlerts(false); setTendersSmsAlerts(false); setTendersKeywords(''); setTendersSelectedIndustries([])
+    setLogoFile(null); setLogoPreview(null)
   }
 
   const handleDeleteClick = (client: Client) => deleteModal.open(client)
   const handleDeleteConfirm = async () => { setPendingAction({ type: 'delete', data: deleteModal.data! }); deleteModal.close(); passwordModal.open() }
   const handleToggleStatus = (client: Client) => { setPendingAction({ type: 'toggle', data: client }); passwordModal.open() }
   const handleViewClient = (client: Client) => viewModal.open(client)
+
   const handleEditClient = (client: Client) => {
     setEditFormData({
-      name: client.name,
-      email: client.contactEmail || '',
-      postalAddress: '',
-      physicalAddress: client.address || '',
-      webAddress: '',
-      phoneNumber: client.contactPhone || '',
-      contactPerson: '',
-      expiryDate: '',
-      isActive: client.isActive,
+      name: client.name, email: client.contactEmail || '', postalAddress: client.postalAddress || '',
+      physicalAddress: client.address || '', webAddress: client.webAddress || '',
+      phoneNumber: client.contactPhone || '', contactPerson: client.contactPerson || '',
+      expiryDate: '', isActive: client.isActive,
     })
-    setEditNewsEmailAlerts(client.newsUpdateConfig?.enabled || false)
-    setEditNewsSmsAlerts(false)
-    setEditNewsKeywords('')
+    setEditNewsEmailAlerts(client.newsEmailAlerts || false)
+    setEditNewsSmsAlerts(client.newsSmsAlerts || false)
+    setEditNewsKeywords(client.newsKeywords || '')
     setEditNewsIndustryId('')
-    setEditNewsSelectedSubIndustries(client.newsUpdateConfig?.industries || [])
-    setEditTendersEmailAlerts(client.tenderUpdateConfig?.enabled || false)
-    setEditTendersSmsAlerts(false)
-    setEditTendersKeywords('')
-    setEditTendersSelectedIndustries(client.tenderUpdateConfig?.industries || [])
+    setEditNewsSelectedSubIndustries([])
+    setEditTendersEmailAlerts(client.tenderEmailAlerts || false)
+    setEditTendersSmsAlerts(client.tenderSmsAlerts || false)
+    setEditTendersKeywords(client.tenderKeywords || '')
+    setEditTendersSelectedIndustries([])
+    setEditLogoPreview(client.logoUrl || null)
+    setEditLogoFile(null)
     setEditConfigTab('news')
     editModal.open(client)
   }
+
   const handleEditSubmit = async () => {
-    if (editModal.data) {
-      setClients(clients.map(c => c.id === editModal.data!.id ? {
-        ...c,
-        name: editFormData.name,
-        contactEmail: editFormData.email,
-        contactPhone: editFormData.phoneNumber,
-        address: editFormData.physicalAddress,
-        isActive: editFormData.isActive,
-        newsUpdateConfig: { enabled: editNewsEmailAlerts || editNewsSmsAlerts, frequency: 'daily', industries: editNewsSelectedSubIndustries },
-        tenderUpdateConfig: { enabled: editTendersEmailAlerts || editTendersSmsAlerts, frequency: 'daily', industries: editTendersSelectedIndustries },
-        updatedAt: new Date(),
-      } : c))
-      editModal.close()
+    if (!editModal.data) return
+    setIsSubmitting(true)
+    try {
+      let logoUrl = editLogoPreview
+      if (editLogoFile) logoUrl = await uploadLogo(editLogoFile)
+      
+      const res = await fetch(`/api/clients/${editModal.data.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editFormData.name, email: editFormData.email, phone: editFormData.phoneNumber,
+          address: editFormData.physicalAddress, postalAddress: editFormData.postalAddress,
+          webAddress: editFormData.webAddress, contactPerson: editFormData.contactPerson,
+          expiryDate: editFormData.expiryDate || null, isActive: editFormData.isActive, logoUrl,
+          newsEmailAlerts: editNewsEmailAlerts, newsSmsAlerts: editNewsSmsAlerts, newsKeywords: editNewsKeywords,
+          newsIndustryIds: editNewsSelectedSubIndustries,
+          tenderEmailAlerts: editTendersEmailAlerts, tenderSmsAlerts: editTendersSmsAlerts,
+          tenderKeywords: editTendersKeywords, tenderIndustryIds: editTendersSelectedIndustries,
+        }),
+      })
+      if (res.ok) {
+        await fetchClients()
+        editModal.close()
+      }
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
   const columns: ColumnDef<Client>[] = [
     { accessorKey: 'name', header: ({ column }) => <DataTableColumnHeader column={column} title="Client Name" />, cell: ({ row }) => <span className="text-blue-600 hover:underline cursor-pointer" onClick={() => handleViewClient(row.original)}>{row.getValue('name')}</span> },
-    { id: 'clientUsers', header: 'Client Users', cell: ({ row }) => <Button variant="ghost" size="sm" onClick={() => router.push(`/client-users?clientId=${row.original.id}`)} className="text-gray-600"><Users className="h-4 w-4 mr-1" />{Math.floor(Math.random() * 10) + 1}</Button> },
+    { id: 'clientUsers', header: 'Client Users', cell: ({ row }) => <Button variant="ghost" size="sm" onClick={() => router.push(`/client-users?clientId=${row.original.id}`)} className="text-gray-600"><Users className="h-4 w-4 mr-1" />{row.original.users ? row.original.users.length : 0}</Button> },
     { accessorKey: 'isActive', header: ({ column }) => <DataTableColumnHeader column={column} title="Status" />, cell: ({ row }) => { const isActive = row.getValue('isActive') as boolean; return <Badge variant="outline" className={isActive ? 'border-green-200 bg-green-50 text-green-700' : 'border-gray-200 bg-gray-50 text-gray-500'}>{isActive ? 'Active' : 'Deactivated'}</Badge> } },
     { id: 'toggle', header: '(De)Activate', cell: ({ row }) => <button onClick={() => handleToggleStatus(row.original)} className={`text-sm ${row.original.isActive ? 'text-orange-600 hover:text-orange-700' : 'text-blue-600 hover:text-blue-700'}`}>{row.original.isActive ? 'Deactivate' : 'Re-activate'}</button> },
     { id: 'actions', header: 'Actions', cell: ({ row }) => (
@@ -199,7 +303,6 @@ export default function ClientsPage() {
         <DataTable columns={columns} data={clients} isLoading={isLoading} searchPlaceholder="Search clients..." searchColumn="name" />
       ) : (
         <div className="max-w-4xl mx-auto space-y-8">
-          {/* Client Details Form */}
           <div className="bg-white rounded-lg border border-gray-200 p-6">
             <div className="grid grid-cols-2 gap-6">
               <div className="space-y-2"><Label className="text-gray-700">Client Name</Label><Input placeholder="ABC Company" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} /></div>
@@ -212,12 +315,20 @@ export default function ClientsPage() {
               <div className="space-y-2"><Label className="text-gray-700">Expiry Date</Label><Input type="date" value={formData.expiryDate} onChange={(e) => setFormData({ ...formData, expiryDate: e.target.value })} /></div>
             </div>
             <div className="mt-6 space-y-4">
-              <Button variant="outline"><Camera className="h-4 w-4 mr-2" />Client Logo</Button>
+              <input ref={logoInputRef} type="file" accept="image/*" onChange={(e) => handleLogoSelect(e)} className="hidden" />
+              <div className="flex items-center gap-4">
+                <Button type="button" variant="outline" onClick={() => logoInputRef.current?.click()}><Camera className="h-4 w-4 mr-2" />Client Logo</Button>
+                {logoPreview && (
+                  <div className="relative">
+                    <img src={logoPreview} alt="Logo preview" className="h-12 w-12 object-cover rounded" />
+                    <button type="button" onClick={() => { setLogoFile(null); setLogoPreview(null) }} className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full"><X className="h-3 w-3" /></button>
+                  </div>
+                )}
+              </div>
               <div className="flex items-center gap-2"><Checkbox id="active" checked={formData.isActive} onCheckedChange={(checked) => setFormData({ ...formData, isActive: checked as boolean })} /><Label htmlFor="active" className="cursor-pointer">Active</Label></div>
             </div>
           </div>
 
-          {/* Configure Updates Section */}
           <div className="bg-white rounded-lg border border-gray-200 p-6">
             <h3 className="text-lg font-medium text-gray-700 mb-4">Configure Updates</h3>
             <div className="border-b border-gray-200 mb-4">
@@ -230,44 +341,33 @@ export default function ClientsPage() {
             {configTab === 'news' && (
               <div className="space-y-4">
                 <div className="flex gap-8">
-                  <div className="flex items-center gap-2"><Checkbox id="newsEmail" checked={newsEmailAlerts} onCheckedChange={(c) => setNewsEmailAlerts(!!c)} /><Label htmlFor="newsEmail" className="text-sm">Email Alerts</Label></div>
-                  <div className="flex items-center gap-2"><Checkbox id="newsSms" checked={newsSmsAlerts} onCheckedChange={(c) => setNewsSmsAlerts(!!c)} /><Label htmlFor="newsSms" className="text-sm">SMS Alerts</Label></div>
+                  <div className="flex items-center gap-2"><Checkbox id="newsEmail" checked={newsEmailAlerts} onCheckedChange={(c) => setNewsEmailAlerts(!!c)} /><Label htmlFor="newsEmail" className="text-sm cursor-pointer">Email Alerts</Label></div>
+                  <div className="flex items-center gap-2"><Checkbox id="newsSms" checked={newsSmsAlerts} onCheckedChange={(c) => setNewsSmsAlerts(!!c)} /><Label htmlFor="newsSms" className="text-sm cursor-pointer">SMS Alerts</Label></div>
                 </div>
                 <div><Label className="text-gray-700">Keywords</Label><textarea className="w-full min-h-[80px] mt-1 rounded-md border border-gray-300 p-3 resize-y" value={newsKeywords} onChange={(e) => setNewsKeywords(e.target.value)} placeholder="keywords" /></div>
                 <div><Label className="text-gray-700">Industry</Label>
                   <select className="w-full h-10 mt-1 rounded-md border border-gray-300 px-3 bg-white max-w-md" value={newsIndustryId} onChange={(e) => { setNewsIndustryId(e.target.value); setNewsSelectedSubIndustries([]) }}>
                     <option value="">Select Industry</option>
-                    {industries.map(ind => <option key={ind} value={ind}>{ind}</option>)}
+                    {industries.map(ind => <option key={ind.id} value={ind.id}>{ind.name}</option>)}
                   </select>
                 </div>
                 <div className="grid grid-cols-2 gap-6">
                   <div>
                     <Label className="text-gray-600 text-center block mb-3">Available Sub-industries</Label>
                     <div className="border border-gray-200 rounded-lg h-48 overflow-y-auto bg-gray-50">
-                      {availableSubIndustries.length === 0 ? (
-                        <p className="text-gray-400 text-sm text-center py-4">No more sub-industries</p>
-                      ) : (
-                        availableSubIndustries.map(s => (
-                          <div key={s} className="px-4 py-3 hover:bg-white cursor-pointer flex justify-between items-center border-b border-gray-100 last:border-0 transition-colors" onClick={() => setNewsSelectedSubIndustries([...newsSelectedSubIndustries, s])}>
-                            <span className="text-gray-700">{s}</span>
-                            <ChevronRight className="h-4 w-4 text-gray-400" />
-                          </div>
-                        ))
+                      {availableSubIndustries.length === 0 ? (<p className="text-gray-400 text-sm text-center py-4">No more sub-industries</p>) : (
+                        availableSubIndustries.map(s => (<div key={s.id} className="px-4 py-3 hover:bg-white cursor-pointer flex justify-between items-center border-b border-gray-100 last:border-0 transition-colors" onClick={() => setNewsSelectedSubIndustries([...newsSelectedSubIndustries, s.id])}><span className="text-gray-700">{s.name}</span><ChevronRight className="h-4 w-4 text-gray-400" /></div>))
                       )}
                     </div>
                   </div>
                   <div>
                     <Label className="text-gray-600 text-center block mb-3">Selected Sub-industries</Label>
                     <div className="border border-gray-200 rounded-lg h-48 overflow-y-auto bg-orange-50">
-                      {newsSelectedSubIndustries.length === 0 ? (
-                        <p className="text-gray-400 text-sm text-center py-4">Click to add sub-industries</p>
-                      ) : (
-                        newsSelectedSubIndustries.map(s => (
-                          <div key={s} className="px-4 py-3 hover:bg-orange-100 cursor-pointer flex justify-between items-center border-b border-orange-100 last:border-0 transition-colors" onClick={() => setNewsSelectedSubIndustries(newsSelectedSubIndustries.filter(x => x !== s))}>
-                            <ChevronLeft className="h-4 w-4 text-orange-400" />
-                            <span className="text-gray-700">{s}</span>
-                          </div>
-                        ))
+                      {newsSelectedSubIndustries.length === 0 ? (<p className="text-gray-400 text-sm text-center py-4">Click to add sub-industries</p>) : (
+                        newsSelectedSubIndustries.map(id => {
+                          const sub = selectedIndustry?.subIndustries.find(s => s.id === id)
+                          return (<div key={id} className="px-4 py-3 hover:bg-orange-100 cursor-pointer flex justify-between items-center border-b border-orange-100 last:border-0 transition-colors" onClick={() => setNewsSelectedSubIndustries(newsSelectedSubIndustries.filter(x => x !== id))}><ChevronLeft className="h-4 w-4 text-orange-400" /><span className="text-gray-700">{sub?.name || id}</span></div>)
+                        })
                       )}
                     </div>
                   </div>
@@ -278,8 +378,8 @@ export default function ClientsPage() {
             {configTab === 'tenders' && (
               <div className="space-y-4">
                 <div className="flex gap-8">
-                  <div className="flex items-center gap-2"><Checkbox id="tendersEmail" checked={tendersEmailAlerts} onCheckedChange={(c) => setTendersEmailAlerts(!!c)} /><Label htmlFor="tendersEmail" className="text-sm">Email Alerts</Label></div>
-                  <div className="flex items-center gap-2"><Checkbox id="tendersSms" checked={tendersSmsAlerts} onCheckedChange={(c) => setTendersSmsAlerts(!!c)} /><Label htmlFor="tendersSms" className="text-sm">SMS Alerts</Label></div>
+                  <div className="flex items-center gap-2"><Checkbox id="tendersEmail" checked={tendersEmailAlerts} onCheckedChange={(c) => setTendersEmailAlerts(!!c)} /><Label htmlFor="tendersEmail" className="text-sm cursor-pointer">Email Alerts</Label></div>
+                  <div className="flex items-center gap-2"><Checkbox id="tendersSms" checked={tendersSmsAlerts} onCheckedChange={(c) => setTendersSmsAlerts(!!c)} /><Label htmlFor="tendersSms" className="text-sm cursor-pointer">SMS Alerts</Label></div>
                 </div>
                 <div><Label className="text-gray-700">Keywords</Label><textarea className="w-full min-h-[80px] mt-1 rounded-md border border-gray-300 p-3 resize-y" value={tendersKeywords} onChange={(e) => setTendersKeywords(e.target.value)} placeholder="keywords" /></div>
                 <div>
@@ -288,30 +388,19 @@ export default function ClientsPage() {
                     <div>
                       <Label className="text-gray-600 text-center block mb-3">Available Industries</Label>
                       <div className="border border-gray-200 rounded-lg h-48 overflow-y-auto bg-gray-50">
-                        {availableIndustries.length === 0 ? (
-                          <p className="text-gray-400 text-sm text-center py-4">No more industries</p>
-                        ) : (
-                          availableIndustries.map(ind => (
-                            <div key={ind} className="px-4 py-3 hover:bg-white cursor-pointer flex justify-between items-center border-b border-gray-100 last:border-0 transition-colors" onClick={() => setTendersSelectedIndustries([...tendersSelectedIndustries, ind])}>
-                              <span className="text-gray-700">{ind}</span>
-                              <ChevronRight className="h-4 w-4 text-gray-400" />
-                            </div>
-                          ))
+                        {availableIndustries.length === 0 ? (<p className="text-gray-400 text-sm text-center py-4">No more industries</p>) : (
+                          availableIndustries.map(ind => (<div key={ind.id} className="px-4 py-3 hover:bg-white cursor-pointer flex justify-between items-center border-b border-gray-100 last:border-0 transition-colors" onClick={() => setTendersSelectedIndustries([...tendersSelectedIndustries, ind.id])}><span className="text-gray-700">{ind.name}</span><ChevronRight className="h-4 w-4 text-gray-400" /></div>))
                         )}
                       </div>
                     </div>
                     <div>
                       <Label className="text-gray-600 text-center block mb-3">Selected Industries</Label>
                       <div className="border border-gray-200 rounded-lg h-48 overflow-y-auto bg-orange-50">
-                        {tendersSelectedIndustries.length === 0 ? (
-                          <p className="text-gray-400 text-sm text-center py-4">Click to add industries</p>
-                        ) : (
-                          tendersSelectedIndustries.map(ind => (
-                            <div key={ind} className="px-4 py-3 hover:bg-orange-100 cursor-pointer flex justify-between items-center border-b border-orange-100 last:border-0 transition-colors" onClick={() => setTendersSelectedIndustries(tendersSelectedIndustries.filter(x => x !== ind))}>
-                              <ChevronLeft className="h-4 w-4 text-orange-400" />
-                              <span className="text-gray-700">{ind}</span>
-                            </div>
-                          ))
+                        {tendersSelectedIndustries.length === 0 ? (<p className="text-gray-400 text-sm text-center py-4">Click to add industries</p>) : (
+                          tendersSelectedIndustries.map(id => {
+                            const ind = industries.find(i => i.id === id)
+                            return (<div key={id} className="px-4 py-3 hover:bg-orange-100 cursor-pointer flex justify-between items-center border-b border-orange-100 last:border-0 transition-colors" onClick={() => setTendersSelectedIndustries(tendersSelectedIndustries.filter(x => x !== id))}><ChevronLeft className="h-4 w-4 text-orange-400" /><span className="text-gray-700">{ind?.name || id}</span></div>)
+                          })
                         )}
                       </div>
                     </div>
@@ -322,7 +411,9 @@ export default function ClientsPage() {
           </div>
 
           <div className="flex justify-end pt-4 border-t border-gray-200">
-            <Button onClick={handleCreateSubmit} disabled={!formData.name || !formData.email} className="bg-gray-400 hover:bg-gray-500 text-white px-8">Save Changes</Button>
+            <Button onClick={handleCreateSubmit} disabled={!formData.name || !formData.email || isSubmitting} className="bg-gray-400 hover:bg-gray-500 text-white px-8">
+              {isSubmitting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving...</> : 'Save Changes'}
+            </Button>
           </div>
         </div>
       )}
@@ -333,6 +424,7 @@ export default function ClientsPage() {
       <ViewModal isOpen={viewModal.isOpen} onClose={viewModal.close} title={viewModal.data?.name || 'Client Details'} subtitle="Client Information" icon={<Building2 className="h-6 w-6" />} actions={<Button onClick={() => { viewModal.close(); if (viewModal.data) handleEditClient(viewModal.data) }} className="bg-orange-500 hover:bg-orange-600 text-white"><Pencil className="h-4 w-4 mr-2" />Edit</Button>}>
         {viewModal.data && (
           <div className="space-y-4">
+            {viewModal.data.logoUrl && <img src={viewModal.data.logoUrl} alt="Client logo" className="h-16 w-16 object-cover rounded" />}
             <div className="grid grid-cols-2 gap-4">
               <div><Label className="text-gray-500 text-sm">Email</Label><p className="text-gray-900">{viewModal.data.contactEmail || '-'}</p></div>
               <div><Label className="text-gray-500 text-sm">Phone</Label><p className="text-gray-900">{viewModal.data.contactPhone || '-'}</p></div>
@@ -344,9 +436,8 @@ export default function ClientsPage() {
         )}
       </ViewModal>
 
-      <FormModal isOpen={editModal.isOpen} onClose={editModal.close} title="Edit Client" description="Update client information" icon={<Building2 className="h-6 w-6" />} onSubmit={handleEditSubmit} isSubmitting={false} submitLabel="Save Changes" size="xl">
+      <FormModal isOpen={editModal.isOpen} onClose={editModal.close} title="Edit Client" description="Update client information" icon={<Building2 className="h-6 w-6" />} onSubmit={handleEditSubmit} isSubmitting={isSubmitting} submitLabel="Save Changes" size="xl">
         <div className="space-y-6">
-          {/* Client Details */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2"><Label className="text-gray-700">Client Name</Label><Input placeholder="ABC Company" value={editFormData.name} onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })} /></div>
             <div className="space-y-2"><Label className="text-gray-700">Email</Label><Input type="email" placeholder="abc@company.com" value={editFormData.email} onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })} /></div>
@@ -358,11 +449,17 @@ export default function ClientsPage() {
             <div className="space-y-2"><Label className="text-gray-700">Expiry Date</Label><Input type="date" value={editFormData.expiryDate} onChange={(e) => setEditFormData({ ...editFormData, expiryDate: e.target.value })} /></div>
           </div>
           <div className="flex items-center gap-4">
-            <Button type="button" variant="outline"><Camera className="h-4 w-4 mr-2" />Client Logo</Button>
+            <input ref={editLogoInputRef} type="file" accept="image/*" onChange={(e) => handleLogoSelect(e, true)} className="hidden" />
+            <Button type="button" variant="outline" onClick={() => editLogoInputRef.current?.click()}><Camera className="h-4 w-4 mr-2" />Client Logo</Button>
+            {editLogoPreview && (
+              <div className="relative">
+                <img src={editLogoPreview} alt="Logo preview" className="h-12 w-12 object-cover rounded" />
+                <button type="button" onClick={() => { setEditLogoFile(null); setEditLogoPreview(null) }} className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full"><X className="h-3 w-3" /></button>
+              </div>
+            )}
             <div className="flex items-center gap-2"><Checkbox id="editActive" checked={editFormData.isActive} onCheckedChange={(checked) => setEditFormData({ ...editFormData, isActive: checked as boolean })} /><Label htmlFor="editActive" className="cursor-pointer">Active</Label></div>
           </div>
 
-          {/* Configure Updates */}
           <div className="border-t border-gray-200 pt-4">
             <h3 className="text-lg font-medium text-gray-700 mb-4">Configure Updates</h3>
             <div className="border-b border-gray-200 mb-4">
@@ -375,44 +472,33 @@ export default function ClientsPage() {
             {editConfigTab === 'news' && (
               <div className="space-y-4">
                 <div className="flex gap-8">
-                  <div className="flex items-center gap-2"><Checkbox id="editNewsEmail" checked={editNewsEmailAlerts} onCheckedChange={(c) => setEditNewsEmailAlerts(!!c)} /><Label htmlFor="editNewsEmail" className="text-sm">Email Alerts</Label></div>
-                  <div className="flex items-center gap-2"><Checkbox id="editNewsSms" checked={editNewsSmsAlerts} onCheckedChange={(c) => setEditNewsSmsAlerts(!!c)} /><Label htmlFor="editNewsSms" className="text-sm">SMS Alerts</Label></div>
+                  <div className="flex items-center gap-2"><Checkbox id="editNewsEmail" checked={editNewsEmailAlerts} onCheckedChange={(c) => setEditNewsEmailAlerts(!!c)} /><Label htmlFor="editNewsEmail" className="text-sm cursor-pointer">Email Alerts</Label></div>
+                  <div className="flex items-center gap-2"><Checkbox id="editNewsSms" checked={editNewsSmsAlerts} onCheckedChange={(c) => setEditNewsSmsAlerts(!!c)} /><Label htmlFor="editNewsSms" className="text-sm cursor-pointer">SMS Alerts</Label></div>
                 </div>
                 <div><Label className="text-gray-700">Keywords</Label><textarea className="w-full min-h-[60px] mt-1 rounded-md border border-gray-300 p-3 resize-y" value={editNewsKeywords} onChange={(e) => setEditNewsKeywords(e.target.value)} placeholder="keywords" /></div>
                 <div><Label className="text-gray-700">Industry</Label>
                   <select className="w-full h-10 mt-1 rounded-md border border-gray-300 px-3 bg-white" value={editNewsIndustryId} onChange={(e) => { setEditNewsIndustryId(e.target.value); setEditNewsSelectedSubIndustries([]) }}>
                     <option value="">Select Industry</option>
-                    {industries.map(ind => <option key={ind} value={ind}>{ind}</option>)}
+                    {industries.map(ind => <option key={ind.id} value={ind.id}>{ind.name}</option>)}
                   </select>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label className="text-gray-600 text-center block mb-2 text-sm">Available Sub-industries</Label>
                     <div className="border border-gray-200 rounded-lg h-32 overflow-y-auto bg-gray-50">
-                      {editAvailableSubIndustries.length === 0 ? (
-                        <p className="text-gray-400 text-sm text-center py-4">No sub-industries</p>
-                      ) : (
-                        editAvailableSubIndustries.map(s => (
-                          <div key={s} className="px-3 py-2 hover:bg-white cursor-pointer flex justify-between items-center border-b border-gray-100 last:border-0 text-sm" onClick={() => setEditNewsSelectedSubIndustries([...editNewsSelectedSubIndustries, s])}>
-                            <span className="text-gray-700">{s}</span>
-                            <ChevronRight className="h-3 w-3 text-gray-400" />
-                          </div>
-                        ))
+                      {editAvailableSubIndustries.length === 0 ? (<p className="text-gray-400 text-sm text-center py-4">No sub-industries</p>) : (
+                        editAvailableSubIndustries.map(s => (<div key={s.id} className="px-3 py-2 hover:bg-white cursor-pointer flex justify-between items-center border-b border-gray-100 last:border-0 text-sm" onClick={() => setEditNewsSelectedSubIndustries([...editNewsSelectedSubIndustries, s.id])}><span className="text-gray-700">{s.name}</span><ChevronRight className="h-3 w-3 text-gray-400" /></div>))
                       )}
                     </div>
                   </div>
                   <div>
                     <Label className="text-gray-600 text-center block mb-2 text-sm">Selected Sub-industries</Label>
                     <div className="border border-gray-200 rounded-lg h-32 overflow-y-auto bg-orange-50">
-                      {editNewsSelectedSubIndustries.length === 0 ? (
-                        <p className="text-gray-400 text-sm text-center py-4">Click to add</p>
-                      ) : (
-                        editNewsSelectedSubIndustries.map(s => (
-                          <div key={s} className="px-3 py-2 hover:bg-orange-100 cursor-pointer flex justify-between items-center border-b border-orange-100 last:border-0 text-sm" onClick={() => setEditNewsSelectedSubIndustries(editNewsSelectedSubIndustries.filter(x => x !== s))}>
-                            <ChevronLeft className="h-3 w-3 text-orange-400" />
-                            <span className="text-gray-700">{s}</span>
-                          </div>
-                        ))
+                      {editNewsSelectedSubIndustries.length === 0 ? (<p className="text-gray-400 text-sm text-center py-4">Click to add</p>) : (
+                        editNewsSelectedSubIndustries.map(id => {
+                          const sub = editSelectedIndustry?.subIndustries.find(s => s.id === id)
+                          return (<div key={id} className="px-3 py-2 hover:bg-orange-100 cursor-pointer flex justify-between items-center border-b border-orange-100 last:border-0 text-sm" onClick={() => setEditNewsSelectedSubIndustries(editNewsSelectedSubIndustries.filter(x => x !== id))}><ChevronLeft className="h-3 w-3 text-orange-400" /><span className="text-gray-700">{sub?.name || id}</span></div>)
+                        })
                       )}
                     </div>
                   </div>
@@ -423,8 +509,8 @@ export default function ClientsPage() {
             {editConfigTab === 'tenders' && (
               <div className="space-y-4">
                 <div className="flex gap-8">
-                  <div className="flex items-center gap-2"><Checkbox id="editTendersEmail" checked={editTendersEmailAlerts} onCheckedChange={(c) => setEditTendersEmailAlerts(!!c)} /><Label htmlFor="editTendersEmail" className="text-sm">Email Alerts</Label></div>
-                  <div className="flex items-center gap-2"><Checkbox id="editTendersSms" checked={editTendersSmsAlerts} onCheckedChange={(c) => setEditTendersSmsAlerts(!!c)} /><Label htmlFor="editTendersSms" className="text-sm">SMS Alerts</Label></div>
+                  <div className="flex items-center gap-2"><Checkbox id="editTendersEmail" checked={editTendersEmailAlerts} onCheckedChange={(c) => setEditTendersEmailAlerts(!!c)} /><Label htmlFor="editTendersEmail" className="text-sm cursor-pointer">Email Alerts</Label></div>
+                  <div className="flex items-center gap-2"><Checkbox id="editTendersSms" checked={editTendersSmsAlerts} onCheckedChange={(c) => setEditTendersSmsAlerts(!!c)} /><Label htmlFor="editTendersSms" className="text-sm cursor-pointer">SMS Alerts</Label></div>
                 </div>
                 <div><Label className="text-gray-700">Keywords</Label><textarea className="w-full min-h-[60px] mt-1 rounded-md border border-gray-300 p-3 resize-y" value={editTendersKeywords} onChange={(e) => setEditTendersKeywords(e.target.value)} placeholder="keywords" /></div>
                 <div>
@@ -433,30 +519,19 @@ export default function ClientsPage() {
                     <div>
                       <Label className="text-gray-600 text-center block mb-2 text-sm">Available Industries</Label>
                       <div className="border border-gray-200 rounded-lg h-32 overflow-y-auto bg-gray-50">
-                        {editAvailableIndustries.length === 0 ? (
-                          <p className="text-gray-400 text-sm text-center py-4">No industries</p>
-                        ) : (
-                          editAvailableIndustries.map(ind => (
-                            <div key={ind} className="px-3 py-2 hover:bg-white cursor-pointer flex justify-between items-center border-b border-gray-100 last:border-0 text-sm" onClick={() => setEditTendersSelectedIndustries([...editTendersSelectedIndustries, ind])}>
-                              <span className="text-gray-700 truncate">{ind}</span>
-                              <ChevronRight className="h-3 w-3 text-gray-400 flex-shrink-0" />
-                            </div>
-                          ))
+                        {editAvailableIndustries.length === 0 ? (<p className="text-gray-400 text-sm text-center py-4">No industries</p>) : (
+                          editAvailableIndustries.map(ind => (<div key={ind.id} className="px-3 py-2 hover:bg-white cursor-pointer flex justify-between items-center border-b border-gray-100 last:border-0 text-sm" onClick={() => setEditTendersSelectedIndustries([...editTendersSelectedIndustries, ind.id])}><span className="text-gray-700 truncate">{ind.name}</span><ChevronRight className="h-3 w-3 text-gray-400 flex-shrink-0" /></div>))
                         )}
                       </div>
                     </div>
                     <div>
                       <Label className="text-gray-600 text-center block mb-2 text-sm">Selected Industries</Label>
                       <div className="border border-gray-200 rounded-lg h-32 overflow-y-auto bg-orange-50">
-                        {editTendersSelectedIndustries.length === 0 ? (
-                          <p className="text-gray-400 text-sm text-center py-4">Click to add</p>
-                        ) : (
-                          editTendersSelectedIndustries.map(ind => (
-                            <div key={ind} className="px-3 py-2 hover:bg-orange-100 cursor-pointer flex justify-between items-center border-b border-orange-100 last:border-0 text-sm" onClick={() => setEditTendersSelectedIndustries(editTendersSelectedIndustries.filter(x => x !== ind))}>
-                              <ChevronLeft className="h-3 w-3 text-orange-400 flex-shrink-0" />
-                              <span className="text-gray-700 truncate">{ind}</span>
-                            </div>
-                          ))
+                        {editTendersSelectedIndustries.length === 0 ? (<p className="text-gray-400 text-sm text-center py-4">Click to add</p>) : (
+                          editTendersSelectedIndustries.map(id => {
+                            const ind = industries.find(i => i.id === id)
+                            return (<div key={id} className="px-3 py-2 hover:bg-orange-100 cursor-pointer flex justify-between items-center border-b border-orange-100 last:border-0 text-sm" onClick={() => setEditTendersSelectedIndustries(editTendersSelectedIndustries.filter(x => x !== id))}><ChevronLeft className="h-3 w-3 text-orange-400 flex-shrink-0" /><span className="text-gray-700 truncate">{ind?.name || id}</span></div>)
+                          })
                         )}
                       </div>
                     </div>

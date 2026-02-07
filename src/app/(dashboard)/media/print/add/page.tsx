@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { RichTextEditor } from '@/components/ui/rich-text-editor'
 import { SentimentDisplay } from '@/components/ui/sentiment-display'
+import { KeywordInput } from '@/components/ui/keyword-input'
 import { useOCR } from '@/hooks/use-ocr'
 import { ChevronRight, ChevronLeft, Loader2, FileText, User, BookOpen, Hash, ArrowLeft, Wand2, Upload, X, Image as ImageIcon, ScanText, Trash2, Sparkles } from 'lucide-react'
 
@@ -32,6 +33,11 @@ interface Industry {
   subIndustries: SubIndustry[]
 }
 
+interface Keyword {
+  id: string
+  name: string
+}
+
 interface UploadedImage {
   file: File
   previewUrl: string
@@ -45,6 +51,7 @@ export default function AddPrintStoryPage() {
   
   const [publications, setPublications] = useState<Publication[]>([])
   const [industries, setIndustries] = useState<Industry[]>([])
+  const [availableKeywords, setAvailableKeywords] = useState<Keyword[]>([])
   const [formData, setFormData] = useState({
     title: '',
     author: '',
@@ -79,12 +86,14 @@ export default function AddPrintStoryPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [pubRes, indRes] = await Promise.all([
+        const [pubRes, indRes, keywordRes] = await Promise.all([
           fetch('/api/print-publications'),
           fetch('/api/industries'),
+          fetch('/api/keywords'),
         ])
         if (pubRes.ok) setPublications(await pubRes.json())
         if (indRes.ok) setIndustries(await indRes.json())
+        if (keywordRes.ok) setAvailableKeywords(await keywordRes.json())
       } catch (err) {
         console.error('Failed to load form data:', err)
       }
@@ -208,6 +217,18 @@ export default function AddPrintStoryPage() {
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Failed to analyze')
       if (data.summary) setFormData(prev => ({ ...prev, summary: data.summary }))
+      
+      // Update industry and keywords from AI suggestions
+      if (data.suggestedIndustryId) {
+        setFormData(prev => ({ ...prev, industryId: data.suggestedIndustryId }))
+      }
+      if (data.suggestedKeywords?.length > 0) {
+        setFormData(prev => ({ ...prev, keywords: data.suggestedKeywords.join(', ') }))
+      }
+      if (data.suggestedSubIndustryIds?.length > 0) {
+        setSelectedSubIndustries(data.suggestedSubIndustryIds)
+      }
+      
       if (data.sentiment) {
         setSentimentData({
           positive: data.sentiment.positive, neutral: data.sentiment.neutral,
@@ -242,6 +263,17 @@ export default function AddPrintStoryPage() {
       
       // Update title if empty
       if (data.title && !formData.title) setFormData(prev => ({ ...prev, title: data.title }))
+      
+      // Update industry and keywords from AI suggestions
+      if (data.suggestedIndustryId) {
+        setFormData(prev => ({ ...prev, industryId: data.suggestedIndustryId }))
+      }
+      if (data.suggestedKeywords?.length > 0) {
+        setFormData(prev => ({ ...prev, keywords: data.suggestedKeywords.join(', ') }))
+      }
+      if (data.suggestedSubIndustryIds?.length > 0) {
+        setSelectedSubIndustries(data.suggestedSubIndustryIds)
+      }
       
       // Update sentiment data
       if (data.sentiment) {
@@ -355,7 +387,13 @@ export default function AddPrintStoryPage() {
             </div>
             <div>
               <Label htmlFor="keywords" className="text-gray-700">Keywords</Label>
-              <Input id="keywords" value={formData.keywords} onChange={(e) => setFormData({ ...formData, keywords: e.target.value })} placeholder="politics, economy, sports..." className="mt-1 h-11" />
+              <KeywordInput
+                value={formData.keywords}
+                onChange={(value) => setFormData({ ...formData, keywords: value })}
+                availableKeywords={availableKeywords}
+                placeholder="Type to search keywords..."
+                className="mt-1"
+              />
             </div>
           </div>
         </div>

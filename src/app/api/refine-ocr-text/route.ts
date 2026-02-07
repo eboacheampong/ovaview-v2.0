@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
 
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions'
+
+interface IndustryData {
+  id: string;
+  name: string;
+  subIndustries: { id: string; name: string }[];
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -18,6 +25,18 @@ export async function POST(request: NextRequest) {
     if (!apiKey) {
       return NextResponse.json({ error: 'OpenRouter API key not configured' }, { status: 500 })
     }
+
+    // Fetch available keywords and industries from database
+    const [keywords, industries] = await Promise.all([
+      prisma.keyword.findMany({ select: { id: true, name: true }, where: { isActive: true } }),
+      prisma.industry.findMany({ 
+        select: { id: true, name: true, subIndustries: { select: { id: true, name: true } } },
+        where: { isActive: true }
+      }),
+    ])
+
+    const keywordList = keywords.map((k: { id: string; name: string }) => k.name).join(', ')
+    const industryList = industries.map((i: IndustryData) => `${i.name} (sub: ${i.subIndustries.map((s: { id: string; name: string }) => s.name).join(', ')})`).join('; ')
 
     const response = await fetch(OPENROUTER_API_URL, {
       method: 'POST',
@@ -50,6 +69,12 @@ Please:
 
 4. Analyze the sentiment of the content
 
+5. Select relevant keywords from this list that match the content (pick only those that are truly relevant):
+   Available keywords: ${keywordList || 'None available'}
+
+6. Select the most appropriate industry and sub-industries from this list:
+   Available industries: ${industryList || 'None available'}
+
 IMPORTANT: Preserve the original meaning, tone, and journalistic style. Only fix obvious OCR errors, do not rewrite or paraphrase the content.
 
 OCR text to refine:
@@ -66,10 +91,13 @@ Respond in this exact JSON format only, no other text:
     "neutral": <number 0-100>,
     "negative": <number 0-100>
   },
-  "overallSentiment": "positive" | "neutral" | "negative"
+  "overallSentiment": "positive" | "neutral" | "negative",
+  "suggestedKeywords": ["keyword1", "keyword2"],
+  "suggestedIndustry": "Industry Name or null if none match",
+  "suggestedSubIndustries": ["SubIndustry1", "SubIndustry2"]
 }
 
-The sentiment percentages must add up to 100.`
+The sentiment percentages must add up to 100. Only include keywords and industries from the provided lists that are truly relevant.`
           }
         ],
         temperature: 0.3,
@@ -106,6 +134,21 @@ The sentiment percentages must add up to 100.`
       throw new Error('Invalid sentiment values')
     }
 
+    // Find industry ID from name
+    let industryId: string | null = null
+    let subIndustryIds: string[] = []
+    if (result.suggestedIndustry) {
+      const matchedIndustry = industries.find((i: IndustryData) => i.name.toLowerCase() === result.suggestedIndustry?.toLowerCase())
+      if (matchedIndustry) {
+        industryId = matchedIndustry.id
+        if (result.suggestedSubIndustries && Array.isArray(result.suggestedSubIndustries)) {
+          subIndustryIds = matchedIndustry.subIndustries
+            .filter((s: { id: string; name: string }) => result.suggestedSubIndustries.some((ss: string) => ss.toLowerCase() === s.name.toLowerCase()))
+            .map((s: { id: string; name: string }) => s.id)
+        }
+      }
+    }
+
     return NextResponse.json({
       text: result.text,
       title: result.title,
@@ -115,6 +158,9 @@ The sentiment percentages must add up to 100.`
         negative: Math.round(negative),
       },
       overallSentiment: result.overallSentiment,
+      suggestedKeywords: result.suggestedKeywords || [],
+      suggestedIndustryId: industryId,
+      suggestedSubIndustryIds: subIndustryIds,
     })
 
   } catch (error) {

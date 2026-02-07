@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
 
 // Models to try in order (primary + fallbacks)
 const MODELS = [
@@ -17,6 +18,9 @@ interface AnalysisResponse {
     negative: number;  // 0-100
   };
   overallSentiment: 'positive' | 'neutral' | 'negative';
+  suggestedKeywords: string[];
+  suggestedIndustryId: string | null;
+  suggestedSubIndustryIds: string[];
 }
 
 interface AIResponse {
@@ -27,6 +31,15 @@ interface AIResponse {
     negative: number;
   };
   overallSentiment: string;
+  suggestedKeywords?: string[];
+  suggestedIndustry?: string;
+  suggestedSubIndustries?: string[];
+}
+
+interface IndustryData {
+  id: string;
+  name: string;
+  subIndustries: { id: string; name: string }[];
 }
 
 /**
@@ -162,11 +175,25 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Fetch available keywords and industries from database
+    const [keywords, industries] = await Promise.all([
+      prisma.keyword.findMany({ select: { id: true, name: true }, where: { isActive: true } }),
+      prisma.industry.findMany({ 
+        select: { id: true, name: true, subIndustries: { select: { id: true, name: true } } },
+        where: { isActive: true }
+      }),
+    ])
+
+    const keywordList = keywords.map((k: { id: string; name: string }) => k.name).join(', ')
+    const industryList = industries.map((i: IndustryData) => `${i.name} (sub: ${i.subIndustries.map((s: { id: string; name: string }) => s.name).join(', ')})`).join('; ')
+
     // Prompt designed to request JSON output with summary and sentiment
     const prompt = `You are a professional news analyst. Analyze this article and return a JSON response with:
 1. A professional summary in 2-4 sentences
 2. Sentiment breakdown as percentages (must sum to 100)
 3. Overall sentiment (the category with highest percentage)
+4. Select relevant keywords from this list that match the content: ${keywordList || 'None available'}
+5. Select the most appropriate industry and sub-industries from: ${industryList || 'None available'}
 
 Return ONLY valid JSON in this exact format:
 {
@@ -176,11 +203,17 @@ Return ONLY valid JSON in this exact format:
     "neutral": <number>,
     "negative": <number>
   },
-  "overallSentiment": "positive" | "neutral" | "negative"
+  "overallSentiment": "positive" | "neutral" | "negative",
+  "suggestedKeywords": ["keyword1", "keyword2"],
+  "suggestedIndustry": "Industry Name or null",
+  "suggestedSubIndustries": ["SubIndustry1", "SubIndustry2"]
 }
 
 Article:
 ${truncatedContent}`
+
+    // Store industries for later ID lookup
+    const industriesData: IndustryData[] = industries
 
     // Try each model until one succeeds
     let lastError = ''
@@ -199,7 +232,7 @@ ${truncatedContent}`
           body: JSON.stringify({
             model,
             messages: [{ role: 'user', content: prompt }],
-            max_tokens: 500,
+            max_tokens: 800,
             temperature: 0.3, // Lower temperature for more consistent JSON output
           }),
         })
@@ -262,10 +295,32 @@ ${truncatedContent}`
           // Determine overall sentiment from highest percentage (Requirement 1.3)
           const overallSentiment = determineOverallSentiment(normalizedSentiment)
 
+          // Find industry ID from name
+          let industryId: string | null = null
+          let subIndustryIds: string[] = []
+          if (aiResponse.suggestedIndustry) {
+            const matchedIndustry = industriesData.find(
+              (i: IndustryData) => i.name.toLowerCase() === aiResponse.suggestedIndustry?.toLowerCase()
+            )
+            if (matchedIndustry) {
+              industryId = matchedIndustry.id
+              if (aiResponse.suggestedSubIndustries && Array.isArray(aiResponse.suggestedSubIndustries)) {
+                subIndustryIds = matchedIndustry.subIndustries
+                  .filter((s: { id: string; name: string }) => 
+                    aiResponse.suggestedSubIndustries!.some((ss: string) => ss.toLowerCase() === s.name.toLowerCase())
+                  )
+                  .map((s: { id: string; name: string }) => s.id)
+              }
+            }
+          }
+
           const analysisResponse: AnalysisResponse = {
             summary: cleanSummary,
             sentiment: normalizedSentiment,
             overallSentiment,
+            suggestedKeywords: aiResponse.suggestedKeywords || [],
+            suggestedIndustryId: industryId,
+            suggestedSubIndustryIds: subIndustryIds,
           }
 
           console.log(`Successfully generated analysis using ${model}`)

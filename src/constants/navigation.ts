@@ -24,6 +24,7 @@ import {
   MonitorPlay,
   Antenna,
   NotebookText,
+  Tag,
 } from 'lucide-react'
 import { UserRole } from '@/types/user'
 
@@ -58,6 +59,7 @@ export const navigationSections: NavSection[] = [
     title: 'MANAGEMENT',
     items: [
       { label: 'Industry Data', href: '/industries', icon: Factory },
+      { label: 'Keywords', href: '/keywords', icon: Tag },
     ],
   },
   {

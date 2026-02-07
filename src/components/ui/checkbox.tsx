@@ -9,25 +9,34 @@ interface CheckboxProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>
 }
 
 const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
-  ({ className, onCheckedChange, ...props }, ref) => {
+  ({ className, checked, onCheckedChange, ...props }, ref) => {
+    const [isChecked, setIsChecked] = React.useState(checked ?? false)
+
+    React.useEffect(() => {
+      setIsChecked(checked ?? false)
+    }, [checked])
+
+    const handleClick = () => {
+      const newValue = !isChecked
+      setIsChecked(newValue)
+      onCheckedChange?.(newValue)
+    }
+
     return (
-      <div className="relative inline-flex items-center">
-        <input
-          type="checkbox"
-          ref={ref}
-          className="peer sr-only"
-          onChange={(e) => onCheckedChange?.(e.target.checked)}
-          {...props}
-        />
-        <div
-          className={cn(
-            'h-4 w-4 shrink-0 rounded-sm border border-primary ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 peer-checked:bg-primary peer-checked:text-primary-foreground flex items-center justify-center',
-            className
-          )}
-        >
-          <Check className="h-3 w-3 hidden peer-checked:block" />
-        </div>
-      </div>
+      <button
+        type="button"
+        role="checkbox"
+        aria-checked={isChecked}
+        onClick={handleClick}
+        className={cn(
+          'h-4 w-4 shrink-0 rounded-sm border border-gray-300 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 flex items-center justify-center transition-colors',
+          isChecked && 'bg-orange-500 border-orange-500',
+          className
+        )}
+        {...(props as React.ButtonHTMLAttributes<HTMLButtonElement>)}
+      >
+        {isChecked && <Check className="h-3 w-3 text-white" />}
+      </button>
     )
   }
 )
