@@ -170,13 +170,31 @@ export default function AddRadioStoryPage() {
     e.preventDefault()
     setIsSubmitting(true)
     try {
+      // Upload audio to Vercel Blob storage if file exists
+      let uploadedAudioUrl = formData.audioUrl
+      if (audioFile) {
+        const formDataUpload = new FormData()
+        formDataUpload.append('file', audioFile)
+        formDataUpload.append('folder', 'radio-audio')
+        
+        const uploadRes = await fetch('/api/upload', {
+          method: 'POST',
+          body: formDataUpload,
+        })
+        
+        if (uploadRes.ok) {
+          const { url } = await uploadRes.json()
+          uploadedAudioUrl = url
+        }
+      }
+
       const response = await fetch('/api/radio-stories', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title: formData.title, content: formData.summary, summary: formData.summary,
           presenters: formData.presenters, keywords: formData.keywords,
-          audioUrl: formData.audioUrl || audioPreviewUrl, audioTitle: formData.audioTitle || null,
+          audioUrl: uploadedAudioUrl, audioTitle: formData.audioTitle || null,
           date: formData.dateAired, stationId: formData.stationId || null,
           programId: formData.programId || null, industryId: formData.industryId || null,
           subIndustryIds: selectedSubIndustries, sentimentPositive: sentimentData.positive,

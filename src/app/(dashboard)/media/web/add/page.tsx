@@ -200,6 +200,28 @@ export default function AddWebStoryPage() {
     setIsSubmitting(true)
     
     try {
+      // Upload extracted images to Vercel Blob storage
+      const uploadedImages: string[] = []
+      for (const imageUrl of extractedImages) {
+        try {
+          const uploadRes = await fetch('/api/upload', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: imageUrl, folder: 'web-images' }),
+          })
+          if (uploadRes.ok) {
+            const { url } = await uploadRes.json()
+            uploadedImages.push(url)
+          } else {
+            // Keep original URL if upload fails
+            uploadedImages.push(imageUrl)
+          }
+        } catch {
+          // Keep original URL if upload fails
+          uploadedImages.push(imageUrl)
+        }
+      }
+
       const response = await fetch('/api/web-stories', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -214,7 +236,7 @@ export default function AddWebStoryPage() {
           publicationId: formData.publicationId || null,
           industryId: formData.industryId || null,
           subIndustryIds: selectedSubIndustries,
-          images: extractedImages.map(url => ({ url })),
+          images: uploadedImages.map(url => ({ url })),
           sentimentPositive: sentimentData.positive,
           sentimentNeutral: sentimentData.neutral,
           sentimentNegative: sentimentData.negative,

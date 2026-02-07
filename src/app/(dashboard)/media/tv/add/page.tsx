@@ -181,12 +181,30 @@ export default function AddTVStoryPage() {
     e.preventDefault()
     setIsSubmitting(true)
     try {
+      // Upload video to Vercel Blob storage if file exists
+      let uploadedVideoUrl = formData.videoUrl
+      if (videoFile) {
+        const formDataUpload = new FormData()
+        formDataUpload.append('file', videoFile)
+        formDataUpload.append('folder', 'tv-video')
+        
+        const uploadRes = await fetch('/api/upload', {
+          method: 'POST',
+          body: formDataUpload,
+        })
+        
+        if (uploadRes.ok) {
+          const { url } = await uploadRes.json()
+          uploadedVideoUrl = url
+        }
+      }
+
       const response = await fetch('/api/tv-stories', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title: formData.title, content: formData.summary, summary: formData.summary,
-          presenters: formData.presenters, videoUrl: formData.videoUrl || videoPreviewUrl,
+          presenters: formData.presenters, videoUrl: uploadedVideoUrl,
           videoTitle: formData.videoTitle, keywords: formData.keywords, date: formData.dateAired,
           stationId: formData.stationId || null, programId: formData.programId || null,
           industryId: formData.industryId || null, subIndustryIds: selectedSubIndustries,

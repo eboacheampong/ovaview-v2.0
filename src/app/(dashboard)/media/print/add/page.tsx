@@ -263,7 +263,24 @@ export default function AddPrintStoryPage() {
     e.preventDefault()
     setIsSubmitting(true)
     try {
-      const imageUrls = uploadedImages.map(img => ({ url: img.previewUrl }))
+      // Upload images to Vercel Blob storage
+      const uploadedUrls: { url: string }[] = []
+      for (const img of uploadedImages) {
+        const formData = new FormData()
+        formData.append('file', img.file)
+        formData.append('folder', 'print-images')
+        
+        const uploadRes = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        })
+        
+        if (uploadRes.ok) {
+          const { url } = await uploadRes.json()
+          uploadedUrls.push({ url })
+        }
+      }
+
       const response = await fetch('/api/print-stories', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -272,7 +289,7 @@ export default function AddPrintStoryPage() {
           author: formData.author, pageNumbers: formData.pageNumbers, keywords: formData.keywords,
           date: formData.publicationDate, publicationId: formData.publicationId || null,
           issueId: formData.issueId || null, industryId: formData.industryId || null,
-          subIndustryIds: selectedSubIndustries, images: imageUrls,
+          subIndustryIds: selectedSubIndustries, images: uploadedUrls,
           sentimentPositive: sentimentData.positive, sentimentNeutral: sentimentData.neutral,
           sentimentNegative: sentimentData.negative, overallSentiment: sentimentData.overallSentiment,
         }),
