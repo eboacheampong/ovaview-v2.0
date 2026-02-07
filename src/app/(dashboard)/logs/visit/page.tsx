@@ -1,59 +1,58 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { ColumnDef } from '@tanstack/react-table'
 import { DataTable, DataTableColumnHeader } from '@/components/data-table'
 import { Badge } from '@/components/ui/badge'
-import { VisitLog } from '@/types/logs'
 import { format } from 'date-fns'
+import { apiClient } from '@/lib/api-client'
 
-// Mock data
-const mockVisitLogs: VisitLog[] = [
-  {
-    id: '1',
-    userId: 'user-1',
-    user: { id: 'user-1', username: 'john.doe', email: 'john@acme.com', role: 'client_user', isActive: true, createdAt: new Date(), updatedAt: new Date() },
-    ipAddress: '192.168.1.100',
-    page: '/media/print/story/123',
-    articleId: 'art-123',
-    mediaType: 'print',
-    visitedAt: new Date('2024-01-15T10:30:00'),
-  },
-  {
-    id: '2',
-    userId: 'user-2',
-    user: { id: 'user-2', username: 'jane.smith', email: 'jane@globalmedia.com', role: 'client_user', isActive: true, createdAt: new Date(), updatedAt: new Date() },
-    ipAddress: '192.168.1.101',
-    page: '/tenders/456',
-    visitedAt: new Date('2024-01-14T09:00:00'),
-  },
-  {
-    id: '3',
-    userId: 'user-1',
-    user: { id: 'user-1', username: 'john.doe', email: 'john@acme.com', role: 'client_user', isActive: true, createdAt: new Date(), updatedAt: new Date() },
-    ipAddress: '192.168.1.100',
-    page: '/media/tv/story/789',
-    articleId: 'art-789',
-    mediaType: 'tv',
-    visitedAt: new Date('2024-01-13T15:45:00'),
-  },
-]
+interface VisitLog {
+  id: string
+  userId?: string
+  user?: { id: string; username: string }
+  ipAddress: string
+  userAgent?: string
+  page: string
+  articleId?: string
+  mediaType?: string
+  visitedAt: Date
+}
 
 export default function VisitLogPage() {
-  const [logs] = useState<VisitLog[]>(mockVisitLogs)
-  const [isLoading] = useState(false)
+  const [logs, setLogs] = useState<VisitLog[]>([])
+  const [isLoading, setIsLoading] = useState(true)
 
-  const columns: ColumnDef<VisitLog>[] = [
+  const fetchLogs = useCallback(async () => {
+    setIsLoading(true)
+    try {
+      const response = await apiClient.get('/api/logs/visit')
+      setLogs(response.data || [])
+    } catch (error) {
+      console.error('Error fetching visit logs:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchLogs()
+  }, [fetchLogs])
+
+  const columns: ColumnDef<VisitLog>[] = useMemo(() => [
     {
       accessorKey: 'user.username',
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="User" />
       ),
-      cell: ({ row }) => row.original.user?.username || 'Unknown',
+      cell: ({ row }) => row.original.user?.username || 'Anonymous',
     },
     {
       accessorKey: 'ipAddress',
       header: 'IP Address',
+      cell: ({ row }) => (
+        <span className="text-sm font-mono text-gray-600">{row.getValue('ipAddress')}</span>
+      ),
     },
     {
       accessorKey: 'page',
@@ -61,13 +60,20 @@ export default function VisitLogPage() {
         <DataTableColumnHeader column={column} title="Page" />
       ),
       cell: ({ row }) => (
-        <span className="text-sm font-mono text-gray-600">{row.getValue('page')}</span>
+        <span className="text-sm font-mono text-gray-600 max-w-xs truncate block" title={row.getValue('page')}>
+          {row.getValue('page')}
+        </span>
       ),
     },
     {
       accessorKey: 'articleId',
       header: 'Article ID',
-      cell: ({ row }) => row.getValue('articleId') || '-',
+      cell: ({ row }) => {
+        const articleId = row.getValue('articleId') as string
+        return articleId ? (
+          <span className="text-sm font-mono text-gray-600">{articleId.slice(0, 8)}...</span>
+        ) : '-'
+      },
     },
     {
       accessorKey: 'mediaType',
@@ -89,7 +95,7 @@ export default function VisitLogPage() {
         return format(new Date(date), 'MMM dd, yyyy HH:mm')
       },
     },
-  ]
+  ], [])
 
   return (
     <div className="p-6">

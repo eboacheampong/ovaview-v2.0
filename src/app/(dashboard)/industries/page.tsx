@@ -1,54 +1,35 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { FormModal } from '@/components/modals/form-modal'
 import { ConfirmDialog } from '@/components/modals/confirm-dialog'
 import { useModal } from '@/hooks/use-modal'
-import { Industry } from '@/types/industry'
-import { Plus, Pencil, Trash2, ChevronRight, ChevronDown, FolderTree } from 'lucide-react'
+import { Plus, Pencil, Trash2, ChevronRight, ChevronDown, FolderTree, Loader2 } from 'lucide-react'
 
-// Mock data
-const mockIndustries: Industry[] = [
-  {
-    id: '1',
-    name: 'Technology',
-    subIndustries: [
-      { id: '1-1', name: 'Software', parentId: '1', createdAt: new Date(), updatedAt: new Date() },
-      { id: '1-2', name: 'Hardware', parentId: '1', createdAt: new Date(), updatedAt: new Date() },
-    ],
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  },
-  {
-    id: '2',
-    name: 'Finance',
-    subIndustries: [
-      { id: '2-1', name: 'Banking', parentId: '2', createdAt: new Date(), updatedAt: new Date() },
-      { id: '2-2', name: 'Insurance', parentId: '2', createdAt: new Date(), updatedAt: new Date() },
-    ],
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  },
-  {
-    id: '3',
-    name: 'Healthcare',
-    subIndustries: [],
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  },
-]
+interface SubIndustry {
+  id: string
+  name: string
+  industryId: string
+}
+
+interface Industry {
+  id: string
+  name: string
+  subIndustries: SubIndustry[]
+}
 
 interface IndustryItemProps {
   industry: Industry
   isSubIndustry?: boolean
-  onEdit: (industry: Industry) => void
-  onDelete: (industry: Industry) => void
+  parentId?: string
+  onEdit: (id: string, name: string, isSubIndustry: boolean) => void
+  onDelete: (id: string, name: string, isSubIndustry: boolean) => void
   onAddSub: (parentId: string) => void
 }
 
-function IndustryItem({ industry, isSubIndustry, onEdit, onDelete, onAddSub }: IndustryItemProps) {
+function IndustryItem({ industry, isSubIndustry, parentId, onEdit, onDelete, onAddSub }: IndustryItemProps) {
   const [isExpanded, setIsExpanded] = useState(false)
   const hasSubIndustries = industry.subIndustries && industry.subIndustries.length > 0
 
@@ -82,13 +63,13 @@ function IndustryItem({ industry, isSubIndustry, onEdit, onDelete, onAddSub }: I
               <Plus className="h-4 w-4" />
             </Button>
           )}
-          <Button variant="ghost" size="sm" onClick={() => onEdit(industry)}>
+          <Button variant="ghost" size="sm" onClick={() => onEdit(industry.id, industry.name, !!isSubIndustry)}>
             <Pencil className="h-4 w-4" />
           </Button>
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => onDelete(industry)}
+            onClick={() => onDelete(industry.id, industry.name, !!isSubIndustry)}
             className="text-red-500 hover:text-red-700"
           >
             <Trash2 className="h-4 w-4" />
@@ -98,8 +79,9 @@ function IndustryItem({ industry, isSubIndustry, onEdit, onDelete, onAddSub }: I
       {isExpanded && industry.subIndustries?.map(sub => (
         <IndustryItem
           key={sub.id}
-          industry={sub}
+          industry={{ ...sub, subIndustries: [] } as Industry}
           isSubIndustry
+          parentId={industry.id}
           onEdit={onEdit}
           onDelete={onDelete}
           onAddSub={onAddSub}
@@ -110,87 +92,104 @@ function IndustryItem({ industry, isSubIndustry, onEdit, onDelete, onAddSub }: I
 }
 
 export default function IndustriesPage() {
-  const [industries, setIndustries] = useState<Industry[]>(mockIndustries)
+  const [industries, setIndustries] = useState<Industry[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [newName, setNewName] = useState('')
-  const [parentId, setParentId] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   
   const createModal = useModal<{ parentId?: string }>()
-  const editModal = useModal<Industry>()
-  const deleteModal = useModal<Industry>()
+  const editModal = useModal<{ id: string; name: string; isSubIndustry: boolean }>()
+  const deleteModal = useModal<{ id: string; name: string; isSubIndustry: boolean }>()
+
+  const fetchIndustries = async () => {
+    try {
+      const response = await fetch('/api/industries')
+      if (response.ok) {
+        const data = await response.json()
+        setIndustries(data)
+      }
+    } catch (error) {
+      console.error('Failed to fetch industries:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchIndustries()
+  }, [])
 
   const handleCreate = async () => {
     if (!newName.trim()) return
+    setIsSubmitting(true)
     
-    if (createModal.data?.parentId) {
-      // Adding sub-industry
-      setIndustries(industries.map(ind => {
-        if (ind.id === createModal.data?.parentId) {
-          return {
-            ...ind,
-            subIndustries: [
-              ...(ind.subIndustries || []),
-              {
-                id: String(Date.now()),
-                name: newName,
-                parentId: ind.id,
-                createdAt: new Date(),
-                updatedAt: new Date(),
-              },
-            ],
-          }
-        }
-        return ind
-      }))
-    } else {
-      // Adding top-level industry
-      setIndustries([
-        ...industries,
-        {
-          id: String(Date.now()),
+    try {
+      const response = await fetch('/api/industries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           name: newName,
-          subIndustries: [],
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-      ])
+          parentId: createModal.data?.parentId,
+        }),
+      })
+      
+      if (response.ok) {
+        await fetchIndustries()
+        setNewName('')
+        createModal.close()
+      }
+    } catch (error) {
+      console.error('Failed to create:', error)
+    } finally {
+      setIsSubmitting(false)
     }
-    setNewName('')
-    createModal.close()
   }
 
   const handleEdit = async () => {
     if (!editModal.data || !newName.trim()) return
+    setIsSubmitting(true)
     
-    const updateIndustry = (ind: Industry): Industry => {
-      if (ind.id === editModal.data!.id) {
-        return { ...ind, name: newName, updatedAt: new Date() }
+    try {
+      const response = await fetch(`/api/industries/${editModal.data.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newName,
+          isSubIndustry: editModal.data.isSubIndustry,
+        }),
+      })
+      
+      if (response.ok) {
+        await fetchIndustries()
+        setNewName('')
+        editModal.close()
       }
-      if (ind.subIndustries) {
-        return { ...ind, subIndustries: ind.subIndustries.map(updateIndustry) }
-      }
-      return ind
+    } catch (error) {
+      console.error('Failed to update:', error)
+    } finally {
+      setIsSubmitting(false)
     }
-    
-    setIndustries(industries.map(updateIndustry))
-    setNewName('')
-    editModal.close()
   }
 
   const handleDelete = async () => {
     if (!deleteModal.data) return
+    setIsSubmitting(true)
     
-    const deleteIndustry = (ind: Industry): Industry | null => {
-      if (ind.id === deleteModal.data!.id) return null
-      if (ind.subIndustries) {
-        return {
-          ...ind,
-          subIndustries: ind.subIndustries.filter(sub => sub.id !== deleteModal.data!.id),
-        }
+    try {
+      const response = await fetch(
+        `/api/industries/${deleteModal.data.id}?isSubIndustry=${deleteModal.data.isSubIndustry}`,
+        { method: 'DELETE' }
+      )
+      
+      if (response.ok) {
+        await fetchIndustries()
+        deleteModal.close()
       }
-      return ind
+    } catch (error) {
+      console.error('Failed to delete:', error)
+    } finally {
+      setIsSubmitting(false)
     }
-    
-    setIndustries(industries.map(deleteIndustry).filter(Boolean) as Industry[])
   }
 
   const openCreateModal = (parentId?: string) => {
@@ -198,9 +197,21 @@ export default function IndustriesPage() {
     createModal.open({ parentId })
   }
 
-  const openEditModal = (industry: Industry) => {
-    setNewName(industry.name)
-    editModal.open(industry)
+  const openEditModal = (id: string, name: string, isSubIndustry: boolean) => {
+    setNewName(name)
+    editModal.open({ id, name, isSubIndustry })
+  }
+
+  const openDeleteModal = (id: string, name: string, isSubIndustry: boolean) => {
+    deleteModal.open({ id, name, isSubIndustry })
+  }
+
+  if (isLoading) {
+    return (
+      <div className="p-6 flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
+      </div>
+    )
   }
 
   return (
@@ -225,7 +236,7 @@ export default function IndustriesPage() {
               key={industry.id}
               industry={industry}
               onEdit={openEditModal}
-              onDelete={(ind) => deleteModal.open(ind)}
+              onDelete={openDeleteModal}
               onAddSub={(id) => openCreateModal(id)}
             />
           ))
@@ -238,7 +249,7 @@ export default function IndustriesPage() {
         onClose={createModal.close}
         title={createModal.data?.parentId ? 'Add Sub-Industry' : 'Add Industry'}
         onSubmit={handleCreate}
-        isSubmitting={false}
+        isSubmitting={isSubmitting}
       >
         <div className="space-y-4">
           <Input
@@ -253,13 +264,13 @@ export default function IndustriesPage() {
       <FormModal
         isOpen={editModal.isOpen}
         onClose={editModal.close}
-        title="Edit Industry"
+        title={editModal.data?.isSubIndustry ? 'Edit Sub-Industry' : 'Edit Industry'}
         onSubmit={handleEdit}
-        isSubmitting={false}
+        isSubmitting={isSubmitting}
       >
         <div className="space-y-4">
           <Input
-            placeholder="Industry name"
+            placeholder="Name"
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
           />
@@ -271,8 +282,8 @@ export default function IndustriesPage() {
         isOpen={deleteModal.isOpen}
         onClose={deleteModal.close}
         onConfirm={handleDelete}
-        title="Delete Industry"
-        description={`Are you sure you want to delete "${deleteModal.data?.name}"? This may affect associated stories and tenders.`}
+        title={deleteModal.data?.isSubIndustry ? 'Delete Sub-Industry' : 'Delete Industry'}
+        description={`Are you sure you want to delete "${deleteModal.data?.name}"?${!deleteModal.data?.isSubIndustry ? ' This will also delete all sub-industries.' : ''}`}
         confirmLabel="Delete"
         variant="destructive"
       />

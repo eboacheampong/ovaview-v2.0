@@ -33,10 +33,14 @@ model User {
   clientId String?
   client   Client? @relation(fields: [clientId], references: [id])
 
-  webStories   WebStory[]
-  tvStories    TVStory[]
-  radioStories RadioStory[]
-  printStories PrintStory[]
+  webStories      WebStory[]
+  tvStories       TVStory[]
+  radioStories    RadioStory[]
+  printStories    PrintStory[]
+  articleViewLogs ArticleViewLog[]
+  mediaEntryLogs  MediaEntryLog[]
+  visitLogs       VisitLog[]
+  tenderViewLogs  TenderViewLog[]
 }
 
 // Client Management
@@ -68,6 +72,7 @@ model Client {
   users      User[]
   industries ClientIndustry[]
   keywords   ClientKeyword[]
+  articleViewLogs ArticleViewLog[]
 }
 
 // Keyword Management
@@ -403,4 +408,62 @@ model PrintStoryImage {
   url          String
   caption      String?
   createdAt    DateTime   @default(now())
+}
+
+// Logging Models
+model ArticleViewLog {
+  id          String    @id @default(cuid())
+  clientId    String
+  client      Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  articleId   String
+  articleTitle String
+  mediaType   MediaType
+  duration    Int       @default(0) // seconds
+  viewedAt    DateTime  @default(now())
+}
+
+model MediaEntryLog {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mediaType   MediaType
+  publisher   String
+  storyId     String
+  storyTitle  String
+  action      String    // 'created', 'updated', 'deleted'
+  timestamp   DateTime  @default(now())
+}
+
+model EmailLog {
+  id           String    @id @default(cuid())
+  recipient    String
+  subject      String
+  articleId    String?
+  articleType  MediaType?
+  status       String    // 'sent', 'failed'
+  errorMessage String?
+  sentAt       DateTime  @default(now())
+}
+
+model VisitLog {
+  id         String    @id @default(cuid())
+  userId     String?
+  user       User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  ipAddress  String
+  userAgent  String?
+  page       String
+  articleId  String?
+  mediaType  MediaType?
+  visitedAt  DateTime  @default(now())
+}
+
+model TenderViewLog {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenderId  String
+  tenderTitle String?
+  viewedAt  DateTime @default(now())
 }

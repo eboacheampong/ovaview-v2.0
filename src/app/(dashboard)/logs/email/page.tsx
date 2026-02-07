@@ -1,47 +1,36 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { ColumnDef } from '@tanstack/react-table'
 import { DataTable, DataTableColumnHeader } from '@/components/data-table'
 import { Badge } from '@/components/ui/badge'
 import { EmailLog } from '@/types/logs'
 import { format } from 'date-fns'
-
-// Mock data
-const mockEmailLogs: EmailLog[] = [
-  {
-    id: '1',
-    recipient: 'john@acme.com',
-    subject: 'Daily News Update',
-    articleId: 'art-123',
-    articleType: 'print',
-    status: 'sent',
-    sentAt: new Date('2024-01-15T10:30:00'),
-  },
-  {
-    id: '2',
-    recipient: 'jane@globalmedia.com',
-    subject: 'Weekly Tender Report',
-    status: 'sent',
-    sentAt: new Date('2024-01-14T09:00:00'),
-  },
-  {
-    id: '3',
-    recipient: 'bob@client.com',
-    subject: 'Breaking News Alert',
-    articleId: 'art-456',
-    articleType: 'tv',
-    status: 'failed',
-    errorMessage: 'Invalid email address',
-    sentAt: new Date('2024-01-13T15:45:00'),
-  },
-]
+import { apiClient } from '@/lib/api-client'
 
 export default function EmailLogPage() {
-  const [logs] = useState<EmailLog[]>(mockEmailLogs)
-  const [isLoading] = useState(false)
+  const [logs, setLogs] = useState<EmailLog[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [statusFilter, setStatusFilter] = useState<string>('all')
 
-  const columns: ColumnDef<EmailLog>[] = [
+  const fetchLogs = useCallback(async () => {
+    setIsLoading(true)
+    try {
+      const params = statusFilter !== 'all' ? `?status=${statusFilter}` : ''
+      const response = await apiClient.get(`/api/logs/email${params}`)
+      setLogs(response.data || [])
+    } catch (error) {
+      console.error('Error fetching email logs:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [statusFilter])
+
+  useEffect(() => {
+    fetchLogs()
+  }, [fetchLogs])
+
+  const columns: ColumnDef<EmailLog>[] = useMemo(() => [
     {
       accessorKey: 'recipient',
       header: ({ column }) => (
@@ -53,11 +42,21 @@ export default function EmailLogPage() {
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Subject" />
       ),
+      cell: ({ row }) => (
+        <span className="max-w-xs truncate block" title={row.getValue('subject')}>
+          {row.getValue('subject')}
+        </span>
+      ),
     },
     {
       accessorKey: 'articleId',
       header: 'Article ID',
-      cell: ({ row }) => row.getValue('articleId') || '-',
+      cell: ({ row }) => {
+        const articleId = row.getValue('articleId') as string
+        return articleId ? (
+          <span className="text-sm font-mono text-gray-600">{articleId.slice(0, 8)}...</span>
+        ) : '-'
+      },
     },
     {
       accessorKey: 'articleType',
@@ -93,13 +92,27 @@ export default function EmailLogPage() {
         return format(new Date(date), 'MMM dd, yyyy HH:mm')
       },
     },
-  ]
+  ], [])
 
   return (
     <div className="p-6">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-800">Email Log</h1>
         <p className="text-gray-500 mt-1">Track all emails sent by the system</p>
+      </div>
+
+      <div className="mb-4">
+        <label htmlFor="statusFilter" className="text-sm font-medium text-gray-700 mr-3">Filter by Status:</label>
+        <select
+          id="statusFilter"
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="h-10 rounded-lg border border-gray-200 px-3 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
+        >
+          <option value="all">All Status</option>
+          <option value="sent">Sent</option>
+          <option value="failed">Failed</option>
+        </select>
       </div>
 
       <DataTable

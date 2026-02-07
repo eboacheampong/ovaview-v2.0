@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ColumnDef } from '@tanstack/react-table'
 import { DataTable, DataTableColumnHeader } from '@/components/data-table'
 import { Button } from '@/components/ui/button'
@@ -11,51 +11,12 @@ import { useModal } from '@/hooks/use-modal'
 import { Tender, TenderStatus } from '@/types/tender'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Plus, Pencil, Trash2, Eye } from 'lucide-react'
+import { Plus, Pencil, Trash2, Eye, Loader2 } from 'lucide-react'
 import { format } from 'date-fns'
 
-// Mock data
-const mockTenders: Tender[] = [
-  {
-    id: '1',
-    title: 'IT Infrastructure Upgrade',
-    description: 'Complete overhaul of company IT systems including servers, networking, and security.',
-    deadline: new Date('2024-02-28'),
-    typeId: '1',
-    type: { id: '1', name: 'IT Services' },
-    industries: [{ id: '1', name: 'Technology', createdAt: new Date(), updatedAt: new Date() }],
-    status: 'open',
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  },
-  {
-    id: '2',
-    title: 'Marketing Campaign Services',
-    description: 'Annual marketing campaign for product launch.',
-    deadline: new Date('2024-03-15'),
-    typeId: '2',
-    type: { id: '2', name: 'Marketing' },
-    industries: [{ id: '2', name: 'Media', createdAt: new Date(), updatedAt: new Date() }],
-    status: 'open',
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  },
-  {
-    id: '3',
-    title: 'Office Supplies Contract',
-    description: 'Annual contract for office supplies procurement.',
-    deadline: new Date('2024-01-31'),
-    typeId: '3',
-    type: { id: '3', name: 'Procurement' },
-    industries: [],
-    status: 'closed',
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  },
-]
-
 export default function TendersPage() {
-  const [tenders, setTenders] = useState<Tender[]>(mockTenders)
+  const [tenders, setTenders] = useState<Tender[]>([])
+  const [isLoading, setIsLoading] = useState(false)
   const [formData, setFormData] = useState({ title: '', description: '', deadline: '', status: 'open' as TenderStatus })
   
   const createModal = useModal<undefined>()

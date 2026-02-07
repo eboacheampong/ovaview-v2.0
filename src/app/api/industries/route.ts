@@ -1,16 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
-import prisma from '@/lib/prisma'
+import { prisma } from '@/lib/prisma'
 
 export async function GET() {
   try {
     const industries = await prisma.industry.findMany({
-      where: { isActive: true },
-      include: { subIndustries: { where: { isActive: true }, orderBy: { name: 'asc' } } },
+      include: {
+        subIndustries: {
+          orderBy: { name: 'asc' },
+        },
+      },
       orderBy: { name: 'asc' },
     })
+
     return NextResponse.json(industries)
   } catch (error) {
-    console.error('Error fetching industries:', error)
+    console.error('Failed to fetch industries:', error)
     return NextResponse.json({ error: 'Failed to fetch industries' }, { status: 500 })
   }
 }
@@ -18,19 +22,35 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { name, subIndustries } = body
-    const industry = await prisma.industry.create({
-      data: {
-        name,
-        subIndustries: subIndustries?.length
-          ? { create: subIndustries.map((sub: string) => ({ name: sub })) }
-          : undefined,
-      },
-      include: { subIndustries: true },
-    })
-    return NextResponse.json(industry, { status: 201 })
+    const { name, parentId } = body
+
+    if (!name || !name.trim()) {
+      return NextResponse.json({ error: 'Name is required' }, { status: 400 })
+    }
+
+    if (parentId) {
+      // Creating a sub-industry
+      const subIndustry = await prisma.subIndustry.create({
+        data: {
+          name: name.trim(),
+          industryId: parentId,
+        },
+      })
+      return NextResponse.json(subIndustry, { status: 201 })
+    } else {
+      // Creating a top-level industry
+      const industry = await prisma.industry.create({
+        data: {
+          name: name.trim(),
+        },
+        include: {
+          subIndustries: true,
+        },
+      })
+      return NextResponse.json(industry, { status: 201 })
+    }
   } catch (error) {
-    console.error('Error creating industry:', error)
+    console.error('Failed to create industry:', error)
     return NextResponse.json({ error: 'Failed to create industry' }, { status: 500 })
   }
 }

@@ -1,44 +1,41 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { ColumnDef } from '@tanstack/react-table'
 import { DataTable, DataTableColumnHeader } from '@/components/data-table'
-import { TenderLog } from '@/types/logs'
 import { format } from 'date-fns'
+import { apiClient } from '@/lib/api-client'
 
-// Mock data
-const mockTenderLogs: TenderLog[] = [
-  {
-    id: '1',
-    userId: 'user-1',
-    user: { id: 'user-1', username: 'john.doe', email: 'john@acme.com', role: 'client_user', isActive: true, createdAt: new Date(), updatedAt: new Date() },
-    tenderId: 'tender-123',
-    tender: { id: 'tender-123', title: 'IT Infrastructure Upgrade', description: '', deadline: new Date(), typeId: '1', industries: [], status: 'open', createdAt: new Date(), updatedAt: new Date() },
-    viewedAt: new Date('2024-01-15T10:30:00'),
-  },
-  {
-    id: '2',
-    userId: 'user-2',
-    user: { id: 'user-2', username: 'jane.smith', email: 'jane@globalmedia.com', role: 'client_user', isActive: true, createdAt: new Date(), updatedAt: new Date() },
-    tenderId: 'tender-456',
-    tender: { id: 'tender-456', title: 'Marketing Services Contract', description: '', deadline: new Date(), typeId: '2', industries: [], status: 'open', createdAt: new Date(), updatedAt: new Date() },
-    viewedAt: new Date('2024-01-14T09:00:00'),
-  },
-  {
-    id: '3',
-    userId: 'user-1',
-    user: { id: 'user-1', username: 'john.doe', email: 'john@acme.com', role: 'client_user', isActive: true, createdAt: new Date(), updatedAt: new Date() },
-    tenderId: 'tender-789',
-    tender: { id: 'tender-789', title: 'Office Supplies Procurement', description: '', deadline: new Date(), typeId: '1', industries: [], status: 'closed', createdAt: new Date(), updatedAt: new Date() },
-    viewedAt: new Date('2024-01-13T15:45:00'),
-  },
-]
+interface TenderLog {
+  id: string
+  userId: string
+  user?: { id: string; username: string }
+  tenderId: string
+  tenderTitle?: string
+  viewedAt: Date
+}
 
 export default function TenderLogPage() {
-  const [logs] = useState<TenderLog[]>(mockTenderLogs)
-  const [isLoading] = useState(false)
+  const [logs, setLogs] = useState<TenderLog[]>([])
+  const [isLoading, setIsLoading] = useState(true)
 
-  const columns: ColumnDef<TenderLog>[] = [
+  const fetchLogs = useCallback(async () => {
+    setIsLoading(true)
+    try {
+      const response = await apiClient.get('/api/logs/tender')
+      setLogs(response.data || [])
+    } catch (error) {
+      console.error('Error fetching tender logs:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchLogs()
+  }, [fetchLogs])
+
+  const columns: ColumnDef<TenderLog>[] = useMemo(() => [
     {
       accessorKey: 'user.username',
       header: ({ column }) => (
@@ -47,17 +44,21 @@ export default function TenderLogPage() {
       cell: ({ row }) => row.original.user?.username || 'Unknown',
     },
     {
-      accessorKey: 'tender.title',
+      accessorKey: 'tenderTitle',
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Tender" />
       ),
-      cell: ({ row }) => row.original.tender?.title || row.original.tenderId,
+      cell: ({ row }) => (
+        <span className="max-w-xs truncate block" title={row.original.tenderTitle || row.original.tenderId}>
+          {row.original.tenderTitle || row.original.tenderId}
+        </span>
+      ),
     },
     {
       accessorKey: 'tenderId',
       header: 'Tender ID',
       cell: ({ row }) => (
-        <span className="text-sm font-mono text-gray-600">{row.getValue('tenderId')}</span>
+        <span className="text-sm font-mono text-gray-600">{(row.getValue('tenderId') as string).slice(0, 8)}...</span>
       ),
     },
     {
@@ -70,7 +71,7 @@ export default function TenderLogPage() {
         return format(new Date(date), 'MMM dd, yyyy HH:mm')
       },
     },
-  ]
+  ], [])
 
   return (
     <div className="p-6">
