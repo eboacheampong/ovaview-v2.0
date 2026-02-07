@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { ChevronDown, ChevronRight, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -76,15 +77,16 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   return (
     <aside className="fixed left-0 top-0 z-40 h-screen w-72 bg-white flex flex-col">
       {/* Logo */}
-      <div className="p-6">
-        <Link href="/dashboard" className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center text-white font-bold text-lg">
-            O
-          </div>
-          <div>
-            <span className="text-xl font-bold text-gradient">OVAVIEW</span>
-            <p className="text-[10px] text-gray-400 uppercase tracking-wider">Media Monitoring</p>
-          </div>
+      <div className="p-4 bg-gray-900 rounded-b-2xl mx-2">
+        <Link href="/dashboard" className="block">
+          <Image
+            src="/Ovaview-Media-Monitoring-Logo.png"
+            alt="Ovaview"
+            width={220}
+            height={70}
+            className="mx-auto"
+            priority
+          />
         </Link>
       </div>
 

@@ -313,8 +313,14 @@ export default async function PublicMediaPage({ params }: PageProps) {
         )}
       </article>
 
-      <footer className="mt-8 text-center text-sm text-gray-500">
-        <p>Powered by OvaView Media Monitoring</p>
+      <footer className="mt-8 text-center">
+        <div className="inline-block bg-gray-900 rounded-lg px-4 py-2">
+          <img
+            src="/Ovaview-Media-Monitoring-Logo.png"
+            alt="Ovaview - Media Monitoring & Analysis"
+            className="h-8 w-auto"
+          />
+        </div>
       </footer>
     </div>
   )

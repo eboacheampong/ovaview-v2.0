@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { useAuth } from '@/hooks/use-auth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -44,8 +45,14 @@ export default function LoginPage() {
     <div className="w-full max-w-md animate-fadeIn">
       {/* Logo */}
       <div className="text-center mb-8">
-        <h1 className="text-4xl font-bold text-gradient mb-2">OVAVIEW</h1>
-        <p className="text-gray-500">Media Monitoring & Analysis</p>
+        <Image
+          src="/Ovaview-Media-Monitoring-Logo.png"
+          alt="Ovaview - Media Monitoring & Analysis"
+          width={280}
+          height={100}
+          className="mx-auto"
+          priority
+        />
       </div>
 
       {/* Login Card */}
