@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 import prisma from '@/lib/prisma'
 import { Badge } from '@/components/ui/badge'
 import { Calendar, User, Building2, Newspaper, Radio, Tv, Globe, Tag, ExternalLink, Play } from 'lucide-react'
+import { formatContentForDisplay } from '@/lib/content-utils'
 
 type MediaType = 'web' | 'tv' | 'radio' | 'print'
 
@@ -265,7 +266,10 @@ export default async function PublicMediaPage({ params }: PageProps) {
 
         {content && (
           <div className="px-4 sm:px-8 pb-6">
-            <div className="prose prose-sm sm:prose prose-gray max-w-none" dangerouslySetInnerHTML={{ __html: content }} />
+            <div 
+              className="prose prose-sm sm:prose prose-gray max-w-none prose-p:mb-4 prose-p:leading-relaxed prose-headings:mt-6 prose-headings:mb-3" 
+              dangerouslySetInnerHTML={{ __html: formatContentForDisplay(content) }} 
+            />
           </div>
         )}
 
