@@ -4,34 +4,29 @@ import { useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
-import { ChevronDown, ChevronRight, LogOut } from 'lucide-react'
+import { ChevronDown, ChevronRight, LogOut, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/use-auth'
 import { navigationSections, bottomNavItems, dashboardItem, NavItem, NavSubSection } from '@/constants/navigation'
 
 interface SidebarProps {
-  isCollapsed: boolean
-  onToggle: () => void
+  isOpen: boolean
+  isDesktop: boolean
+  onClose: () => void
 }
 
-export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
+export function Sidebar({ isOpen, isDesktop, onClose }: SidebarProps) {
   const pathname = usePathname()
   const { logout, hasRole } = useAuth()
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({})
   const [expandedSubSections, setExpandedSubSections] = useState<Record<string, boolean>>({})
 
   const toggleSection = (title: string) => {
-    setExpandedSections(prev => ({
-      ...prev,
-      [title]: !prev[title],
-    }))
+    setExpandedSections(prev => ({ ...prev, [title]: !prev[title] }))
   }
 
   const toggleSubSection = (title: string) => {
-    setExpandedSubSections(prev => ({
-      ...prev,
-      [title]: !prev[title],
-    }))
+    setExpandedSubSections(prev => ({ ...prev, [title]: !prev[title] }))
   }
 
   const isActive = (href: string) => {
@@ -44,54 +39,57 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   }
 
   const isSectionActive = (section: typeof navigationSections[0]) => {
-    // Check if any direct items are active
     if (section.items?.some(item => isActive(item.href))) return true
-    // Check if any sub-section items are active
     if (section.subSections?.some(subSection => isSubSectionActive(subSection))) return true
     return false
   }
 
   const filterItemsByRole = (items: NavItem[]) => {
-    return items.filter(item => {
-      if (!item.requiredRole) return true
-      return hasRole(item.requiredRole)
-    })
+    return items.filter(item => !item.requiredRole || hasRole(item.requiredRole))
   }
 
   const handleLogout = async () => {
     await logout()
   }
 
-  if (isCollapsed) {
-    return (
-      <aside className="fixed left-0 top-0 z-40 h-screen w-20 bg-white flex flex-col">
-        <div className="p-4 flex justify-center">
-          <button onClick={onToggle} className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center text-white font-bold text-lg">
-            O
-          </button>
-        </div>
-      </aside>
-    )
+  const handleNavClick = () => {
+    if (!isDesktop) onClose()
   }
 
+
+  if (!isOpen) return null
+
   return (
-    <aside className="fixed left-0 top-0 z-40 h-screen w-72 bg-white flex flex-col">
-      {/* Logo */}
-      <div className="p-6">
-        <Link href="/dashboard" className="block">
+    <aside className={cn(
+      "fixed top-0 left-0 z-50 h-screen w-72 bg-white border-r border-gray-100 flex flex-col shadow-xl lg:shadow-none transition-transform duration-300",
+      isOpen ? "translate-x-0" : "-translate-x-full"
+    )}>
+      {/* Header with Logo and Close button */}
+      <div className="flex items-center justify-between p-4 border-b border-gray-100">
+        <Link href="/dashboard" className="block" onClick={handleNavClick}>
           <Image
             src="/Ovaview-Media-Monitoring-Logo.png"
             alt="Ovaview"
-            width={200}
-            height={60}
+            width={160}
+            height={48}
+            className="h-10 w-auto"
           />
         </Link>
+        {!isDesktop && (
+          <button
+            onClick={onClose}
+            className="p-2 rounded-lg hover:bg-gray-100 lg:hidden"
+          >
+            <X className="h-5 w-5 text-gray-500" />
+          </button>
+        )}
       </div>
 
       {/* Dashboard Link */}
-      <div className="px-4 py-3">
+      <div className="px-3 py-3">
         <Link
           href={dashboardItem.href}
+          onClick={handleNavClick}
           className={cn(
             'flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200',
             isActive(dashboardItem.href)
@@ -105,7 +103,7 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
       </div>
 
       {/* Navigation Sections */}
-      <nav className="flex-1 overflow-y-auto px-4 py-2 space-y-2">
+      <nav className="flex-1 overflow-y-auto px-3 py-2 space-y-1">
         {navigationSections.map((section) => {
           const filteredItems = section.items ? filterItemsByRole(section.items) : []
           const hasSubSections = section.subSections && section.subSections.length > 0
@@ -129,7 +127,6 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
               
               {(expandedSections[section.title] || isSectionActive(section)) && (
                 <div className="mt-1 space-y-1 animate-fadeIn">
-                  {/* Render sub-sections (collapsible groups like Media types) */}
                   {section.subSections?.map((subSection) => {
                     const subSectionExpanded = expandedSubSections[subSection.title] || isSubSectionActive(subSection)
                     const SubIcon = subSection.icon
@@ -140,20 +137,14 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
                           onClick={() => toggleSubSection(subSection.title)}
                           className={cn(
                             'flex items-center justify-between w-full px-4 py-2.5 rounded-xl text-sm transition-all duration-200',
-                            subSectionExpanded
-                              ? 'gradient-primary text-white'
-                              : 'text-gray-600 hover:bg-gray-50'
+                            subSectionExpanded ? 'gradient-primary text-white' : 'text-gray-600 hover:bg-gray-50'
                           )}
                         >
                           <div className="flex items-center gap-3">
                             <SubIcon className="h-4 w-4" />
                             {subSection.title}
                           </div>
-                          {subSectionExpanded ? (
-                            <ChevronDown className="h-4 w-4" />
-                          ) : (
-                            <ChevronRight className="h-4 w-4" />
-                          )}
+                          {subSectionExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                         </button>
                         
                         {subSectionExpanded && (
@@ -162,17 +153,13 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
                               <Link
                                 key={item.href}
                                 href={item.href}
+                                onClick={handleNavClick}
                                 className={cn(
                                   'flex items-center gap-3 px-4 py-2 rounded-xl text-sm transition-all duration-200',
-                                  isActive(item.href)
-                                    ? 'bg-orange-50 text-orange-600 font-medium'
-                                    : 'text-gray-600 hover:bg-gray-50'
+                                  isActive(item.href) ? 'bg-orange-50 text-orange-600 font-medium' : 'text-gray-600 hover:bg-gray-50'
                                 )}
                               >
-                                <item.icon className={cn(
-                                  'h-4 w-4',
-                                  isActive(item.href) ? 'text-orange-500' : 'text-gray-400'
-                                )} />
+                                <item.icon className={cn('h-4 w-4', isActive(item.href) ? 'text-orange-500' : 'text-gray-400')} />
                                 {item.label}
                               </Link>
                             ))}
@@ -182,22 +169,17 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
                     )
                   })}
 
-                  {/* Render regular items */}
                   {filteredItems.map((item) => (
                     <Link
                       key={item.href}
                       href={item.href}
+                      onClick={handleNavClick}
                       className={cn(
                         'flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm transition-all duration-200',
-                        isActive(item.href)
-                          ? 'bg-orange-50 text-orange-600 font-medium'
-                          : 'text-gray-600 hover:bg-gray-50'
+                        isActive(item.href) ? 'bg-orange-50 text-orange-600 font-medium' : 'text-gray-600 hover:bg-gray-50'
                       )}
                     >
-                      <item.icon className={cn(
-                        'h-4 w-4',
-                        isActive(item.href) ? 'text-orange-500' : 'text-gray-400'
-                      )} />
+                      <item.icon className={cn('h-4 w-4', isActive(item.href) ? 'text-orange-500' : 'text-gray-400')} />
                       {item.label}
                     </Link>
                   ))}
@@ -208,23 +190,20 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
         })}
       </nav>
 
+
       {/* Bottom Navigation */}
-      <div className="border-t border-gray-100 px-4 py-4 space-y-1">
+      <div className="border-t border-gray-100 px-3 py-4 space-y-1">
         {bottomNavItems.map((item) => (
           <Link
             key={item.href}
             href={item.href}
+            onClick={handleNavClick}
             className={cn(
               'flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm transition-all duration-200',
-              isActive(item.href)
-                ? 'bg-orange-50 text-orange-600 font-medium'
-                : 'text-gray-600 hover:bg-gray-50'
+              isActive(item.href) ? 'bg-orange-50 text-orange-600 font-medium' : 'text-gray-600 hover:bg-gray-50'
             )}
           >
-            <item.icon className={cn(
-              'h-4 w-4',
-              isActive(item.href) ? 'text-orange-500' : 'text-gray-400'
-            )} />
+            <item.icon className={cn('h-4 w-4', isActive(item.href) ? 'text-orange-500' : 'text-gray-400')} />
             {item.label}
           </Link>
         ))}

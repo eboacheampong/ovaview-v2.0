@@ -41,14 +41,14 @@ export function DataTableFilters<TData>({
   }
 
   return (
-    <div className="flex items-center gap-2">
-      <div className="relative flex-1 max-w-sm">
+    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+      <div className="relative flex-1 sm:max-w-sm">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
         <Input
           placeholder={searchPlaceholder}
           value={currentValue}
           onChange={(e) => handleSearch(e.target.value)}
-          className="pl-9 pr-9"
+          className="pl-9 pr-9 h-10 rounded-xl"
         />
         {currentValue && (
           <Button

@@ -125,17 +125,17 @@ export default async function PublicMediaPage({ params }: PageProps) {
   const images = 'images' in story ? story.images : []
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
-      <article className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="px-8 pt-8">
+    <div className="max-w-4xl mx-auto px-4 py-4 sm:py-8">
+      <article className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="px-4 sm:px-8 pt-6 sm:pt-8">
           <div className="flex items-center gap-2 text-orange-600 mb-4">
             {getMediaIcon(type)}
             <span className="text-sm font-medium">{getMediaLabel(type)}</span>
           </div>
 
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">{title}</h1>
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-4">{title}</h1>
 
-          <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500 mb-6">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-500 mb-6">
             <div className="flex items-center gap-1">
               <Calendar className="h-4 w-4" />
               <span>{new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
@@ -182,19 +182,19 @@ export default async function PublicMediaPage({ params }: PageProps) {
         </div>
 
         {images && images.length > 0 && (
-          <div className="px-8 mb-6">
-            <img src={images[0].url} alt={images[0].caption || title} className="w-full h-64 object-cover rounded-xl" />
+          <div className="px-4 sm:px-8 mb-6">
+            <img src={images[0].url} alt={images[0].caption || title} className="w-full h-48 sm:h-64 object-cover rounded-xl" />
             {images[0].caption && <p className="text-sm text-gray-500 mt-2 text-center">{images[0].caption}</p>}
           </div>
         )}
 
         {(sentimentPositive !== null || sentimentNeutral !== null || sentimentNegative !== null) && (
-          <div className="px-8 mb-6">
-            <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl p-5 border border-gray-200">
-              <div className="flex items-center justify-between mb-4">
+          <div className="px-4 sm:px-8 mb-6">
+            <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl p-4 sm:p-5 border border-gray-200">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
                 <h2 className="text-sm font-semibold text-gray-700">Sentiment Analysis</h2>
                 {overallSentiment && (
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                  <span className={`px-3 py-1 rounded-full text-xs font-medium self-start sm:self-auto ${
                     overallSentiment === 'positive' ? 'bg-green-100 text-green-700' :
                     overallSentiment === 'negative' ? 'bg-red-100 text-red-700' :
                     'bg-gray-200 text-gray-700'
@@ -203,30 +203,30 @@ export default async function PublicMediaPage({ params }: PageProps) {
                   </span>
                 )}
               </div>
-              <div className="flex gap-3">
+              <div className="grid grid-cols-3 gap-2 sm:gap-3">
                 {sentimentPositive !== null && (
-                  <div className="flex-1 bg-white rounded-lg p-4 text-center shadow-sm border border-green-100">
-                    <div className="text-2xl font-bold text-green-600">{sentimentPositive}%</div>
-                    <div className="text-xs text-green-700 mt-1">Positive</div>
-                    <div className="mt-2 h-1.5 bg-green-100 rounded-full overflow-hidden">
+                  <div className="bg-white rounded-lg p-2 sm:p-4 text-center shadow-sm border border-green-100">
+                    <div className="text-lg sm:text-2xl font-bold text-green-600">{sentimentPositive}%</div>
+                    <div className="text-[10px] sm:text-xs text-green-700 mt-1">Positive</div>
+                    <div className="mt-2 h-1 sm:h-1.5 bg-green-100 rounded-full overflow-hidden">
                       <div className="h-full bg-green-500 rounded-full" style={{ width: `${sentimentPositive}%` }} />
                     </div>
                   </div>
                 )}
                 {sentimentNeutral !== null && (
-                  <div className="flex-1 bg-white rounded-lg p-4 text-center shadow-sm border border-gray-200">
-                    <div className="text-2xl font-bold text-gray-600">{sentimentNeutral}%</div>
-                    <div className="text-xs text-gray-700 mt-1">Neutral</div>
-                    <div className="mt-2 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                  <div className="bg-white rounded-lg p-2 sm:p-4 text-center shadow-sm border border-gray-200">
+                    <div className="text-lg sm:text-2xl font-bold text-gray-600">{sentimentNeutral}%</div>
+                    <div className="text-[10px] sm:text-xs text-gray-700 mt-1">Neutral</div>
+                    <div className="mt-2 h-1 sm:h-1.5 bg-gray-200 rounded-full overflow-hidden">
                       <div className="h-full bg-gray-500 rounded-full" style={{ width: `${sentimentNeutral}%` }} />
                     </div>
                   </div>
                 )}
                 {sentimentNegative !== null && (
-                  <div className="flex-1 bg-white rounded-lg p-4 text-center shadow-sm border border-red-100">
-                    <div className="text-2xl font-bold text-red-600">{sentimentNegative}%</div>
-                    <div className="text-xs text-red-700 mt-1">Negative</div>
-                    <div className="mt-2 h-1.5 bg-red-100 rounded-full overflow-hidden">
+                  <div className="bg-white rounded-lg p-2 sm:p-4 text-center shadow-sm border border-red-100">
+                    <div className="text-lg sm:text-2xl font-bold text-red-600">{sentimentNegative}%</div>
+                    <div className="text-[10px] sm:text-xs text-red-700 mt-1">Negative</div>
+                    <div className="mt-2 h-1 sm:h-1.5 bg-red-100 rounded-full overflow-hidden">
                       <div className="h-full bg-red-500 rounded-full" style={{ width: `${sentimentNegative}%` }} />
                     </div>
                   </div>
@@ -237,7 +237,7 @@ export default async function PublicMediaPage({ params }: PageProps) {
         )}
 
         {videoUrl && (
-          <div className="px-8 mb-6">
+          <div className="px-4 sm:px-8 mb-6">
             <div className="bg-gray-900 rounded-xl overflow-hidden">
               <video controls className="w-full"><source src={videoUrl} type="video/mp4" /></video>
             </div>
@@ -246,7 +246,7 @@ export default async function PublicMediaPage({ params }: PageProps) {
         )}
 
         {audioUrl && (
-          <div className="px-8 mb-6">
+          <div className="px-4 sm:px-8 mb-6">
             <div className="bg-gray-100 rounded-xl p-4">
               <audio controls className="w-full"><source src={audioUrl} type="audio/mpeg" /></audio>
             </div>
@@ -255,23 +255,23 @@ export default async function PublicMediaPage({ params }: PageProps) {
         )}
 
         {summary && (
-          <div className="px-8 mb-6">
-            <div className="bg-orange-50 border-l-4 border-orange-500 p-4 rounded-r-lg">
+          <div className="px-4 sm:px-8 mb-6">
+            <div className="bg-orange-50 border-l-4 border-orange-500 p-3 sm:p-4 rounded-r-lg">
               <h2 className="text-sm font-semibold text-orange-800 mb-2">Summary</h2>
-              <p className="text-gray-700">{summary}</p>
+              <p className="text-sm sm:text-base text-gray-700">{summary}</p>
             </div>
           </div>
         )}
 
         {content && (
-          <div className="px-8 pb-6">
-            <div className="prose prose-gray max-w-none" dangerouslySetInnerHTML={{ __html: content }} />
+          <div className="px-4 sm:px-8 pb-6">
+            <div className="prose prose-sm sm:prose prose-gray max-w-none" dangerouslySetInnerHTML={{ __html: content }} />
           </div>
         )}
 
         {keywords && (
-          <div className="px-8 pb-6">
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-5 border border-blue-100">
+          <div className="px-4 sm:px-8 pb-6">
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 sm:p-5 border border-blue-100">
               <div className="flex items-center gap-2 mb-3">
                 <Tag className="h-4 w-4 text-blue-500" />
                 <span className="text-sm font-semibold text-blue-700">Keywords</span>
@@ -280,7 +280,7 @@ export default async function PublicMediaPage({ params }: PageProps) {
                 {keywords.split(',').map((keyword: string, index: number) => (
                   <span 
                     key={index} 
-                    className="px-3 py-1.5 bg-white text-blue-700 text-sm rounded-full border border-blue-200 shadow-sm hover:shadow-md transition-shadow"
+                    className="px-2 sm:px-3 py-1 sm:py-1.5 bg-white text-blue-700 text-xs sm:text-sm rounded-full border border-blue-200 shadow-sm"
                   >
                     {keyword.trim()}
                   </span>
@@ -291,7 +291,7 @@ export default async function PublicMediaPage({ params }: PageProps) {
         )}
 
         {sourceUrl && (
-          <div className="px-8 pb-8 border-t border-gray-100 pt-6">
+          <div className="px-4 sm:px-8 pb-6 sm:pb-8 border-t border-gray-100 pt-6">
             <a href={sourceUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 text-sm font-medium bg-blue-50 px-4 py-2 rounded-lg hover:bg-blue-100 transition-colors">
               <ExternalLink className="h-4 w-4" />View Original Source
             </a>
@@ -299,12 +299,12 @@ export default async function PublicMediaPage({ params }: PageProps) {
         )}
 
         {images && images.length > 1 && (
-          <div className="px-8 pb-8 border-t border-gray-100 pt-6">
+          <div className="px-4 sm:px-8 pb-6 sm:pb-8 border-t border-gray-100 pt-6">
             <h2 className="text-sm font-semibold text-gray-700 mb-3">More Images</h2>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
               {images.slice(1).map((image: { id: string; url: string; caption?: string | null }, index: number) => (
                 <div key={image.id || index} className="relative">
-                  <img src={image.url} alt={image.caption || `Image ${index + 2}`} className="w-full h-32 object-cover rounded-lg" />
+                  <img src={image.url} alt={image.caption || `Image ${index + 2}`} className="w-full h-24 sm:h-32 object-cover rounded-lg" />
                   {image.caption && <p className="text-xs text-gray-500 mt-1">{image.caption}</p>}
                 </div>
               ))}
@@ -313,12 +313,12 @@ export default async function PublicMediaPage({ params }: PageProps) {
         )}
       </article>
 
-      <footer className="mt-8 py-6 border-t border-gray-200">
+      <footer className="mt-6 sm:mt-8 py-4 sm:py-6 border-t border-gray-200">
         <div className="flex flex-col items-center gap-2">
           <img
             src="/Ovaview-Media-Monitoring-Logo.png"
             alt="Ovaview"
-            className="h-10 w-auto"
+            className="h-8 sm:h-10 w-auto"
           />
           <p className="text-xs text-gray-400">© {new Date().getFullYear()} All rights reserved</p>
         </div>
