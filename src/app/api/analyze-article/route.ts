@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 
 // Models to try in order (primary + fallbacks)
 const MODELS = [
-  'meta-llama/llama-3.3-70b-instruct',
-  'google/gemini-2.5-flash-lite',
-  'openai/gpt-4o-mini',
+  'mistralai/mistral-nemo',
+  'meta-llama/llama-3.1-8b-instruct',
+  'openai/gpt-oss-20b',
+  'openai/gpt-oss-120b',
 ]
 
 // Response interfaces as defined in design doc

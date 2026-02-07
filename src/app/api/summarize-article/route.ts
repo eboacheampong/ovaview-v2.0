@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 
 // Models to try in order (primary + fallbacks)
 const MODELS = [
-  'google/gemma-3-27b-it:free',
-  'qwen/qwen3-coder:free',
-  'meta-llama/llama-3.3-70b-instruct:free',
+  'mistralai/mistral-nemo',
+  'meta-llama/llama-3.1-8b-instruct',
+  'openai/gpt-oss-20b',
+  'openai/gpt-oss-120b',
 ]
 
 export async function POST(request: NextRequest) {
