@@ -277,7 +277,7 @@ export default async function PublicMediaPage({ params }: PageProps) {
                 <span className="text-sm font-semibold text-blue-700">Keywords</span>
               </div>
               <div className="flex flex-wrap gap-2">
-                {keywords.split(',').map((keyword, index) => (
+                {keywords.split(',').map((keyword: string, index: number) => (
                   <span 
                     key={index} 
                     className="px-3 py-1.5 bg-white text-blue-700 text-sm rounded-full border border-blue-200 shadow-sm hover:shadow-md transition-shadow"
