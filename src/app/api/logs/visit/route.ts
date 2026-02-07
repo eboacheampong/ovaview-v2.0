@@ -5,11 +5,21 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '50')
+    const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100)
     const skip = (page - 1) * limit
+    const startDate = searchParams.get('startDate')
+    const endDate = searchParams.get('endDate')
+
+    const where: Record<string, unknown> = {}
+    if (startDate || endDate) {
+      where.visitedAt = {}
+      if (startDate) (where.visitedAt as Record<string, Date>).gte = new Date(startDate)
+      if (endDate) (where.visitedAt as Record<string, Date>).lte = new Date(endDate)
+    }
 
     const [logs, total] = await Promise.all([
       prisma.visitLog.findMany({
+        where,
         include: {
           user: { select: { id: true, name: true, email: true } },
         },
@@ -17,7 +27,7 @@ export async function GET(request: NextRequest) {
         skip,
         take: limit,
       }),
-      prisma.visitLog.count(),
+      prisma.visitLog.count({ where }),
     ])
 
     return NextResponse.json({
@@ -59,9 +69,10 @@ export async function POST(request: NextRequest) {
         articleId,
         mediaType: mediaType?.toUpperCase(),
       },
+      select: { id: true },
     })
 
-    return NextResponse.json(log, { status: 201 })
+    return NextResponse.json({ id: log.id }, { status: 201 })
   } catch (error) {
     console.error('Error creating visit log:', error)
     return NextResponse.json({ error: 'Failed to create log' }, { status: 500 })

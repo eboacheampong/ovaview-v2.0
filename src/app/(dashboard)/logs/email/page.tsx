@@ -6,7 +6,6 @@ import { DataTable, DataTableColumnHeader } from '@/components/data-table'
 import { Badge } from '@/components/ui/badge'
 import { EmailLog } from '@/types/logs'
 import { format } from 'date-fns'
-import { apiClient } from '@/lib/api-client'
 
 export default function EmailLogPage() {
   const [logs, setLogs] = useState<EmailLog[]>([])
@@ -17,8 +16,11 @@ export default function EmailLogPage() {
     setIsLoading(true)
     try {
       const params = statusFilter !== 'all' ? `?status=${statusFilter}` : ''
-      const response = await apiClient.get(`/api/logs/email${params}`)
-      setLogs(response.data || [])
+      const res = await fetch(`/api/logs/email${params}`)
+      if (res.ok) {
+        const json = await res.json()
+        setLogs(json.data || [])
+      }
     } catch (error) {
       console.error('Error fetching email logs:', error)
     } finally {

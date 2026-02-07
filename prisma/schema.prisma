@@ -412,58 +412,82 @@ model PrintStoryImage {
 
 // Logging Models
 model ArticleViewLog {
-  id          String    @id @default(cuid())
-  clientId    String
-  client      Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  userId      String
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  articleId   String
+  id           String    @id @default(cuid())
+  clientId     String
+  client       Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  articleId    String
   articleTitle String
-  mediaType   MediaType
-  duration    Int       @default(0) // seconds
-  viewedAt    DateTime  @default(now())
+  mediaType    MediaType
+  duration     Int       @default(0) // seconds
+  viewedAt     DateTime  @default(now())
+
+  @@index([clientId])
+  @@index([userId])
+  @@index([viewedAt(sort: Desc)])
+  @@index([mediaType])
 }
 
 model MediaEntryLog {
-  id          String    @id @default(cuid())
-  userId      String
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  mediaType   MediaType
-  publisher   String
-  storyId     String
-  storyTitle  String
-  action      String    // 'created', 'updated', 'deleted'
-  timestamp   DateTime  @default(now())
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mediaType  MediaType
+  publisher  String
+  storyId    String
+  storyTitle String
+  action     String    // 'created', 'updated', 'deleted'
+  timestamp  DateTime  @default(now())
+
+  @@index([userId])
+  @@index([mediaType])
+  @@index([publisher])
+  @@index([timestamp(sort: Desc)])
+  @@index([action])
 }
 
 model EmailLog {
-  id           String    @id @default(cuid())
+  id           String     @id @default(cuid())
   recipient    String
   subject      String
   articleId    String?
   articleType  MediaType?
-  status       String    // 'sent', 'failed'
+  status       String     // 'sent', 'failed'
   errorMessage String?
-  sentAt       DateTime  @default(now())
+  sentAt       DateTime   @default(now())
+
+  @@index([status])
+  @@index([sentAt(sort: Desc)])
+  @@index([recipient])
 }
 
 model VisitLog {
-  id         String    @id @default(cuid())
-  userId     String?
-  user       User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
-  ipAddress  String
-  userAgent  String?
-  page       String
-  articleId  String?
-  mediaType  MediaType?
-  visitedAt  DateTime  @default(now())
+  id        String     @id @default(cuid())
+  userId    String?
+  user      User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  ipAddress String
+  userAgent String?
+  page      String
+  articleId String?
+  mediaType MediaType?
+  visitedAt DateTime   @default(now())
+
+  @@index([userId])
+  @@index([visitedAt(sort: Desc)])
+  @@index([page])
+  @@index([ipAddress])
 }
 
 model TenderViewLog {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tenderId  String
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenderId    String
   tenderTitle String?
-  viewedAt  DateTime @default(now())
+  viewedAt    DateTime @default(now())
+
+  @@index([userId])
+  @@index([tenderId])
+  @@index([viewedAt(sort: Desc)])
 }

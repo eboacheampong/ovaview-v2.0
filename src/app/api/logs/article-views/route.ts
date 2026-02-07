@@ -6,10 +6,20 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const clientId = searchParams.get('clientId')
     const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '50')
+    const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100) // Cap at 100
     const skip = (page - 1) * limit
+    const startDate = searchParams.get('startDate')
+    const endDate = searchParams.get('endDate')
 
-    const where = clientId && clientId !== 'all' ? { clientId } : {}
+    const where: Record<string, unknown> = {}
+    if (clientId && clientId !== 'all') where.clientId = clientId
+    
+    // Date range filter for better performance on large tables
+    if (startDate || endDate) {
+      where.viewedAt = {}
+      if (startDate) (where.viewedAt as Record<string, Date>).gte = new Date(startDate)
+      if (endDate) (where.viewedAt as Record<string, Date>).lte = new Date(endDate)
+    }
 
     const [logs, total] = await Promise.all([
       prisma.articleViewLog.findMany({
@@ -56,6 +66,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { clientId, userId, articleId, articleTitle, mediaType, duration } = body
 
+    // Use fire-and-forget for non-critical logging
     const log = await prisma.articleViewLog.create({
       data: {
         clientId,
@@ -65,9 +76,10 @@ export async function POST(request: NextRequest) {
         mediaType: mediaType.toUpperCase(),
         duration: duration || 0,
       },
+      select: { id: true }, // Only return ID for efficiency
     })
 
-    return NextResponse.json(log, { status: 201 })
+    return NextResponse.json({ id: log.id }, { status: 201 })
   } catch (error) {
     console.error('Error creating article view log:', error)
     return NextResponse.json({ error: 'Failed to create log' }, { status: 500 })

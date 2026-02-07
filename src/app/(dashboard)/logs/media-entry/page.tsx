@@ -6,7 +6,6 @@ import { DataTable, DataTableColumnHeader } from '@/components/data-table'
 import { Badge } from '@/components/ui/badge'
 import { MediaType } from '@/types/media'
 import { format } from 'date-fns'
-import { apiClient } from '@/lib/api-client'
 
 interface MediaEntryLog {
   id: string
@@ -37,9 +36,12 @@ export default function MediaEntryLogPage() {
       if (selectedPublisher !== 'all') params.append('publisher', selectedPublisher)
       
       const queryString = params.toString()
-      const response = await apiClient.get(`/api/logs/media-entry${queryString ? `?${queryString}` : ''}`)
-      setLogs(response.data || [])
-      setPublishers(response.publishers || [])
+      const res = await fetch(`/api/logs/media-entry${queryString ? `?${queryString}` : ''}`)
+      if (res.ok) {
+        const json = await res.json()
+        setLogs(json.data || [])
+        setPublishers(json.publishers || [])
+      }
     } catch (error) {
       console.error('Error fetching logs:', error)
     } finally {

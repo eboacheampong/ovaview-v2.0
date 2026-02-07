@@ -6,7 +6,6 @@ import { DataTable, DataTableColumnHeader } from '@/components/data-table'
 import { Badge } from '@/components/ui/badge'
 import { MediaType } from '@/types/media'
 import { format } from 'date-fns'
-import { apiClient } from '@/lib/api-client'
 
 interface ArticleViewLog {
   id: string
@@ -35,9 +34,12 @@ export default function ArticleViewsLogPage() {
   const fetchLogs = useCallback(async () => {
     setIsLoading(true)
     try {
-ectedClient !== 'all' ? `?clientId=${selectedClient}` : ''
-      const response = await apiClient.get(`/api/logs/article-views${params}`)
-      setLogs(response.data || [])
+      const params = selectedClient !== 'all' ? `?clientId=${selectedClient}` : ''
+      const res = await fetch(`/api/logs/article-views${params}`)
+      if (res.ok) {
+        const json = await res.json()
+        setLogs(json.data || [])
+      }
     } catch (error) {
       console.error('Error fetching logs:', error)
     } finally {
@@ -47,12 +49,16 @@ ectedClient !== 'all' ? `?clientId=${selectedClient}` : ''
 
   const fetchClients = useCallback(async () => {
     try {
-      const response = await apiClient.get('/api/clients')
-      setClients(response.data || [])
+      const res = await fetch('/api/clients')
+      if (res.ok) {
+        const data = await res.json()
+        setClients(data || [])
+      }
     } catch (error) {
       console.error('Error fetching clients:', error)
     }
   }, [])
+
 
   useEffect(() => {
     fetchClients()
@@ -86,7 +92,7 @@ ectedClient !== 'all' ? `?clientId=${selectedClient}` : ''
     },
     {
       accessorKey: 'userName',
-      headader column={column} title="User" />,
+      header: ({ column }) => <DataTableColumnHeader column={column} title="User" />,
     },
     {
       accessorKey: 'articleTitle',
@@ -101,7 +107,7 @@ ectedClient !== 'all' ? `?clientId=${selectedClient}` : ''
       accessorKey: 'mediaType',
       header: 'Media Type',
       cell: ({ row }) => {
-        c
+        const type = row.getValue('mediaType') as MediaType
         return <Badge variant="outline" className={getMediaTypeColor(type)}>{type.toUpperCase()}</Badge>
       },
     },
@@ -113,13 +119,24 @@ ectedClient !== 'all' ? `?clientId=${selectedClient}` : ''
     {
       accessorKey: 'viewedAt',
       header: ({ column }) => <DataTableColumnHeader column={column} title="Viewed At" />,
- client or article..." 
-        searchColumn="clientName" 
-      />
-    </div>
-  )
-}
-}
+      cell: ({ row }) => format(new Date(row.getValue('viewedAt')), 'MMM dd, yyyy HH:mm'),
+    },
+  ], [])
+
+
+  return (
+    <div className="p-6">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-800">Client Article Views</h1>
+        <p className="text-gray-500 mt-1">Track client article viewing activity</p>
+      </div>
+
+      <div className="mb-4">
+        <label htmlFor="clientFilter" className="text-sm font-medium text-gray-700 mr-3">Filter by Client:</label>
+        <select
+          id="clientFilter"
+          value={selectedClient}
+          onChange={(e) => setSelectedClient(e.target.value)}
           className="h-10 rounded-lg border border-gray-200 px-3 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
         >
           <option value="all">All Clients</option>
@@ -133,20 +150,9 @@ ectedClient !== 'all' ? `?clientId=${selectedClient}` : ''
         columns={columns} 
         data={logs} 
         isLoading={isLoading}
-        searchPlaceholder="Search by
-    <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">Client Article Views</h1>
-        <p className="text-gray-500 mt-1">Track client article viewing activity</p>
-      </div>
-
-      <div className="mb-4">
-        <label htmlFor="clientFilter" className="text-sm font-medium text-gray-700 mr-3">Filter by Client:</label>
-        <select
-          id="clientFilter"
-          value={selectedClient}
-          onChange={(e) => setSelectedClient(e.target.value)      cell: ({ row }) => format(new Date(row.getValue('viewedAt')), 'MMM dd, yyyy HH:mm'),
-    },
-  ], [])
-
-  return (
+        searchPlaceholder="Search by client or article..." 
+        searchColumn="clientName" 
+      />
+    </div>
+  )
+}

@@ -5,7 +5,6 @@ import { ColumnDef } from '@tanstack/react-table'
 import { DataTable, DataTableColumnHeader } from '@/components/data-table'
 import { Badge } from '@/components/ui/badge'
 import { format } from 'date-fns'
-import { apiClient } from '@/lib/api-client'
 
 interface VisitLog {
   id: string
@@ -26,8 +25,11 @@ export default function VisitLogPage() {
   const fetchLogs = useCallback(async () => {
     setIsLoading(true)
     try {
-      const response = await apiClient.get('/api/logs/visit')
-      setLogs(response.data || [])
+      const res = await fetch('/api/logs/visit')
+      if (res.ok) {
+        const json = await res.json()
+        setLogs(json.data || [])
+      }
     } catch (error) {
       console.error('Error fetching visit logs:', error)
     } finally {

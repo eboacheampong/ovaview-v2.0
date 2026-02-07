@@ -4,7 +4,6 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { ColumnDef } from '@tanstack/react-table'
 import { DataTable, DataTableColumnHeader } from '@/components/data-table'
 import { format } from 'date-fns'
-import { apiClient } from '@/lib/api-client'
 
 interface TenderLog {
   id: string
@@ -22,8 +21,11 @@ export default function TenderLogPage() {
   const fetchLogs = useCallback(async () => {
     setIsLoading(true)
     try {
-      const response = await apiClient.get('/api/logs/tender')
-      setLogs(response.data || [])
+      const res = await fetch('/api/logs/tender')
+      if (res.ok) {
+        const json = await res.json()
+        setLogs(json.data || [])
+      }
     } catch (error) {
       console.error('Error fetching tender logs:', error)
     } finally {
