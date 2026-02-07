@@ -77,15 +77,13 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   return (
     <aside className="fixed left-0 top-0 z-40 h-screen w-72 bg-white flex flex-col">
       {/* Logo */}
-      <div className="p-4 bg-gray-900 rounded-b-2xl mx-2">
+      <div className="p-6">
         <Link href="/dashboard" className="block">
           <Image
             src="/Ovaview-Media-Monitoring-Logo.png"
             alt="Ovaview"
-            width={220}
-            height={70}
-            className="mx-auto"
-            priority
+            width={200}
+            height={60}
           />
         </Link>
       </div>

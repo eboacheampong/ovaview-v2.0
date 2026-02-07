@@ -10,15 +10,15 @@ export default function PublicLayout({
 }) {
   return (
     <div className={`${inter.className} min-h-screen bg-gray-50`}>
-      {/* Simple header for public pages */}
-      <header className="bg-gray-900 border-b border-gray-800">
-        <div className="max-w-4xl mx-auto px-4 py-3">
+      {/* Header */}
+      <header className="bg-white shadow-sm border-b border-gray-100">
+        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
           <a href="/">
             <Image
               src="/Ovaview-Media-Monitoring-Logo.png"
               alt="Ovaview - Media Monitoring & Analysis"
-              width={180}
-              height={55}
+              width={160}
+              height={48}
             />
           </a>
         </div>

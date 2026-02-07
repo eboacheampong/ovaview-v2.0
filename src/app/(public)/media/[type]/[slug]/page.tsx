@@ -313,13 +313,14 @@ export default async function PublicMediaPage({ params }: PageProps) {
         )}
       </article>
 
-      <footer className="mt-8 text-center">
-        <div className="inline-block bg-gray-900 rounded-lg px-4 py-2">
+      <footer className="mt-8 py-6 border-t border-gray-200">
+        <div className="flex flex-col items-center gap-2">
           <img
             src="/Ovaview-Media-Monitoring-Logo.png"
-            alt="Ovaview - Media Monitoring & Analysis"
-            className="h-8 w-auto"
+            alt="Ovaview"
+            className="h-10 w-auto"
           />
+          <p className="text-xs text-gray-400">© {new Date().getFullYear()} All rights reserved</p>
         </div>
       </footer>
     </div>
