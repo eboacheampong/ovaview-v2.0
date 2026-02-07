@@ -69,10 +69,29 @@ model Client {
   tenderSmsAlerts   Boolean @default(false)
   tenderKeywords    String?
 
-  users      User[]
-  industries ClientIndustry[]
-  keywords   ClientKeyword[]
-  articleViewLogs ArticleViewLog[]
+  users               User[]
+  industries          ClientIndustry[]
+  keywords            ClientKeyword[]
+  articleViewLogs     ArticleViewLog[]
+  competitors         ClientCompetitor[] @relation("ClientCompetitors")
+  competitorOf        ClientCompetitor[] @relation("CompetitorOf")
+}
+
+// Competitor Tracking
+model ClientCompetitor {
+  id                 String   @id @default(cuid())
+  clientId           String
+  client             Client   @relation("ClientCompetitors", fields: [clientId], references: [id], onDelete: Cascade)
+  competitorClientId String?  // If competitor is also a client
+  competitorClient   Client?  @relation("CompetitorOf", fields: [competitorClientId], references: [id], onDelete: Cascade)
+  competitorName     String?  // If competitor is not a client
+  competitorKeywords String?  // Keywords to track for this competitor
+  isActive           Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@unique([clientId, competitorClientId])
+  @@index([clientId])
 }
 
 // Keyword Management
@@ -143,12 +162,14 @@ model ClientIndustry {
 
 // Web Publications
 model WebPublication {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  website   String?
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String   @id @default(cuid())
+  name         String   @unique
+  website      String?
+  reach        Int      @default(0) // Monthly unique visitors
+  region       String?  // Geographic region
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   stories WebStory[]
 }
@@ -158,6 +179,8 @@ model TVStation {
   id        String   @id @default(cuid())
   name      String   @unique
   channel   String?
+  reach     Int      @default(0) // Average viewership
+  region    String?  // Geographic region
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -185,6 +208,8 @@ model RadioStation {
   id        String   @id @default(cuid())
   name      String   @unique
   frequency String?
+  reach     Int      @default(0) // Average listenership
+  region    String?  // Geographic region
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -209,11 +234,13 @@ model RadioProgram {
 
 // Print Publications and Issues
 model PrintPublication {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(cuid())
+  name        String   @unique
+  circulation Int      @default(0) // Daily/weekly circulation
+  region      String?  // Geographic region
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   issues  PrintIssue[]
   stories PrintStory[]
