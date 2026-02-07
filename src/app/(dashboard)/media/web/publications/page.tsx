@@ -6,40 +6,53 @@ import { DataTable, DataTableColumnHeader } from '@/components/data-table'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { FormModal } from '@/components/modals/form-modal'
-import { ViewModal } from '@/components/modals/view-modal'
 import { ConfirmDialog } from '@/components/modals/confirm-dialog'
 import { useModal } from '@/hooks/use-modal'
-import { Publication } from '@/types/media'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Plus, Pencil, Trash2, ExternalLink, Eye, Globe, CheckCircle, XCircle } from 'lucide-react'
+import { Plus, Pencil, Trash2, Eye, Globe } from 'lucide-react'
 
-const mockPublications: Publication[] = [
-  { id: '1', name: 'TechCrunch Africa', type: 'web', website: 'https://techcrunch.com', isActive: true },
-  { id: '2', name: 'Business Daily Online', type: 'web', website: 'https://businessdaily.com', isActive: true },
-  { id: '3', name: 'The Star Online', type: 'web', website: 'https://the-star.co.ke', isActive: true },
-  { id: '4', name: 'Nation Online', type: 'web', website: 'https://nation.africa', isActive: false },
+interface WebPublication {
+  id: string
+  name: string
+  location?: string
+  reach?: number
+  isActive: boolean
+}
+
+const formatReach = (reach: number | undefined): string => {
+  if (!reach) return '-'
+  if (reach >= 1000000) return `${(reach / 1000000).toFixed(1)}M Readers`
+  if (reach >= 1000) return `${(reach / 1000).toFixed(0)}K Readers`
+  return `${reach} Readers`
+}
+
+const mockPublications: WebPublication[] = [
+  { id: '1', name: 'TechCrunch Africa', location: 'Nairobi', reach: 2500000, isActive: true },
+  { id: '2', name: 'Business Daily Online', location: 'Nairobi', reach: 1800000, isActive: true },
+  { id: '3', name: 'The Star Online', location: 'Nairobi', reach: 2100000, isActive: true },
+  { id: '4', name: 'Nation Online', location: 'Nairobi', reach: 3200000, isActive: false },
 ]
 
 export default function WebPublicationsPage() {
-  const [publications, setPublications] = useState<Publication[]>(mockPublications)
-  const [formData, setFormData] = useState({ name: '', website: '', isActive: true })
+  const [publications, setPublications] = useState<WebPublication[]>(mockPublications)
+  const [formData, setFormData] = useState({ name: '', location: '', reach: '', isActive: true })
   
   const createModal = useModal<undefined>()
-  const editModal = useModal<Publication>()
-  const viewModal = useModal<Publication>()
-  const deleteModal = useModal<Publication>()
+  const editModal = useModal<WebPublication>()
+  const viewModal = useModal<WebPublication>()
+  const deleteModal = useModal<WebPublication>()
 
   const handleCreate = async () => {
-    const newPublication: Publication = {
+    const newPublication: WebPublication = {
       id: String(Date.now()),
       name: formData.name,
-      type: 'web',
-      website: formData.website,
+      location: formData.location,
+      reach: formData.reach ? parseInt(formData.reach) : undefined,
       isActive: formData.isActive,
     }
     setPublications([...publications, newPublication])
-    setFormData({ name: '', website: '', isActive: true })
+    setFormData({ name: '', location: '', reach: '', isActive: true })
     createModal.close()
   }
 
@@ -47,7 +60,7 @@ export default function WebPublicationsPage() {
     if (!editModal.data) return
     setPublications(publications.map(p => 
       p.id === editModal.data!.id 
-        ? { ...p, name: formData.name, website: formData.website, isActive: formData.isActive }
+        ? { ...p, name: formData.name, location: formData.location, reach: formData.reach ? parseInt(formData.reach) : undefined, isActive: formData.isActive }
         : p
     ))
     editModal.close()
@@ -58,21 +71,22 @@ export default function WebPublicationsPage() {
     setPublications(publications.filter(p => p.id !== deleteModal.data!.id))
   }
 
-  const columns: ColumnDef<Publication>[] = [
+  const columns: ColumnDef<WebPublication>[] = [
     {
       accessorKey: 'name',
       header: ({ column }) => <DataTableColumnHeader column={column} title="Publication Name" />,
     },
     {
-      accessorKey: 'website',
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Website" />,
+      accessorKey: 'location',
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Location" />,
+      cell: ({ row }) => row.getValue('location') || '-',
+    },
+    {
+      accessorKey: 'reach',
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Reach/Coverage" />,
       cell: ({ row }) => {
-        const website = row.getValue('website') as string
-        return website ? (
-          <a href={website} target="_blank" rel="noopener noreferrer" className="text-orange-500 hover:underline flex items-center gap-1">
-            {website.replace(/^https?:\/\//, '')} <ExternalLink className="h-3 w-3" />
-          </a>
-        ) : '-'
+        const reach = row.getValue('reach') as number | undefined
+        return reach ? <span className="text-blue-600 font-medium">{formatReach(reach)}</span> : '-'
       },
     },
     {
@@ -92,7 +106,7 @@ export default function WebPublicationsPage() {
           <Button variant="ghost" size="sm" onClick={() => viewModal.open(row.original)} className="text-gray-500 hover:text-gray-700">
             <Eye className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="sm" onClick={() => { setFormData({ name: row.original.name, website: row.original.website || '', isActive: row.original.isActive }); editModal.open(row.original) }} className="text-gray-500 hover:text-gray-700">
+          <Button variant="ghost" size="sm" onClick={() => { setFormData({ name: row.original.name, location: row.original.location || '', reach: row.original.reach ? String(row.original.reach) : '', isActive: row.original.isActive }); editModal.open(row.original) }} className="text-gray-500 hover:text-gray-700">
             <Pencil className="h-4 w-4" />
           </Button>
           <Button variant="ghost" size="sm" onClick={() => deleteModal.open(row.original)} className="text-red-500 hover:text-red-700">
@@ -104,80 +118,53 @@ export default function WebPublicationsPage() {
   ]
 
   const FormContent = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <div className="space-y-2">
-        <Label className="text-gray-700 font-medium">Publication Name</Label>
+    <div className="space-y-4">
+      <div>
+        <Label className="text-gray-600 text-sm">Publication Name</Label>
         <Input 
           value={formData.name} 
           onChange={(e) => setFormData({ ...formData, name: e.target.value })} 
-          placeholder="Enter publication name"
-          className="h-11"
+          placeholder="Publication name"
+          className="mt-1"
         />
       </div>
-      <div className="space-y-2">
-        <Label className="text-gray-700 font-medium">Website URL</Label>
+      <div>
+        <Label className="text-gray-600 text-sm">Location</Label>
         <Input 
-          value={formData.website} 
-          onChange={(e) => setFormData({ ...formData, website: e.target.value })} 
-          placeholder="https://example.com"
-          className="h-11"
+          value={formData.location} 
+          onChange={(e) => setFormData({ ...formData, location: e.target.value })} 
+          placeholder="Location"
+          className="mt-1"
         />
       </div>
-      <div className="md:col-span-2">
-        <label className="flex items-center gap-3 cursor-pointer">
-          <input 
-            type="checkbox" 
-            checked={formData.isActive} 
-            onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })} 
-            className="w-5 h-5 rounded border-gray-300 text-orange-500 focus:ring-orange-500"
-          />
-          <span className="text-gray-700 font-medium">Active Publication</span>
-        </label>
-        <p className="text-gray-500 text-sm mt-1 ml-8">Active publications will appear in media entry forms</p>
+      <div>
+        <Label className="text-gray-600 text-sm">Reach/Coverage</Label>
+        <Input 
+          type="number" 
+          value={formData.reach} 
+          onChange={(e) => setFormData({ ...formData, reach: e.target.value })} 
+          placeholder="e.g., 2500000"
+          className="mt-1"
+        />
+      </div>
+      <div className="flex items-center gap-2">
+        <input 
+          type="checkbox" 
+          id="isActive" 
+          checked={formData.isActive} 
+          onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })} 
+          className="rounded border-gray-300"
+        />
+        <Label htmlFor="isActive" className="text-gray-600 text-sm cursor-pointer">Active</Label>
       </div>
     </div>
   )
 
   const ViewContent = () => (
-    <div className="space-y-6">
-      {/* Info Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="space-y-1">
-          <p className="text-sm text-gray-500 font-medium">Publication Name</p>
-          <p className="text-gray-900 text-lg">{viewModal.data?.name}</p>
-        </div>
-        <div className="space-y-1">
-          <p className="text-sm text-gray-500 font-medium">Type</p>
-          <p className="text-gray-900 text-lg">Web Publication</p>
-        </div>
-        <div className="space-y-1">
-          <p className="text-sm text-gray-500 font-medium">Website</p>
-          {viewModal.data?.website ? (
-            <a href={viewModal.data.website} target="_blank" rel="noopener noreferrer" className="text-orange-500 hover:underline flex items-center gap-2 text-lg">
-              {viewModal.data.website.replace(/^https?:\/\//, '')} 
-              <ExternalLink className="h-4 w-4" />
-            </a>
-          ) : (
-            <p className="text-gray-400">Not specified</p>
-          )}
-        </div>
-        <div className="space-y-1">
-          <p className="text-sm text-gray-500 font-medium">Status</p>
-          <div className="flex items-center gap-2">
-            {viewModal.data?.isActive ? (
-              <>
-                <CheckCircle className="h-5 w-5 text-green-500" />
-                <span className="text-green-700 font-medium">Active</span>
-              </>
-            ) : (
-              <>
-                <XCircle className="h-5 w-5 text-gray-400" />
-                <span className="text-gray-500 font-medium">Inactive</span>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
+    <div className="space-y-3">
+      <p className="text-gray-500 text-sm">{viewModal.data?.location}</p>
+      <p className="text-blue-600 font-medium">{formatReach(viewModal.data?.reach)}</p>
+      <p className="text-gray-700">{viewModal.data?.isActive ? 'This publication is currently active.' : 'This publication is inactive.'}</p>
     </div>
   )
 
@@ -188,70 +175,25 @@ export default function WebPublicationsPage() {
           <h1 className="text-2xl font-bold text-gray-800">Web Publications</h1>
           <p className="text-gray-500 mt-1">Manage online publications</p>
         </div>
-        <Button onClick={() => { setFormData({ name: '', website: '', isActive: true }); createModal.open() }} className="bg-orange-500 hover:bg-orange-600">
+        <Button onClick={() => { setFormData({ name: '', location: '', reach: '', isActive: true }); createModal.open() }} className="bg-orange-500 hover:bg-orange-600">
           <Plus className="h-4 w-4 mr-2" />Add Publication
         </Button>
       </div>
 
       <DataTable columns={columns} data={publications} searchPlaceholder="Search publications..." searchColumn="name" />
 
-      {/* Create Modal */}
-      <FormModal 
-        isOpen={createModal.isOpen} 
-        onClose={createModal.close} 
-        title="Add Web Publication" 
-        description="Create a new web publication for media monitoring"
-        icon={<Globe className="h-6 w-6" />}
-        onSubmit={handleCreate} 
-        isSubmitting={false}
-        size="lg"
-      >
+      <FormModal isOpen={createModal.isOpen} onClose={createModal.close} title="Add Web Publication" icon={<Globe className="h-6 w-6" />} onSubmit={handleCreate} isSubmitting={false}>
         <FormContent />
       </FormModal>
       
-      {/* Edit Modal */}
-      <FormModal 
-        isOpen={editModal.isOpen} 
-        onClose={editModal.close} 
-        title="Edit Web Publication" 
-        description="Update publication details"
-        icon={<Pencil className="h-6 w-6" />}
-        onSubmit={handleEdit} 
-        isSubmitting={false} 
-        submitLabel="Save Changes"
-        size="lg"
-      >
+      <FormModal isOpen={editModal.isOpen} onClose={editModal.close} title="Edit Web Publication" icon={<Pencil className="h-6 w-6" />} onSubmit={handleEdit} isSubmitting={false} submitLabel="Save">
         <FormContent />
       </FormModal>
 
-      {/* View Modal */}
-      <ViewModal 
-        isOpen={viewModal.isOpen} 
-        onClose={viewModal.close} 
-        title={viewModal.data?.name || 'Publication Details'}
-        subtitle="Web Publication"
-        icon={<Globe className="h-6 w-6" />}
-        size="lg"
-        actions={
-          <Button 
-            onClick={() => { 
-              viewModal.close()
-              if (viewModal.data) {
-                setFormData({ name: viewModal.data.name, website: viewModal.data.website || '', isActive: viewModal.data.isActive })
-                editModal.open(viewModal.data)
-              }
-            }}
-            className="bg-orange-500 hover:bg-orange-600 text-white"
-          >
-            <Pencil className="h-4 w-4 mr-2" />
-            Edit
-          </Button>
-        }
-      >
+      <FormModal isOpen={viewModal.isOpen} onClose={viewModal.close} title={viewModal.data?.name || 'Publication Details'} icon={<Globe className="h-6 w-6" />} onSubmit={async () => viewModal.close()} isSubmitting={false} submitLabel="Close" cancelLabel="">
         <ViewContent />
-      </ViewModal>
+      </FormModal>
       
-      {/* Delete Confirmation */}
       <ConfirmDialog isOpen={deleteModal.isOpen} onClose={deleteModal.close} onConfirm={handleDelete} title="Delete Publication" description={`Are you sure you want to delete "${deleteModal.data?.name}"?`} confirmLabel="Delete" variant="destructive" />
     </div>
   )

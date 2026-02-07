@@ -165,6 +165,7 @@ model WebPublication {
   id           String   @id @default(cuid())
   name         String   @unique
   website      String?
+  location     String?  // Location/City
   reach        Int      @default(0) // Monthly unique visitors
   region       String?  // Geographic region
   isActive     Boolean  @default(true)
@@ -178,7 +179,7 @@ model WebPublication {
 model TVStation {
   id        String   @id @default(cuid())
   name      String   @unique
-  channel   String?
+  location  String?  // Location/City
   reach     Int      @default(0) // Average viewership
   region    String?  // Geographic region
   isActive  Boolean  @default(true)
@@ -194,6 +195,8 @@ model TVProgram {
   name      String
   stationId String
   station   TVStation @relation(fields: [stationId], references: [id], onDelete: Cascade)
+  startTime String?   // e.g., "06:00"
+  endTime   String?   // e.g., "09:00"
   isActive  Boolean   @default(true)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -208,6 +211,7 @@ model RadioStation {
   id        String   @id @default(cuid())
   name      String   @unique
   frequency String?
+  location  String?  // Location/City
   reach     Int      @default(0) // Average listenership
   region    String?  // Geographic region
   isActive  Boolean  @default(true)
@@ -223,6 +227,8 @@ model RadioProgram {
   name      String
   stationId String
   station   RadioStation @relation(fields: [stationId], references: [id], onDelete: Cascade)
+  startTime String?      // e.g., "06:00"
+  endTime   String?      // e.g., "09:00"
   isActive  Boolean      @default(true)
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
@@ -236,7 +242,8 @@ model RadioProgram {
 model PrintPublication {
   id          String   @id @default(cuid())
   name        String   @unique
-  circulation Int      @default(0) // Daily/weekly circulation
+  location    String?  // Location/City
+  reach       Int      @default(0) // Daily/weekly circulation (readership)
   region      String?  // Geographic region
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
