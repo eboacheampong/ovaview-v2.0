@@ -34,9 +34,9 @@ export function Header({ onMenuToggle, sidebarOpen, isDesktop }: HeaderProps) {
             variant="ghost"
             size="sm"
             onClick={onMenuToggle}
-            className="w-10 h-10 rounded-xl hover:bg-gray-100"
+            className="w-11 h-11 rounded-xl hover:bg-gray-100"
           >
-            <Menu className="h-5 w-5 text-gray-600" />
+            <Menu className="h-6 w-6 text-gray-600" />
           </Button>
           
           {/* Search - hidden on mobile */}
@@ -52,39 +52,39 @@ export function Header({ onMenuToggle, sidebarOpen, isDesktop }: HeaderProps) {
         </div>
 
         {/* Right side */}
-        <div className="flex items-center gap-2 md:gap-4">
+        <div className="flex items-center gap-2 md:gap-3">
           {/* Mobile search button */}
           <Button
             variant="ghost"
             size="sm"
-            className="w-10 h-10 rounded-xl hover:bg-gray-100 md:hidden"
+            className="w-11 h-11 rounded-xl hover:bg-gray-100 md:hidden"
           >
-            <Search className="h-5 w-5 text-gray-500" />
+            <Search className="h-6 w-6 text-gray-500" />
           </Button>
 
           {/* Theme toggle - hidden on small mobile */}
           <Button
             variant="ghost"
             size="sm"
-            className="w-10 h-10 rounded-xl hover:bg-gray-100 hidden sm:flex"
+            className="w-11 h-11 rounded-xl hover:bg-gray-100 hidden sm:flex"
             onClick={() => setIsDark(!isDark)}
           >
-            {isDark ? <Sun className="h-5 w-5 text-gray-500" /> : <Moon className="h-5 w-5 text-gray-500" />}
+            {isDark ? <Sun className="h-6 w-6 text-gray-500" /> : <Moon className="h-6 w-6 text-gray-500" />}
           </Button>
 
           {/* Notifications */}
           <Button
             variant="ghost"
             size="sm"
-            className="w-10 h-10 rounded-xl relative hover:bg-gray-100"
+            className="w-11 h-11 rounded-xl relative hover:bg-gray-100"
           >
-            <Bell className="h-5 w-5 text-gray-500" />
-            <span className="absolute top-2 right-2 w-2 h-2 bg-orange-500 rounded-full" />
+            <Bell className="h-6 w-6 text-gray-500" />
+            <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-orange-500 rounded-full" />
           </Button>
 
           {/* User avatar and info */}
           <div className="flex items-center gap-2 md:gap-3">
-            <div className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-gradient-to-br from-orange-400 to-amber-500 flex items-center justify-center text-white font-semibold text-sm shadow-sm">
+            <div className="w-10 h-10 md:w-11 md:h-11 rounded-full bg-gradient-to-br from-orange-400 to-amber-500 flex items-center justify-center text-white font-semibold text-sm shadow-sm">
               {initials}
             </div>
             <div className="hidden md:block text-right">
