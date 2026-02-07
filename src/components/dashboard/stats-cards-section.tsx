@@ -11,6 +11,7 @@ interface StatsCardsSectionProps {
   radioCount: number
   printCount: number
   webCount: number
+  isLoading?: boolean
 }
 
 export function StatsCardsSection({
@@ -21,6 +22,7 @@ export function StatsCardsSection({
   radioCount,
   printCount,
   webCount,
+  isLoading = false,
 }: StatsCardsSectionProps) {
   const total = tvCount + radioCount + printCount + webCount
   
@@ -39,13 +41,14 @@ export function StatsCardsSection({
           totalCoverage={totalCoverage}
           activeClients={activeClients}
           todayEntries={todayEntries}
-          lastUpdated="5 mins ago"
+          lastUpdated="Just now"
+          isLoading={isLoading}
         />
       </div>
 
       {/* Media Source Distribution - spans remaining columns on right */}
       <div className="md:col-span-1 lg:col-span-3">
-        <DistributionCard items={distributionItems} total={total} />
+        <DistributionCard items={distributionItems} total={total} isLoading={isLoading} />
       </div>
     </div>
   )

@@ -1,12 +1,13 @@
 'use client'
 
-import { TrendingUp, Users, FileText, Clock } from 'lucide-react'
+import { TrendingUp, Users, FileText, Clock, Loader2 } from 'lucide-react'
 
 interface SummaryCardProps {
   totalCoverage: number
   activeClients: number
   todayEntries: number
   lastUpdated: string
+  isLoading?: boolean
 }
 
 export function SummaryCard({
@@ -14,6 +15,7 @@ export function SummaryCard({
   activeClients,
   todayEntries,
   lastUpdated,
+  isLoading = false,
 }: SummaryCardProps) {
   return (
     <div className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-soft border border-gray-100 h-full flex flex-col justify-between">
@@ -32,7 +34,11 @@ export function SummaryCard({
             </div>
             <span className="text-xs sm:text-sm text-gray-500">Total Coverage</span>
           </div>
-          <span className="text-base sm:text-lg font-bold text-gray-800">{totalCoverage.toLocaleString()}</span>
+          {isLoading ? (
+            <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+          ) : (
+            <span className="text-base sm:text-lg font-bold text-gray-800">{totalCoverage.toLocaleString()}</span>
+          )}
         </div>
 
         {/* Active Clients */}
@@ -43,7 +49,11 @@ export function SummaryCard({
             </div>
             <span className="text-xs sm:text-sm text-gray-500">Active Clients</span>
           </div>
-          <span className="text-base sm:text-lg font-bold text-gray-800">{activeClients}</span>
+          {isLoading ? (
+            <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+          ) : (
+            <span className="text-base sm:text-lg font-bold text-gray-800">{activeClients}</span>
+          )}
         </div>
 
         {/* Today's Entries */}
@@ -54,7 +64,11 @@ export function SummaryCard({
             </div>
             <span className="text-xs sm:text-sm text-gray-500">Today's Entries</span>
           </div>
-          <span className="text-base sm:text-lg font-bold text-gray-800">+{todayEntries}</span>
+          {isLoading ? (
+            <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+          ) : (
+            <span className="text-base sm:text-lg font-bold text-gray-800">+{todayEntries}</span>
+          )}
         </div>
       </div>
 
