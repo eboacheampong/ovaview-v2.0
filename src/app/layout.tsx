@@ -7,6 +7,11 @@ const inter = Inter({ subsets: ['latin'] })
 export const metadata: Metadata = {
   title: 'Ovaview - Media Monitoring & Analysis',
   description: 'Comprehensive media monitoring and analysis platform',
+  icons: {
+    icon: '/ovaview-site-icon.png',
+    shortcut: '/ovaview-site-icon.png',
+    apple: '/ovaview-site-icon.png',
+  },
 }
 
 export default function RootLayout({
