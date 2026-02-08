@@ -48,6 +48,10 @@ export default function AddRadioStoryPage() {
   const [stations, setStations] = useState<Station[]>([])
   const [industries, setIndustries] = useState<Industry[]>([])
   const [availableKeywords, setAvailableKeywords] = useState<Keyword[]>([])
+  
+  // Raw transcription (not saved to DB)
+  const [rawTranscription, setRawTranscription] = useState('')
+  
   const [formData, setFormData] = useState({
     title: '',
     stationId: '',
@@ -132,7 +136,7 @@ export default function AddRadioStoryPage() {
     }
   }
 
-  // Speech-to-Text transcription
+  // Transcribe audio to raw text
   const handleTranscribe = async () => {
     if (!audioFile) {
       setTranscribeError('Please upload an audio file first')
@@ -142,7 +146,7 @@ export default function AddRadioStoryPage() {
     setTranscribeError('')
     try {
       const transcription = await transcribe(audioFile)
-      setFormData(prev => ({ ...prev, content: transcription }))
+      setRawTranscription(transcription)
     } catch (error) {
       setTranscribeError(error instanceof Error ? error.message : 'Failed to transcribe audio')
     } finally {
@@ -150,10 +154,10 @@ export default function AddRadioStoryPage() {
     }
   }
 
-  // AI Analysis - generates summary, sentiment, keywords, industry
+  // Analyze with AI - refines transcription and fills all fields
   const handleAnalyze = async () => {
-    if (!formData.content || formData.content.trim().length < 20) {
-      setAnalyzeError('Please add content first (at least 20 characters)')
+    if (!rawTranscription || rawTranscription.trim().length < 20) {
+      setAnalyzeError('Please transcribe audio first (at least 20 characters)')
       return
     }
     setIsAnalyzing(true)
@@ -162,11 +166,12 @@ export default function AddRadioStoryPage() {
       const response = await fetch('/api/refine-transcription', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ transcription: formData.content }),
+        body: JSON.stringify({ transcription: rawTranscription }),
       })
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Failed to analyze')
       
+      // Fill all form fields from AI response
       setFormData(prev => ({ 
         ...prev, 
         title: data.title || prev.title,
@@ -243,7 +248,6 @@ export default function AddRadioStoryPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <div className="bg-gradient-to-r from-orange-500 to-orange-600 text-white py-6 px-6 shadow-lg">
         <div className="max-w-4xl mx-auto">
           <h1 className="text-2xl font-bold">New Radio Story</h1>
@@ -253,28 +257,17 @@ export default function AddRadioStoryPage() {
 
       <form onSubmit={handleSubmit} className="max-w-4xl mx-auto p-6 space-y-8">
         
-        {/* Section 1: Audio Upload & Transcription */}
+        {/* Section 1: Audio Upload */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
           <div className="flex items-center gap-2 mb-4">
             <div className="p-2 bg-purple-100 rounded-lg"><Music className="h-5 w-5 text-purple-600" /></div>
             <div>
               <h2 className="font-semibold text-gray-800">Audio Source</h2>
-              <p className="text-sm text-gray-500">Upload audio to transcribe or paste a URL</p>
+              <p className="text-sm text-gray-500">Upload audio file to transcribe</p>
             </div>
           </div>
           
           <div className="space-y-4">
-            <div>
-              <Label htmlFor="audioUrl" className="text-gray-600 text-sm">Audio URL (optional)</Label>
-              <Input id="audioUrl" value={formData.audioUrl} onChange={(e) => setFormData({ ...formData, audioUrl: e.target.value })} placeholder="https://example.com/audio.mp3" className="mt-1 h-11" />
-            </div>
-            
-            <div className="flex items-center gap-4">
-              <div className="flex-1 border-t border-gray-200" />
-              <span className="text-sm text-gray-400">OR</span>
-              <div className="flex-1 border-t border-gray-200" />
-            </div>
-            
             <input ref={fileInputRef} type="file" accept="audio/*" onChange={handleAudioSelect} className="hidden" />
             
             {!audioFile ? (
@@ -310,37 +303,34 @@ export default function AddRadioStoryPage() {
               </div>
             )}
             
-            <div>
-              <Label htmlFor="audioTitle" className="text-gray-600 text-sm">Audio Title</Label>
-              <Input id="audioTitle" value={formData.audioTitle} onChange={(e) => setFormData({ ...formData, audioTitle: e.target.value })} placeholder="Enter audio clip title" className="mt-1 h-11" />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="audioTitle" className="text-gray-600 text-sm">Audio Title</Label>
+                <Input id="audioTitle" value={formData.audioTitle} onChange={(e) => setFormData({ ...formData, audioTitle: e.target.value })} placeholder="Enter audio clip title" className="mt-1 h-11" />
+              </div>
+              <div>
+                <Label htmlFor="audioUrl" className="text-gray-600 text-sm">Audio URL (optional)</Label>
+                <Input id="audioUrl" value={formData.audioUrl} onChange={(e) => setFormData({ ...formData, audioUrl: e.target.value })} placeholder="https://example.com/audio.mp3" className="mt-1 h-11" />
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Section 2: Story Title */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="p-2 bg-blue-100 rounded-lg"><FileText className="h-5 w-5 text-blue-600" /></div>
-            <Label htmlFor="title" className="font-semibold text-gray-800">Story Title</Label>
-          </div>
-          <Input id="title" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} placeholder="Enter story title or let AI generate it" className="h-12 text-lg" required />
-        </div>
-
-        {/* Section 3: Content (Transcription) */}
+        {/* Section 2: Transcription */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <div className="p-2 bg-green-100 rounded-lg"><FileText className="h-5 w-5 text-green-600" /></div>
+              <div className="p-2 bg-green-100 rounded-lg"><Mic className="h-5 w-5 text-green-600" /></div>
               <div>
-                <h2 className="font-semibold text-gray-800">Story Content</h2>
-                <p className="text-sm text-gray-500">Transcribe audio or type content manually</p>
+                <h2 className="font-semibold text-gray-800">Transcription</h2>
+                <p className="text-sm text-gray-500">Convert audio to text</p>
               </div>
             </div>
             <Button type="button" onClick={handleTranscribe} disabled={isTranscribing || !audioFile} variant="outline" className="flex items-center gap-2 text-green-600 border-green-200 hover:bg-green-50">
               {isTranscribing ? (
                 <><Loader2 className="h-4 w-4 animate-spin" />{transcriptionProgress.message || 'Transcribing...'}</>
               ) : (
-                <><Mic className="h-4 w-4" />Speech to Text</>
+                <><Mic className="h-4 w-4" />Transcribe</>
               )}
             </Button>
           </div>
@@ -366,24 +356,26 @@ export default function AddRadioStoryPage() {
           
           {transcribeError && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">{transcribeError}</div>}
           
-          <RichTextEditor 
-            value={formData.content} 
-            onChange={(html) => setFormData({ ...formData, content: html })} 
-            className="min-h-[300px]" 
+          <textarea 
+            className="w-full min-h-[150px] rounded-lg border border-gray-200 p-4 resize-y bg-gray-50 text-gray-700" 
+            value={rawTranscription} 
+            onChange={(e) => setRawTranscription(e.target.value)} 
+            placeholder="Raw transcription will appear here after clicking 'Transcribe'..." 
           />
+          <p className="text-xs text-gray-400 mt-2">This raw transcription is used for AI analysis and won't be saved directly.</p>
         </div>
 
-        {/* Section 4: AI Analysis & Summary */}
+        {/* Section 3: AI Analysis */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="p-2 bg-purple-100 rounded-lg"><Sparkles className="h-5 w-5 text-purple-600" /></div>
               <div>
-                <h2 className="font-semibold text-gray-800">Story Summary</h2>
-                <p className="text-sm text-gray-500">AI-generated summary and analysis</p>
+                <h2 className="font-semibold text-gray-800">AI Analysis</h2>
+                <p className="text-sm text-gray-500">Refine transcription and auto-fill all fields</p>
               </div>
             </div>
-            <Button type="button" onClick={handleAnalyze} disabled={isAnalyzing || !formData.content} variant="outline" className="flex items-center gap-2 text-purple-600 border-purple-200 hover:bg-purple-50">
+            <Button type="button" onClick={handleAnalyze} disabled={isAnalyzing || !rawTranscription} variant="outline" className="flex items-center gap-2 text-purple-600 border-purple-200 hover:bg-purple-50">
               {isAnalyzing ? (
                 <><Loader2 className="h-4 w-4 animate-spin" />Analyzing...</>
               ) : (
@@ -391,18 +383,48 @@ export default function AddRadioStoryPage() {
               )}
             </Button>
           </div>
-          
-          {analyzeError && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">{analyzeError}</div>}
-          
+          {analyzeError && <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">{analyzeError}</div>}
+        </div>
+
+        {/* Section 4: Story Title */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="p-2 bg-blue-100 rounded-lg"><FileText className="h-5 w-5 text-blue-600" /></div>
+            <Label htmlFor="title" className="font-semibold text-gray-800">Story Title</Label>
+          </div>
+          <Input id="title" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} placeholder="Title will be auto-filled by AI analysis" className="h-12 text-lg" required />
+        </div>
+
+        {/* Section 5: Story Content */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="p-2 bg-green-100 rounded-lg"><FileText className="h-5 w-5 text-green-600" /></div>
+            <div>
+              <h2 className="font-semibold text-gray-800">Story Content</h2>
+              <p className="text-sm text-gray-500">Refined content from AI analysis</p>
+            </div>
+          </div>
+          <RichTextEditor value={formData.content} onChange={(html) => setFormData({ ...formData, content: html })} className="min-h-[300px]" />
+        </div>
+
+        {/* Section 6: Story Summary */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="p-2 bg-amber-100 rounded-lg"><FileText className="h-5 w-5 text-amber-600" /></div>
+            <div>
+              <h2 className="font-semibold text-gray-800">Story Summary</h2>
+              <p className="text-sm text-gray-500">Brief summary of the story</p>
+            </div>
+          </div>
           <textarea 
             className="w-full min-h-[120px] rounded-lg border border-gray-200 p-4 resize-y focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all" 
             value={formData.summary} 
             onChange={(e) => setFormData({ ...formData, summary: e.target.value })} 
-            placeholder="Click 'Analyze with AI' to generate a summary, or write your own..." 
+            placeholder="Summary will be auto-filled by AI analysis..." 
           />
         </div>
 
-        {/* Section 5: Sentiment Analysis */}
+        {/* Section 7: Sentiment Analysis */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
           <Label className="font-semibold text-gray-800 block mb-4">Sentiment Analysis</Label>
           <SentimentDisplay 
@@ -415,7 +437,7 @@ export default function AddRadioStoryPage() {
           />
         </div>
 
-        {/* Section 6: Broadcast Details */}
+        {/* Section 8: Broadcast Details */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
           <h3 className="font-semibold text-gray-800 mb-4">Broadcast Details</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -457,13 +479,13 @@ export default function AddRadioStoryPage() {
                 value={formData.keywords}
                 onChange={(value) => setFormData({ ...formData, keywords: value })}
                 availableKeywords={availableKeywords}
-                placeholder="Type to search keywords..."
+                placeholder="Keywords will be auto-filled by AI analysis..."
               />
             </div>
           </div>
         </div>
 
-        {/* Section 7: Industry Classification */}
+        {/* Section 9: Industry Classification */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
           <Label htmlFor="industry" className="font-semibold text-gray-800 block mb-3">Industry Classification</Label>
           <select id="industry" className="w-full h-11 rounded-lg border border-gray-200 px-3 bg-white max-w-md focus:ring-2 focus:ring-orange-500 focus:border-transparent" value={formData.industryId} onChange={(e) => { setFormData({ ...formData, industryId: e.target.value }); setSelectedSubIndustries([]) }}>

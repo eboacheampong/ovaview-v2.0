@@ -57,6 +57,10 @@ export default function AddTVStoryPage() {
   const [stations, setStations] = useState<Station[]>([])
   const [industries, setIndustries] = useState<Industry[]>([])
   const [availableKeywords, setAvailableKeywords] = useState<Keyword[]>([])
+  
+  // Raw transcription (not saved to DB)
+  const [rawTranscription, setRawTranscription] = useState('')
+  
   const [formData, setFormData] = useState({
     title: '',
     stationId: '',
@@ -142,6 +146,7 @@ export default function AddTVStoryPage() {
     }
   }
 
+  // Transcribe video to raw text
   const handleTranscribe = async () => {
     if (!videoFile) {
       setTranscribeError('Please upload a video file first. YouTube/Vimeo URLs cannot be transcribed directly.')
@@ -151,7 +156,7 @@ export default function AddTVStoryPage() {
     setTranscribeError('')
     try {
       const transcription = await transcribe(videoFile)
-      setFormData(prev => ({ ...prev, content: transcription }))
+      setRawTranscription(transcription)
     } catch (error) {
       setTranscribeError(error instanceof Error ? error.message : 'Failed to transcribe video')
     } finally {
@@ -159,9 +164,10 @@ export default function AddTVStoryPage() {
     }
   }
 
+  // Analyze with AI - refines transcription and fills all fields
   const handleAnalyze = async () => {
-    if (!formData.content || formData.content.trim().length < 20) {
-      setAnalyzeError('Please add content first (at least 20 characters)')
+    if (!rawTranscription || rawTranscription.trim().length < 20) {
+      setAnalyzeError('Please transcribe video first (at least 20 characters)')
       return
     }
     setIsAnalyzing(true)
@@ -170,11 +176,12 @@ export default function AddTVStoryPage() {
       const response = await fetch('/api/refine-transcription', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ transcription: formData.content }),
+        body: JSON.stringify({ transcription: rawTranscription }),
       })
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Failed to analyze')
       
+      // Fill all form fields from AI response
       setFormData(prev => ({ 
         ...prev, 
         title: data.title || prev.title,
@@ -259,6 +266,8 @@ export default function AddTVStoryPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="max-w-4xl mx-auto p-6 space-y-8">
+        
+        {/* Section 1: Video Upload */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
           <div className="flex items-center gap-2 mb-4">
             <div className="p-2 bg-purple-100 rounded-lg"><Video className="h-5 w-5 text-purple-600" /></div>
@@ -267,32 +276,48 @@ export default function AddTVStoryPage() {
               <p className="text-sm text-gray-500">Paste a YouTube/Vimeo URL or upload a video file</p>
             </div>
           </div>
+          
           <div className="space-y-4">
             <div>
               <Label htmlFor="videoUrl" className="text-gray-600 text-sm">Video URL (YouTube or Vimeo)</Label>
               <Input id="videoUrl" value={formData.videoUrl} onChange={(e) => setFormData({ ...formData, videoUrl: e.target.value })} placeholder="https://youtube.com/watch?v=..." className="mt-1 h-11" />
             </div>
+            
             {embedUrl && (
               <div className="aspect-video rounded-lg overflow-hidden bg-black">
                 <iframe src={embedUrl} className="w-full h-full" allowFullScreen />
               </div>
             )}
+            
             <div className="flex items-center gap-4">
-              <div className="flex-1 border-t border-gray-200" /><span className="text-sm text-gray-400">OR</span><div className="flex-1 border-t border-gray-200" />
+              <div className="flex-1 border-t border-gray-200" />
+              <span className="text-sm text-gray-400">OR</span>
+              <div className="flex-1 border-t border-gray-200" />
             </div>
+            
             <input ref={videoInputRef} type="file" accept="video/*" onChange={handleVideoSelect} className="hidden" />
+
             {!videoFile ? (
               <button type="button" onClick={() => videoInputRef.current?.click()} className="w-full h-32 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center gap-2 hover:border-purple-400 hover:bg-purple-50 transition-colors">
-                <Upload className="h-8 w-8 text-gray-400" /><span className="text-sm text-gray-500">Click to upload video file</span><span className="text-xs text-gray-400">MP4, MOV, AVI up to 500MB</span>
+                <Upload className="h-8 w-8 text-gray-400" />
+                <span className="text-sm text-gray-500">Click to upload video file</span>
+                <span className="text-xs text-gray-400">MP4, MOV, AVI up to 500MB</span>
               </button>
             ) : (
               <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center"><Video className="h-5 w-5 text-purple-600" /></div>
-                    <div><p className="font-medium text-gray-900 text-sm">{videoFile.name}</p><p className="text-xs text-gray-500">{(videoFile.size / (1024 * 1024)).toFixed(2)} MB</p></div>
+                    <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                      <Video className="h-5 w-5 text-purple-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900 text-sm">{videoFile.name}</p>
+                      <p className="text-xs text-gray-500">{(videoFile.size / (1024 * 1024)).toFixed(2)} MB</p>
+                    </div>
                   </div>
-                  <button type="button" onClick={handleRemoveVideo} className="p-1.5 hover:bg-gray-200 rounded-full"><X className="h-4 w-4 text-gray-500" /></button>
+                  <button type="button" onClick={handleRemoveVideo} className="p-1.5 hover:bg-gray-200 rounded-full">
+                    <X className="h-4 w-4 text-gray-500" />
+                  </button>
                 </div>
                 {videoPreviewUrl && (
                   <div className="relative aspect-video bg-black rounded-lg overflow-hidden">
@@ -304,6 +329,7 @@ export default function AddTVStoryPage() {
                 )}
               </div>
             )}
+            
             <div>
               <Label htmlFor="videoTitle" className="text-gray-600 text-sm">Video Title</Label>
               <Input id="videoTitle" value={formData.videoTitle} onChange={(e) => setFormData({ ...formData, videoTitle: e.target.value })} placeholder="Enter video title" className="mt-1 h-11" />
@@ -311,107 +337,214 @@ export default function AddTVStoryPage() {
           </div>
         </div>
 
+        {/* Section 2: Transcription */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <div className="p-2 bg-green-100 rounded-lg"><Mic className="h-5 w-5 text-green-600" /></div>
+              <div>
+                <h2 className="font-semibold text-gray-800">Transcription</h2>
+                <p className="text-sm text-gray-500">Convert video audio to text</p>
+              </div>
+            </div>
+            <Button type="button" onClick={handleTranscribe} disabled={isTranscribing || !videoFile} variant="outline" className="flex items-center gap-2 text-green-600 border-green-200 hover:bg-green-50">
+              {isTranscribing ? (
+                <><Loader2 className="h-4 w-4 animate-spin" />{transcriptionProgress.message || 'Transcribing...'}</>
+              ) : (
+                <><Mic className="h-4 w-4" />Transcribe</>
+              )}
+            </Button>
+          </div>
+          
+          {isTranscribing && (
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center gap-2 text-blue-700 text-sm mb-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                {transcriptionProgress.message || 'Processing...'}
+              </div>
+              {transcriptionProgress.status === 'loading-model' && (
+                <div className="w-full bg-blue-200 rounded-full h-2">
+                  <div className="bg-blue-600 h-2 rounded-full transition-all duration-300" style={{ width: `${transcriptionProgress.modelProgress}%` }} />
+                </div>
+              )}
+              {transcriptionProgress.status === 'transcribing' && (
+                <div className="w-full bg-green-200 rounded-full h-2">
+                  <div className="bg-green-600 h-2 rounded-full transition-all duration-300" style={{ width: `${transcriptionProgress.transcriptionProgress}%` }} />
+                </div>
+              )}
+            </div>
+          )}
+          
+          {transcribeError && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">{transcribeError}</div>}
+          
+          <textarea 
+            className="w-full min-h-[150px] rounded-lg border border-gray-200 p-4 resize-y bg-gray-50 text-gray-700" 
+            value={rawTranscription} 
+            onChange={(e) => setRawTranscription(e.target.value)} 
+            placeholder="Raw transcription will appear here after clicking 'Transcribe'..." 
+          />
+          <p className="text-xs text-gray-400 mt-2">This raw transcription is used for AI analysis and won't be saved directly.</p>
+        </div>
+
+        {/* Section 3: AI Analysis */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="p-2 bg-purple-100 rounded-lg"><Sparkles className="h-5 w-5 text-purple-600" /></div>
+              <div>
+                <h2 className="font-semibold text-gray-800">AI Analysis</h2>
+                <p className="text-sm text-gray-500">Refine transcription and auto-fill all fields</p>
+              </div>
+            </div>
+            <Button type="button" onClick={handleAnalyze} disabled={isAnalyzing || !rawTranscription} variant="outline" className="flex items-center gap-2 text-purple-600 border-purple-200 hover:bg-purple-50">
+              {isAnalyzing ? (
+                <><Loader2 className="h-4 w-4 animate-spin" />Analyzing...</>
+              ) : (
+                <><Wand2 className="h-4 w-4" />Analyze with AI</>
+              )}
+            </Button>
+          </div>
+          {analyzeError && <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">{analyzeError}</div>}
+        </div>
+
+        {/* Section 4: Story Title */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
           <div className="flex items-center gap-2 mb-4">
             <div className="p-2 bg-blue-100 rounded-lg"><FileText className="h-5 w-5 text-blue-600" /></div>
             <Label htmlFor="title" className="font-semibold text-gray-800">Story Title</Label>
           </div>
-          <Input id="title" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} placeholder="Enter story title or let AI generate it" className="h-12 text-lg" required />
+          <Input id="title" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} placeholder="Title will be auto-filled by AI analysis" className="h-12 text-lg" required />
         </div>
 
+        {/* Section 5: Story Content */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <div className="p-2 bg-green-100 rounded-lg"><FileText className="h-5 w-5 text-green-600" /></div>
-              <div><h2 className="font-semibold text-gray-800">Story Content</h2><p className="text-sm text-gray-500">Transcribe video or type content manually</p></div>
+          <div className="flex items-center gap-2 mb-4">
+            <div className="p-2 bg-green-100 rounded-lg"><FileText className="h-5 w-5 text-green-600" /></div>
+            <div>
+              <h2 className="font-semibold text-gray-800">Story Content</h2>
+              <p className="text-sm text-gray-500">Refined content from AI analysis</p>
             </div>
-            <Button type="button" onClick={handleTranscribe} disabled={isTranscribing || !videoFile} variant="outline" className="flex items-center gap-2 text-green-600 border-green-200 hover:bg-green-50">
-              {isTranscribing ? (<><Loader2 className="h-4 w-4 animate-spin" />{transcriptionProgress.message || 'Transcribing...'}</>) : (<><Mic className="h-4 w-4" />Speech to Text</>)}
-            </Button>
           </div>
-          {isTranscribing && (
-            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <div className="flex items-center gap-2 text-blue-700 text-sm mb-2"><Loader2 className="h-4 w-4 animate-spin" />{transcriptionProgress.message || 'Processing...'}</div>
-              {transcriptionProgress.status === 'loading-model' && (<div className="w-full bg-blue-200 rounded-full h-2"><div className="bg-blue-600 h-2 rounded-full transition-all duration-300" style={{ width: `${transcriptionProgress.modelProgress}%` }} /></div>)}
-              {transcriptionProgress.status === 'transcribing' && (<div className="w-full bg-green-200 rounded-full h-2"><div className="bg-green-600 h-2 rounded-full transition-all duration-300" style={{ width: `${transcriptionProgress.transcriptionProgress}%` }} /></div>)}
-            </div>
-          )}
-          {transcribeError && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">{transcribeError}</div>}
           <RichTextEditor value={formData.content} onChange={(html) => setFormData({ ...formData, content: html })} className="min-h-[300px]" />
         </div>
 
+        {/* Section 6: Story Summary */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <div className="p-2 bg-purple-100 rounded-lg"><Sparkles className="h-5 w-5 text-purple-600" /></div>
-              <div><h2 className="font-semibold text-gray-800">Story Summary</h2><p className="text-sm text-gray-500">AI-generated summary and analysis</p></div>
+          <div className="flex items-center gap-2 mb-4">
+            <div className="p-2 bg-amber-100 rounded-lg"><FileText className="h-5 w-5 text-amber-600" /></div>
+            <div>
+              <h2 className="font-semibold text-gray-800">Story Summary</h2>
+              <p className="text-sm text-gray-500">Brief summary of the story</p>
             </div>
-            <Button type="button" onClick={handleAnalyze} disabled={isAnalyzing || !formData.content} variant="outline" className="flex items-center gap-2 text-purple-600 border-purple-200 hover:bg-purple-50">
-              {isAnalyzing ? (<><Loader2 className="h-4 w-4 animate-spin" />Analyzing...</>) : (<><Wand2 className="h-4 w-4" />Analyze with AI</>)}
-            </Button>
           </div>
-          {analyzeError && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">{analyzeError}</div>}
-          <textarea className="w-full min-h-[120px] rounded-lg border border-gray-200 p-4 resize-y focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all" value={formData.summary} onChange={(e) => setFormData({ ...formData, summary: e.target.value })} placeholder="Click 'Analyze with AI' to generate a summary, or write your own..." />
+          <textarea 
+            className="w-full min-h-[120px] rounded-lg border border-gray-200 p-4 resize-y focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all" 
+            value={formData.summary} 
+            onChange={(e) => setFormData({ ...formData, summary: e.target.value })} 
+            placeholder="Summary will be auto-filled by AI analysis..." 
+          />
         </div>
 
+        {/* Section 7: Sentiment Analysis */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
           <Label className="font-semibold text-gray-800 block mb-4">Sentiment Analysis</Label>
-          <SentimentDisplay positive={sentimentData.positive} neutral={sentimentData.neutral} negative={sentimentData.negative} overallSentiment={sentimentData.overallSentiment} isLoading={isAnalyzing} onSentimentChange={(data) => setSentimentData(data)} />
+          <SentimentDisplay 
+            positive={sentimentData.positive} 
+            neutral={sentimentData.neutral} 
+            negative={sentimentData.negative} 
+            overallSentiment={sentimentData.overallSentiment} 
+            isLoading={isAnalyzing} 
+            onSentimentChange={(data) => setSentimentData(data)} 
+          />
         </div>
 
+        {/* Section 8: Broadcast Details */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
           <h3 className="font-semibold text-gray-800 mb-4">Broadcast Details</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <Label htmlFor="station" className="text-gray-600 flex items-center gap-2 mb-2"><Tv className="h-4 w-4" />TV Station</Label>
+              <Label htmlFor="station" className="text-gray-600 flex items-center gap-2 mb-2">
+                <Tv className="h-4 w-4" />TV Station
+              </Label>
               <select id="station" className="w-full h-11 rounded-lg border border-gray-200 px-3 bg-white focus:ring-2 focus:ring-orange-500 focus:border-transparent" value={formData.stationId} onChange={(e) => setFormData({ ...formData, stationId: e.target.value, programId: '' })}>
                 <option value="">Select station</option>
-                {stations.map(station => (<option key={station.id} value={station.id}>{station.name} {station.location && `(${station.location})`}</option>))}
+                {stations.map(station => (
+                  <option key={station.id} value={station.id}>{station.name} {station.location && `(${station.location})`}</option>
+                ))}
               </select>
             </div>
             <div>
               <Label htmlFor="program" className="text-gray-600 mb-2 block">Program/Show</Label>
               <select id="program" className="w-full h-11 rounded-lg border border-gray-200 px-3 bg-white focus:ring-2 focus:ring-orange-500 focus:border-transparent" value={formData.programId} onChange={(e) => setFormData({ ...formData, programId: e.target.value })}>
                 <option value="">Select program</option>
-                {filteredPrograms.map(program => (<option key={program.id} value={program.id}>{program.name}</option>))}
+                {filteredPrograms.map(program => (
+                  <option key={program.id} value={program.id}>{program.name}</option>
+                ))}
               </select>
             </div>
             <div>
-              <Label htmlFor="presenters" className="text-gray-600 flex items-center gap-2 mb-2"><User className="h-4 w-4" />Presenter(s)</Label>
+              <Label htmlFor="presenters" className="text-gray-600 flex items-center gap-2 mb-2">
+                <User className="h-4 w-4" />Presenter(s)
+              </Label>
               <Input id="presenters" value={formData.presenters} onChange={(e) => setFormData({ ...formData, presenters: e.target.value })} placeholder="Presenter names" className="h-11" />
             </div>
             <div>
-              <Label htmlFor="dateAired" className="text-gray-600 flex items-center gap-2 mb-2"><Calendar className="h-4 w-4" />Date Aired</Label>
+              <Label htmlFor="dateAired" className="text-gray-600 flex items-center gap-2 mb-2">
+                <Calendar className="h-4 w-4" />Date Aired
+              </Label>
               <Input id="dateAired" type="date" value={formData.dateAired} onChange={(e) => setFormData({ ...formData, dateAired: e.target.value })} className="h-11" required />
             </div>
             <div className="md:col-span-2">
               <Label htmlFor="keywords" className="text-gray-600 mb-2 block">Keywords</Label>
-              <KeywordInput value={formData.keywords} onChange={(value) => setFormData({ ...formData, keywords: value })} availableKeywords={availableKeywords} placeholder="Type to search keywords..." />
+              <KeywordInput
+                value={formData.keywords}
+                onChange={(value) => setFormData({ ...formData, keywords: value })}
+                availableKeywords={availableKeywords}
+                placeholder="Keywords will be auto-filled by AI analysis..."
+              />
             </div>
           </div>
         </div>
 
+        {/* Section 9: Industry Classification */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
           <Label htmlFor="industry" className="font-semibold text-gray-800 block mb-3">Industry Classification</Label>
           <select id="industry" className="w-full h-11 rounded-lg border border-gray-200 px-3 bg-white max-w-md focus:ring-2 focus:ring-orange-500 focus:border-transparent" value={formData.industryId} onChange={(e) => { setFormData({ ...formData, industryId: e.target.value }); setSelectedSubIndustries([]) }}>
             <option value="">Select Industry</option>
-            {industries.map(industry => (<option key={industry.id} value={industry.id}>{industry.name}</option>))}
+            {industries.map(industry => (
+              <option key={industry.id} value={industry.id}>{industry.name}</option>
+            ))}
           </select>
+
           {formData.industryId && (
             <div className="grid grid-cols-2 gap-6 mt-6">
               <div>
                 <Label className="text-gray-600 text-center block mb-3">Available Sub-industries</Label>
                 <div className="border border-gray-200 rounded-lg h-48 overflow-y-auto bg-gray-50">
-                  {availableSubIndustries.length === 0 ? (<p className="text-gray-400 text-sm text-center py-4">No more sub-industries</p>) : (
-                    availableSubIndustries.map(s => (<div key={s.id} className="px-4 py-3 hover:bg-white cursor-pointer flex justify-between items-center border-b border-gray-100 last:border-0 transition-colors" onClick={() => setSelectedSubIndustries([...selectedSubIndustries, s.id])}><span className="text-gray-700">{s.name}</span><ChevronRight className="h-4 w-4 text-gray-400" /></div>))
+                  {availableSubIndustries.length === 0 ? (
+                    <p className="text-gray-400 text-sm text-center py-4">No more sub-industries</p>
+                  ) : (
+                    availableSubIndustries.map(s => (
+                      <div key={s.id} className="px-4 py-3 hover:bg-white cursor-pointer flex justify-between items-center border-b border-gray-100 last:border-0 transition-colors" onClick={() => setSelectedSubIndustries([...selectedSubIndustries, s.id])}>
+                        <span className="text-gray-700">{s.name}</span>
+                        <ChevronRight className="h-4 w-4 text-gray-400" />
+                      </div>
+                    ))
                   )}
                 </div>
               </div>
               <div>
                 <Label className="text-gray-600 text-center block mb-3">Selected Sub-industries</Label>
                 <div className="border border-gray-200 rounded-lg h-48 overflow-y-auto bg-orange-50">
-                  {selectedSubIndustryObjects.length === 0 ? (<p className="text-gray-400 text-sm text-center py-4">Click to add sub-industries</p>) : (
-                    selectedSubIndustryObjects.map(s => (<div key={s.id} className="px-4 py-3 hover:bg-orange-100 cursor-pointer flex justify-between items-center border-b border-orange-100 last:border-0 transition-colors" onClick={() => setSelectedSubIndustries(selectedSubIndustries.filter(x => x !== s.id))}><ChevronLeft className="h-4 w-4 text-orange-400" /><span className="text-gray-700">{s.name}</span></div>))
+                  {selectedSubIndustryObjects.length === 0 ? (
+                    <p className="text-gray-400 text-sm text-center py-4">Click to add sub-industries</p>
+                  ) : (
+                    selectedSubIndustryObjects.map(s => (
+                      <div key={s.id} className="px-4 py-3 hover:bg-orange-100 cursor-pointer flex justify-between items-center border-b border-orange-100 last:border-0 transition-colors" onClick={() => setSelectedSubIndustries(selectedSubIndustries.filter(x => x !== s.id))}>
+                        <ChevronLeft className="h-4 w-4 text-orange-400" />
+                        <span className="text-gray-700">{s.name}</span>
+                      </div>
+                    ))
                   )}
                 </div>
               </div>
@@ -419,6 +552,7 @@ export default function AddTVStoryPage() {
           )}
         </div>
 
+        {/* Submit Buttons */}
         <div className="flex justify-end gap-4 pt-4">
           <Button type="button" variant="outline" onClick={() => router.back()} className="px-6">Cancel</Button>
           <Button type="submit" className="bg-orange-500 hover:bg-orange-600 text-white px-8" disabled={isSubmitting}>
