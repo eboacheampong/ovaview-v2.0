@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
     const webReach = webStories.reduce((sum, s) => sum + (s.publication?.reach || 0), 0)
     const tvReach = tvStories.reduce((sum, s) => sum + (s.station?.reach || 0), 0)
     const radioReach = radioStories.reduce((sum, s) => sum + (s.station?.reach || 0), 0)
-    const printReach = printStories.reduce((sum, s) => sum + (s.publication?.circulation || 0), 0)
+    const printReach = printStories.reduce((sum, s) => sum + (s.publication?.reach || 0), 0)
     const totalReach = webReach + tvReach + radioReach + printReach
 
     // Calculate sentiment distribution
@@ -223,7 +223,7 @@ export async function GET(request: NextRequest) {
           publicationCounts.set(key, {
             name: s.publication.name,
             stories: 1,
-            reach: s.publication.circulation || 0,
+            reach: s.publication.reach || 0,
             type: 'print',
           })
         }
@@ -319,7 +319,7 @@ export async function GET(request: NextRequest) {
     })
     printStories.forEach(s => {
       const region = s.publication?.region || 'Unknown'
-      regionCounts.set(region, (regionCounts.get(region) || 0) + (s.publication?.circulation || 1000))
+      regionCounts.set(region, (regionCounts.get(region) || 0) + (s.publication?.reach || 1000))
     })
 
     const totalRegionReach = Array.from(regionCounts.values()).reduce((a, b) => a + b, 0)
