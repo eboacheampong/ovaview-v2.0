@@ -77,8 +77,8 @@ export interface RadioStation {
 export interface TVStation {
   id: string
   name: string
-  channel?: string
   location?: string
+  reach?: number
   isActive: boolean
 }
 

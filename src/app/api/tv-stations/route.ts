@@ -18,8 +18,8 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { name, channel } = body
-    const station = await prisma.tVStation.create({ data: { name, channel } })
+    const { name, location, reach } = body
+    const station = await prisma.tVStation.create({ data: { name, location, reach: reach ? parseInt(reach) : 0 } })
     return NextResponse.json(station, { status: 201 })
   } catch (error) {
     console.error('Error creating TV station:', error)

@@ -40,10 +40,10 @@ async function main() {
 
   // Create TV Stations and Programs
   const tvStations = [
-    { name: 'KTN News', channel: 'Channel 10', programs: ['Prime Time News', 'Morning Show'] },
-    { name: 'NTV', channel: 'Channel 5', programs: ['The Trend', 'Business Weekly'] },
-    { name: 'Citizen TV', channel: 'Channel 3', programs: ['News Night', 'Day Break'] },
-    { name: 'TV47', channel: 'Channel 47', programs: ['47 Live', 'Headline News'] },
+    { name: 'KTN News', location: 'Nairobi', programs: ['Prime Time News', 'Morning Show'] },
+    { name: 'NTV', location: 'Nairobi', programs: ['The Trend', 'Business Weekly'] },
+    { name: 'Citizen TV', location: 'Nairobi', programs: ['News Night', 'Day Break'] },
+    { name: 'TV47', location: 'Nairobi', programs: ['47 Live', 'Headline News'] },
   ]
   for (const station of tvStations) {
     await prisma.tVStation.upsert({
@@ -51,7 +51,7 @@ async function main() {
       update: {},
       create: {
         name: station.name,
-        channel: station.channel,
+        location: station.location,
         programs: { create: station.programs.map(p => ({ name: p })) },
       },
     })
