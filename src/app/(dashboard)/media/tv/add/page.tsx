@@ -5,15 +5,16 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { RichTextEditor } from '@/components/ui/rich-text-editor'
 import { SentimentDisplay } from '@/components/ui/sentiment-display'
 import { KeywordInput } from '@/components/ui/keyword-input'
 import { useWhisperTranscription } from '@/hooks/use-whisper-transcription'
-import { Video, ChevronRight, ChevronLeft, Loader2, ArrowLeft, Wand2, Upload, X, Play, Pause, FileText, Mic } from 'lucide-react'
+import { Video, ChevronRight, ChevronLeft, Loader2, Upload, X, Play, Pause, FileText, Mic, Tv, Calendar, User, Sparkles, Wand2 } from 'lucide-react'
 
 interface Station {
   id: string
   name: string
-  channel?: string
+  location?: string
   programs: Program[]
 }
 
@@ -38,7 +39,6 @@ interface Keyword {
   name: string
 }
 
-// Helper to extract YouTube/Vimeo video ID
 function getVideoEmbedUrl(url: string): string | null {
   if (!url) return null
   const ytMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/)
@@ -52,7 +52,7 @@ export default function AddTVStoryPage() {
   const router = useRouter()
   const videoInputRef = useRef<HTMLInputElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
-  const { transcribe, progress: transcriptionProgress, isReady: whisperReady } = useWhisperTranscription()
+  const { transcribe, progress: transcriptionProgress } = useWhisperTranscription()
 
   const [stations, setStations] = useState<Station[]>([])
   const [industries, setIndustries] = useState<Industry[]>([])
@@ -63,6 +63,7 @@ export default function AddTVStoryPage() {
     presenters: '',
     programId: '',
     dateAired: '',
+    content: '',
     summary: '',
     keywords: '',
     videoUrl: '',
@@ -77,8 +78,8 @@ export default function AddTVStoryPage() {
   }>({ positive: null, neutral: null, negative: null, overallSentiment: null })
   const [selectedSubIndustries, setSelectedSubIndustries] = useState<string[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [isRefining, setIsRefining] = useState(false)
-  const [refineError, setRefineError] = useState('')
+  const [isAnalyzing, setIsAnalyzing] = useState(false)
+  const [analyzeError, setAnalyzeError] = useState('')
   const [videoFile, setVideoFile] = useState<File | null>(null)
   const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
@@ -141,19 +142,16 @@ export default function AddTVStoryPage() {
     }
   }
 
-  // Automatic transcription using client-side Whisper
   const handleTranscribe = async () => {
     if (!videoFile) {
       setTranscribeError('Please upload a video file first. YouTube/Vimeo URLs cannot be transcribed directly.')
       return
     }
-
     setIsTranscribing(true)
     setTranscribeError('')
-
     try {
       const transcription = await transcribe(videoFile)
-      setFormData(prev => ({ ...prev, summary: transcription }))
+      setFormData(prev => ({ ...prev, content: transcription }))
     } catch (error) {
       setTranscribeError(error instanceof Error ? error.message : 'Failed to transcribe video')
     } finally {
@@ -161,42 +159,45 @@ export default function AddTVStoryPage() {
     }
   }
 
-  // Refine transcription with AI
-  const handleRefine = async () => {
-    if (!formData.summary || formData.summary.trim().length < 20) {
-      setRefineError('Please add more content to refine (at least 20 characters)')
+  const handleAnalyze = async () => {
+    if (!formData.content || formData.content.trim().length < 20) {
+      setAnalyzeError('Please add content first (at least 20 characters)')
       return
     }
-    setIsRefining(true)
-    setRefineError('')
+    setIsAnalyzing(true)
+    setAnalyzeError('')
     try {
       const response = await fetch('/api/refine-transcription', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ transcription: formData.summary }),
+        body: JSON.stringify({ transcription: formData.content }),
       })
       const data = await response.json()
-      if (!response.ok) throw new Error(data.error || 'Failed to refine')
+      if (!response.ok) throw new Error(data.error || 'Failed to analyze')
       
-      // Update form with AI suggestions
       setFormData(prev => ({ 
         ...prev, 
-        title: data.title || prev.title, 
-        summary: data.transcription || prev.summary,
+        title: data.title || prev.title,
+        content: data.transcription || prev.content,
+        summary: data.summary || prev.summary,
         industryId: data.suggestedIndustryId || prev.industryId,
         keywords: data.suggestedKeywords?.length > 0 ? data.suggestedKeywords.join(', ') : prev.keywords,
       }))
       
-      // Update sub-industries if industry was suggested
       if (data.suggestedSubIndustryIds?.length > 0) {
         setSelectedSubIndustries(data.suggestedSubIndustryIds)
       }
       
-      setSentimentData({ positive: data.sentiment.positive, neutral: data.sentiment.neutral, negative: data.sentiment.negative, overallSentiment: data.overallSentiment })
+      setSentimentData({ 
+        positive: data.sentiment.positive, 
+        neutral: data.sentiment.neutral, 
+        negative: data.sentiment.negative, 
+        overallSentiment: data.overallSentiment 
+      })
     } catch (error) {
-      setRefineError(error instanceof Error ? error.message : 'Failed to refine')
+      setAnalyzeError(error instanceof Error ? error.message : 'Failed to analyze')
     } finally {
-      setIsRefining(false)
+      setIsAnalyzing(false)
     }
   }
 
@@ -204,18 +205,12 @@ export default function AddTVStoryPage() {
     e.preventDefault()
     setIsSubmitting(true)
     try {
-      // Upload video to Vercel Blob storage if file exists
       let uploadedVideoUrl = formData.videoUrl
       if (videoFile) {
         const formDataUpload = new FormData()
         formDataUpload.append('file', videoFile)
         formDataUpload.append('folder', 'tv-video')
-        
-        const uploadRes = await fetch('/api/upload', {
-          method: 'POST',
-          body: formDataUpload,
-        })
-        
+        const uploadRes = await fetch('/api/upload', { method: 'POST', body: formDataUpload })
         if (uploadRes.ok) {
           const { url } = await uploadRes.json()
           uploadedVideoUrl = url
@@ -226,13 +221,22 @@ export default function AddTVStoryPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title: formData.title, content: formData.summary, summary: formData.summary,
-          presenters: formData.presenters, videoUrl: uploadedVideoUrl,
-          videoTitle: formData.videoTitle, keywords: formData.keywords, date: formData.dateAired,
-          stationId: formData.stationId || null, programId: formData.programId || null,
-          industryId: formData.industryId || null, subIndustryIds: selectedSubIndustries,
-          sentimentPositive: sentimentData.positive, sentimentNeutral: sentimentData.neutral,
-          sentimentNegative: sentimentData.negative, overallSentiment: sentimentData.overallSentiment,
+          title: formData.title,
+          content: formData.content,
+          summary: formData.summary,
+          presenters: formData.presenters,
+          videoUrl: uploadedVideoUrl,
+          videoTitle: formData.videoTitle,
+          keywords: formData.keywords,
+          date: formData.dateAired,
+          stationId: formData.stationId || null,
+          programId: formData.programId || null,
+          industryId: formData.industryId || null,
+          subIndustryIds: selectedSubIndustries,
+          sentimentPositive: sentimentData.positive,
+          sentimentNeutral: sentimentData.neutral,
+          sentimentNegative: sentimentData.negative,
+          overallSentiment: sentimentData.overallSentiment,
         }),
       })
       if (!response.ok) throw new Error('Failed to create story')
@@ -249,51 +253,12 @@ export default function AddTVStoryPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="bg-gradient-to-r from-orange-500 to-orange-600 text-white py-6 px-6 shadow-lg">
         <div className="max-w-4xl mx-auto">
-          <button onClick={() => router.push('/media/tv')} className="flex items-center gap-2 text-orange-100 hover:text-white mb-3 transition-colors">
-            <ArrowLeft className="h-4 w-4" />Back to Stories
-          </button>
           <h1 className="text-2xl font-bold">New TV Story</h1>
           <p className="text-orange-100 text-sm mt-1">Add a new TV story to the media monitoring system</p>
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="max-w-4xl mx-auto p-6 space-y-6">
-        {/* Story Title - FIRST */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <Label htmlFor="title" className="text-gray-700 font-medium">Story Title</Label>
-          <Input id="title" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} className="mt-1 h-12 text-lg" placeholder="Title will be auto-generated when you click Refine, or enter manually" required />
-        </div>
-
-        {/* Channel & Details Section - SECOND */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <h3 className="font-semibold text-gray-800 mb-4">Channel & Broadcast Details</h3>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="station" className="text-gray-700">Channel</Label>
-              <select id="station" className="w-full h-11 mt-1 rounded-lg border border-gray-200 px-3 bg-white" value={formData.stationId} onChange={(e) => setFormData({ ...formData, stationId: e.target.value, programId: '' })}>
-                <option value="">Select channel</option>
-                {stations.map(station => (<option key={station.id} value={station.id}>{station.name} {station.channel && `(${station.channel})`}</option>))}
-              </select>
-            </div>
-            <div>
-              <Label htmlFor="presenters" className="text-gray-700">Presenter(s)</Label>
-              <Input id="presenters" value={formData.presenters} onChange={(e) => setFormData({ ...formData, presenters: e.target.value })} placeholder="Presenter names" className="mt-1 h-11" />
-            </div>
-            <div>
-              <Label htmlFor="program" className="text-gray-700">Show/Program</Label>
-              <select id="program" className="w-full h-11 mt-1 rounded-lg border border-gray-200 px-3 bg-white" value={formData.programId} onChange={(e) => setFormData({ ...formData, programId: e.target.value })}>
-                <option value="">Select Program</option>
-                {filteredPrograms.map(program => (<option key={program.id} value={program.id}>{program.name}</option>))}
-              </select>
-            </div>
-            <div>
-              <Label htmlFor="dateAired" className="text-gray-700">Date Aired</Label>
-              <Input id="dateAired" type="date" value={formData.dateAired} onChange={(e) => setFormData({ ...formData, dateAired: e.target.value })} className="mt-1 h-11" required />
-            </div>
-          </div>
-        </div>
-
-        {/* Video Upload/URL Section */}
+      <form onSubmit={handleSubmit} className="max-w-4xl mx-auto p-6 space-y-8">
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
           <div className="flex items-center gap-2 mb-4">
             <div className="p-2 bg-purple-100 rounded-lg"><Video className="h-5 w-5 text-purple-600" /></div>
@@ -304,12 +269,12 @@ export default function AddTVStoryPage() {
           </div>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="videoUrl" className="text-gray-700">Video URL (YouTube or Vimeo)</Label>
-              <Input id="videoUrl" value={formData.videoUrl} onChange={(e) => setFormData({ ...formData, videoUrl: e.target.value })} placeholder="https://youtube.com/watch?v=... or https://vimeo.com/..." className="mt-1 h-11" />
+              <Label htmlFor="videoUrl" className="text-gray-600 text-sm">Video URL (YouTube or Vimeo)</Label>
+              <Input id="videoUrl" value={formData.videoUrl} onChange={(e) => setFormData({ ...formData, videoUrl: e.target.value })} placeholder="https://youtube.com/watch?v=..." className="mt-1 h-11" />
             </div>
             {embedUrl && (
               <div className="aspect-video rounded-lg overflow-hidden bg-black">
-                <iframe src={embedUrl} className="w-full h-full" allowFullScreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" />
+                <iframe src={embedUrl} className="w-full h-full" allowFullScreen />
               </div>
             )}
             <div className="flex items-center gap-4">
@@ -340,76 +305,95 @@ export default function AddTVStoryPage() {
               </div>
             )}
             <div>
-              <Label htmlFor="videoTitle" className="text-gray-700">Video Title</Label>
+              <Label htmlFor="videoTitle" className="text-gray-600 text-sm">Video Title</Label>
               <Input id="videoTitle" value={formData.videoTitle} onChange={(e) => setFormData({ ...formData, videoTitle: e.target.value })} placeholder="Enter video title" className="mt-1 h-11" />
             </div>
           </div>
         </div>
 
-        {/* Transcription & Refine Section */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="p-2 bg-blue-100 rounded-lg"><FileText className="h-5 w-5 text-blue-600" /></div>
+            <Label htmlFor="title" className="font-semibold text-gray-800">Story Title</Label>
+          </div>
+          <Input id="title" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} placeholder="Enter story title or let AI generate it" className="h-12 text-lg" required />
+        </div>
+
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <div className="p-2 bg-green-100 rounded-lg"><FileText className="h-5 w-5 text-green-600" /></div>
-              <div><h2 className="font-semibold text-gray-800">Transcription</h2><p className="text-sm text-gray-500">Auto-transcribe video or type manually</p></div>
+              <div><h2 className="font-semibold text-gray-800">Story Content</h2><p className="text-sm text-gray-500">Transcribe video or type content manually</p></div>
             </div>
-            <div className="flex gap-2">
-              <Button type="button" onClick={handleTranscribe} disabled={isTranscribing || !videoFile} variant="outline" className="flex items-center gap-2 text-green-600 border-green-200 hover:bg-green-50">
-                {isTranscribing ? (<><Loader2 className="h-4 w-4 animate-spin" />{transcriptionProgress.message || 'Transcribing...'}</>) : (<><Mic className="h-4 w-4" />Transcribe</>)}
-              </Button>
-              <Button type="button" onClick={handleRefine} disabled={isRefining || !formData.summary} variant="outline" className="flex items-center gap-2 text-purple-600 border-purple-200 hover:bg-purple-50">
-                {isRefining ? (<><Loader2 className="h-4 w-4 animate-spin" />Refining...</>) : (<><Wand2 className="h-4 w-4" />Refine</>)}
-              </Button>
-            </div>
+            <Button type="button" onClick={handleTranscribe} disabled={isTranscribing || !videoFile} variant="outline" className="flex items-center gap-2 text-green-600 border-green-200 hover:bg-green-50">
+              {isTranscribing ? (<><Loader2 className="h-4 w-4 animate-spin" />{transcriptionProgress.message || 'Transcribing...'}</>) : (<><Mic className="h-4 w-4" />Speech to Text</>)}
+            </Button>
           </div>
           {isTranscribing && (
-            <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <div className="flex items-center gap-2 text-blue-700 text-sm mb-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                {transcriptionProgress.message || 'Processing...'}
-              </div>
-              {transcriptionProgress.status === 'loading-model' && (
-                <div className="w-full bg-blue-200 rounded-full h-2">
-                  <div className="bg-blue-600 h-2 rounded-full transition-all duration-300" style={{ width: `${transcriptionProgress.modelProgress}%` }} />
-                </div>
-              )}
-              {transcriptionProgress.status === 'transcribing' && (
-                <div className="w-full bg-green-200 rounded-full h-2">
-                  <div className="bg-green-600 h-2 rounded-full transition-all duration-300" style={{ width: `${transcriptionProgress.transcriptionProgress}%` }} />
-                </div>
-              )}
-              {transcriptionProgress.status === 'loading-model' && transcriptionProgress.modelProgress === 0 && (
-                <p className="text-xs text-blue-600 mt-1">First time loading the AI model - this may take a minute...</p>
-              )}
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center gap-2 text-blue-700 text-sm mb-2"><Loader2 className="h-4 w-4 animate-spin" />{transcriptionProgress.message || 'Processing...'}</div>
+              {transcriptionProgress.status === 'loading-model' && (<div className="w-full bg-blue-200 rounded-full h-2"><div className="bg-blue-600 h-2 rounded-full transition-all duration-300" style={{ width: `${transcriptionProgress.modelProgress}%` }} /></div>)}
+              {transcriptionProgress.status === 'transcribing' && (<div className="w-full bg-green-200 rounded-full h-2"><div className="bg-green-600 h-2 rounded-full transition-all duration-300" style={{ width: `${transcriptionProgress.transcriptionProgress}%` }} /></div>)}
             </div>
           )}
-          {transcribeError && <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">{transcribeError}</div>}
-          {refineError && <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">{refineError}</div>}
-          <textarea className="w-full min-h-[150px] rounded-lg border border-gray-200 p-3 resize-y" value={formData.summary} onChange={(e) => setFormData({ ...formData, summary: e.target.value })} placeholder="Upload a video and click 'Transcribe' to auto-transcribe, or type/paste content here. Then click 'Refine' to fix errors and generate title + sentiment." />
+          {transcribeError && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">{transcribeError}</div>}
+          <RichTextEditor value={formData.content} onChange={(html) => setFormData({ ...formData, content: html })} className="min-h-[300px]" />
         </div>
 
-        {/* Sentiment Analysis */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <Label className="text-gray-700 font-medium block mb-4">Sentiment Analysis</Label>
-          <SentimentDisplay positive={sentimentData.positive} neutral={sentimentData.neutral} negative={sentimentData.negative} overallSentiment={sentimentData.overallSentiment} isLoading={isRefining} onSentimentChange={(data) => setSentimentData(data)} />
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <div className="p-2 bg-purple-100 rounded-lg"><Sparkles className="h-5 w-5 text-purple-600" /></div>
+              <div><h2 className="font-semibold text-gray-800">Story Summary</h2><p className="text-sm text-gray-500">AI-generated summary and analysis</p></div>
+            </div>
+            <Button type="button" onClick={handleAnalyze} disabled={isAnalyzing || !formData.content} variant="outline" className="flex items-center gap-2 text-purple-600 border-purple-200 hover:bg-purple-50">
+              {isAnalyzing ? (<><Loader2 className="h-4 w-4 animate-spin" />Analyzing...</>) : (<><Wand2 className="h-4 w-4" />Analyze with AI</>)}
+            </Button>
+          </div>
+          {analyzeError && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">{analyzeError}</div>}
+          <textarea className="w-full min-h-[120px] rounded-lg border border-gray-200 p-4 resize-y focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all" value={formData.summary} onChange={(e) => setFormData({ ...formData, summary: e.target.value })} placeholder="Click 'Analyze with AI' to generate a summary, or write your own..." />
         </div>
 
-        {/* Keywords */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <Label htmlFor="keywords" className="text-gray-700 font-medium">Keywords</Label>
-          <KeywordInput
-            value={formData.keywords}
-            onChange={(value) => setFormData({ ...formData, keywords: value })}
-            availableKeywords={availableKeywords}
-            placeholder="Type to search keywords..."
-            className="mt-1"
-          />
+          <Label className="font-semibold text-gray-800 block mb-4">Sentiment Analysis</Label>
+          <SentimentDisplay positive={sentimentData.positive} neutral={sentimentData.neutral} negative={sentimentData.negative} overallSentiment={sentimentData.overallSentiment} isLoading={isAnalyzing} onSentimentChange={(data) => setSentimentData(data)} />
         </div>
 
-        {/* Industry Classification */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <Label htmlFor="industry" className="text-gray-700 font-medium">Industry</Label>
-          <select id="industry" className="w-full h-11 mt-1 rounded-lg border border-gray-200 px-3 bg-white max-w-md" value={formData.industryId} onChange={(e) => { setFormData({ ...formData, industryId: e.target.value }); setSelectedSubIndustries([]) }}>
+          <h3 className="font-semibold text-gray-800 mb-4">Broadcast Details</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <Label htmlFor="station" className="text-gray-600 flex items-center gap-2 mb-2"><Tv className="h-4 w-4" />TV Station</Label>
+              <select id="station" className="w-full h-11 rounded-lg border border-gray-200 px-3 bg-white focus:ring-2 focus:ring-orange-500 focus:border-transparent" value={formData.stationId} onChange={(e) => setFormData({ ...formData, stationId: e.target.value, programId: '' })}>
+                <option value="">Select station</option>
+                {stations.map(station => (<option key={station.id} value={station.id}>{station.name} {station.location && `(${station.location})`}</option>))}
+              </select>
+            </div>
+            <div>
+              <Label htmlFor="program" className="text-gray-600 mb-2 block">Program/Show</Label>
+              <select id="program" className="w-full h-11 rounded-lg border border-gray-200 px-3 bg-white focus:ring-2 focus:ring-orange-500 focus:border-transparent" value={formData.programId} onChange={(e) => setFormData({ ...formData, programId: e.target.value })}>
+                <option value="">Select program</option>
+                {filteredPrograms.map(program => (<option key={program.id} value={program.id}>{program.name}</option>))}
+              </select>
+            </div>
+            <div>
+              <Label htmlFor="presenters" className="text-gray-600 flex items-center gap-2 mb-2"><User className="h-4 w-4" />Presenter(s)</Label>
+              <Input id="presenters" value={formData.presenters} onChange={(e) => setFormData({ ...formData, presenters: e.target.value })} placeholder="Presenter names" className="h-11" />
+            </div>
+            <div>
+              <Label htmlFor="dateAired" className="text-gray-600 flex items-center gap-2 mb-2"><Calendar className="h-4 w-4" />Date Aired</Label>
+              <Input id="dateAired" type="date" value={formData.dateAired} onChange={(e) => setFormData({ ...formData, dateAired: e.target.value })} className="h-11" required />
+            </div>
+            <div className="md:col-span-2">
+              <Label htmlFor="keywords" className="text-gray-600 mb-2 block">Keywords</Label>
+              <KeywordInput value={formData.keywords} onChange={(value) => setFormData({ ...formData, keywords: value })} availableKeywords={availableKeywords} placeholder="Type to search keywords..." />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <Label htmlFor="industry" className="font-semibold text-gray-800 block mb-3">Industry Classification</Label>
+          <select id="industry" className="w-full h-11 rounded-lg border border-gray-200 px-3 bg-white max-w-md focus:ring-2 focus:ring-orange-500 focus:border-transparent" value={formData.industryId} onChange={(e) => { setFormData({ ...formData, industryId: e.target.value }); setSelectedSubIndustries([]) }}>
             <option value="">Select Industry</option>
             {industries.map(industry => (<option key={industry.id} value={industry.id}>{industry.name}</option>))}
           </select>
@@ -419,15 +403,15 @@ export default function AddTVStoryPage() {
                 <Label className="text-gray-600 text-center block mb-3">Available Sub-industries</Label>
                 <div className="border border-gray-200 rounded-lg h-48 overflow-y-auto bg-gray-50">
                   {availableSubIndustries.length === 0 ? (<p className="text-gray-400 text-sm text-center py-4">No more sub-industries</p>) : (
-                    availableSubIndustries.map(s => (<div key={s.id} className="px-4 py-3 hover:bg-white cursor-pointer flex justify-between items-center border-b border-gray-100 last:border-0" onClick={() => setSelectedSubIndustries([...selectedSubIndustries, s.id])}><span className="text-gray-700">{s.name}</span><ChevronRight className="h-4 w-4 text-gray-400" /></div>))
+                    availableSubIndustries.map(s => (<div key={s.id} className="px-4 py-3 hover:bg-white cursor-pointer flex justify-between items-center border-b border-gray-100 last:border-0 transition-colors" onClick={() => setSelectedSubIndustries([...selectedSubIndustries, s.id])}><span className="text-gray-700">{s.name}</span><ChevronRight className="h-4 w-4 text-gray-400" /></div>))
                   )}
                 </div>
               </div>
               <div>
                 <Label className="text-gray-600 text-center block mb-3">Selected Sub-industries</Label>
                 <div className="border border-gray-200 rounded-lg h-48 overflow-y-auto bg-orange-50">
-                  {selectedSubIndustryObjects.length === 0 ? (<p className="text-gray-400 text-sm text-center py-4">Click to add</p>) : (
-                    selectedSubIndustryObjects.map(s => (<div key={s.id} className="px-4 py-3 hover:bg-orange-100 cursor-pointer flex justify-between items-center border-b border-orange-100 last:border-0" onClick={() => setSelectedSubIndustries(selectedSubIndustries.filter(x => x !== s.id))}><ChevronLeft className="h-4 w-4 text-orange-400" /><span className="text-gray-700">{s.name}</span></div>))
+                  {selectedSubIndustryObjects.length === 0 ? (<p className="text-gray-400 text-sm text-center py-4">Click to add sub-industries</p>) : (
+                    selectedSubIndustryObjects.map(s => (<div key={s.id} className="px-4 py-3 hover:bg-orange-100 cursor-pointer flex justify-between items-center border-b border-orange-100 last:border-0 transition-colors" onClick={() => setSelectedSubIndustries(selectedSubIndustries.filter(x => x !== s.id))}><ChevronLeft className="h-4 w-4 text-orange-400" /><span className="text-gray-700">{s.name}</span></div>))
                   )}
                 </div>
               </div>
@@ -435,10 +419,9 @@ export default function AddTVStoryPage() {
           )}
         </div>
 
-        {/* Submit Buttons */}
-        <div className="flex justify-end gap-3 pt-4">
-          <Button type="button" variant="outline" onClick={() => router.push('/media/tv')}>Cancel</Button>
-          <Button type="submit" className="bg-orange-500 hover:bg-orange-600 text-white" disabled={isSubmitting}>
+        <div className="flex justify-end gap-4 pt-4">
+          <Button type="button" variant="outline" onClick={() => router.back()} className="px-6">Cancel</Button>
+          <Button type="submit" className="bg-orange-500 hover:bg-orange-600 text-white px-8" disabled={isSubmitting}>
             {isSubmitting ? (<><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving...</>) : 'Save Story'}
           </Button>
         </div>

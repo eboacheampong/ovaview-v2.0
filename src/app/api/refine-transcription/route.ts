@@ -64,12 +64,14 @@ Please:
    
 2. Generate a concise, descriptive title (max 100 characters) that captures the main topic
 
-3. Analyze the sentiment of the content
+3. Generate a brief summary (2-3 sentences) that captures the key points
 
-4. Select relevant keywords from this list that match the content (pick only those that are truly relevant):
+4. Analyze the sentiment of the content
+
+5. Select relevant keywords from this list that match the content (pick only those that are truly relevant):
    Available keywords: ${keywordList || 'None available'}
 
-5. Select the most appropriate industry and sub-industries from this list:
+6. Select the most appropriate industry and sub-industries from this list:
    Available industries: ${industryList || 'None available'}
 
 IMPORTANT: Preserve the original meaning, tone, and style. Only fix obvious transcription errors.
@@ -83,6 +85,7 @@ Respond in this exact JSON format only, no other text:
 {
   "transcription": "the corrected transcription text here",
   "title": "Generated Title Here",
+  "summary": "A brief 2-3 sentence summary of the content",
   "sentiment": {
     "positive": <number 0-100>,
     "neutral": <number 0-100>,
@@ -149,6 +152,7 @@ The sentiment percentages must add up to 100. Only include keywords and industri
     return NextResponse.json({
       transcription: result.transcription,
       title: result.title,
+      summary: result.summary || '',
       sentiment: {
         positive: Math.round(positive),
         neutral: Math.round(neutral),
