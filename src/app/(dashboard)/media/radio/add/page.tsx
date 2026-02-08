@@ -306,11 +306,11 @@ export default function AddRadioStoryPage() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="audioTitle" className="text-gray-600 text-sm">Audio Title</Label>
-                <Input id="audioTitle" value={formData.audioTitle} onChange={(e) => setFormData({ ...formData, audioTitle: e.target.value })} placeholder="Enter audio clip title" className="mt-1 h-11" />
+                <Input id="audioTitle" value={formData.audioTitle} onChange={(e) => setFormData({ ...formData, audioTitle: e.target.value })} placeholder="Audio title" className="mt-1 h-11" />
               </div>
               <div>
                 <Label htmlFor="audioUrl" className="text-gray-600 text-sm">Audio URL (optional)</Label>
-                <Input id="audioUrl" value={formData.audioUrl} onChange={(e) => setFormData({ ...formData, audioUrl: e.target.value })} placeholder="https://example.com/audio.mp3" className="mt-1 h-11" />
+                <Input id="audioUrl" value={formData.audioUrl} onChange={(e) => setFormData({ ...formData, audioUrl: e.target.value })} placeholder="External audio URL" className="mt-1 h-11" />
               </div>
             </div>
           </div>
@@ -360,9 +360,9 @@ export default function AddRadioStoryPage() {
             className="w-full min-h-[150px] rounded-lg border border-gray-200 p-4 resize-y bg-gray-50 text-gray-700" 
             value={rawTranscription} 
             onChange={(e) => setRawTranscription(e.target.value)} 
-            placeholder="Raw transcription will appear here after clicking 'Transcribe'..." 
+            placeholder="Transcribed text appears here..." 
           />
-          <p className="text-xs text-gray-400 mt-2">This raw transcription is used for AI analysis and won't be saved directly.</p>
+          <p className="text-xs text-gray-400 mt-2">Raw transcription for AI processing</p>
         </div>
 
         {/* Section 3: AI Analysis */}
@@ -392,7 +392,7 @@ export default function AddRadioStoryPage() {
             <div className="p-2 bg-blue-100 rounded-lg"><FileText className="h-5 w-5 text-blue-600" /></div>
             <Label htmlFor="title" className="font-semibold text-gray-800">Story Title</Label>
           </div>
-          <Input id="title" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} placeholder="Title will be auto-filled by AI analysis" className="h-12 text-lg" required />
+          <Input id="title" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} placeholder="Enter story title" className="h-12 text-lg" required />
         </div>
 
         {/* Section 5: Story Content */}
@@ -420,7 +420,7 @@ export default function AddRadioStoryPage() {
             className="w-full min-h-[120px] rounded-lg border border-gray-200 p-4 resize-y focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all" 
             value={formData.summary} 
             onChange={(e) => setFormData({ ...formData, summary: e.target.value })} 
-            placeholder="Summary will be auto-filled by AI analysis..." 
+            placeholder="Enter story summary..." 
           />
         </div>
 
@@ -479,7 +479,7 @@ export default function AddRadioStoryPage() {
                 value={formData.keywords}
                 onChange={(value) => setFormData({ ...formData, keywords: value })}
                 availableKeywords={availableKeywords}
-                placeholder="Keywords will be auto-filled by AI analysis..."
+                placeholder="Search keywords..."
               />
             </div>
           </div>

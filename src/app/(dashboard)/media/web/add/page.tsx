@@ -307,7 +307,7 @@ export default function AddWebStoryPage() {
               <Input
                 value={formData.sourceUrl}
                 onChange={(e) => setFormData({ ...formData, sourceUrl: e.target.value })}
-                placeholder="https://example.com/article..."
+                placeholder="https://example.com/article"
                 className="pl-10 h-11"
               />
             </div>
@@ -328,7 +328,7 @@ export default function AddWebStoryPage() {
             <div className="p-2 bg-blue-100 rounded-lg"><FileText className="h-5 w-5 text-blue-600" /></div>
             <Label htmlFor="title" className="font-semibold text-gray-800">Article Title</Label>
           </div>
-          <Input id="title" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} placeholder="Enter the article title" className="h-12 text-lg" required />
+          <Input id="title" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} placeholder="Enter article title" className="h-12 text-lg" required />
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
@@ -347,7 +347,7 @@ export default function AddWebStoryPage() {
             </Button>
           </div>
           {analyzeError && <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">{analyzeError}</div>}
-          <textarea id="summary" className="w-full min-h-[120px] rounded-lg border border-gray-200 p-4 resize-y focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all" value={formData.summary} onChange={(e) => setFormData({ ...formData, summary: e.target.value })} placeholder="Click 'Analyze with AI' to generate a summary and sentiment analysis, or write your own..." />
+          <textarea id="summary" className="w-full min-h-[120px] rounded-lg border border-gray-200 p-4 resize-y focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all" value={formData.summary} onChange={(e) => setFormData({ ...formData, summary: e.target.value })} placeholder="Enter article summary..." />
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
@@ -360,7 +360,7 @@ export default function AddWebStoryPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <Label htmlFor="author" className="text-gray-600 flex items-center gap-2 mb-2"><User className="h-4 w-4" />Author</Label>
-              <Input id="author" value={formData.author} onChange={(e) => setFormData({ ...formData, author: e.target.value })} placeholder="Article author" className="h-11" />
+              <Input id="author" value={formData.author} onChange={(e) => setFormData({ ...formData, author: e.target.value })} placeholder="Author name" className="h-11" />
             </div>
             <div>
               <Label htmlFor="publicationDate" className="text-gray-600 flex items-center gap-2 mb-2"><Calendar className="h-4 w-4" />Publication Date</Label>
@@ -379,7 +379,7 @@ export default function AddWebStoryPage() {
                 value={formData.keywords}
                 onChange={(value) => setFormData({ ...formData, keywords: value })}
                 availableKeywords={availableKeywords}
-                placeholder="Type to search keywords..."
+                placeholder="Search keywords..."
               />
             </div>
           </div>

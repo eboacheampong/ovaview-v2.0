@@ -280,7 +280,7 @@ export default function AddTVStoryPage() {
           <div className="space-y-4">
             <div>
               <Label htmlFor="videoUrl" className="text-gray-600 text-sm">Video URL (YouTube or Vimeo)</Label>
-              <Input id="videoUrl" value={formData.videoUrl} onChange={(e) => setFormData({ ...formData, videoUrl: e.target.value })} placeholder="https://youtube.com/watch?v=..." className="mt-1 h-11" />
+              <Input id="videoUrl" value={formData.videoUrl} onChange={(e) => setFormData({ ...formData, videoUrl: e.target.value })} placeholder="Paste video URL" className="mt-1 h-11" />
             </div>
             
             {embedUrl && (
@@ -332,7 +332,7 @@ export default function AddTVStoryPage() {
             
             <div>
               <Label htmlFor="videoTitle" className="text-gray-600 text-sm">Video Title</Label>
-              <Input id="videoTitle" value={formData.videoTitle} onChange={(e) => setFormData({ ...formData, videoTitle: e.target.value })} placeholder="Enter video title" className="mt-1 h-11" />
+              <Input id="videoTitle" value={formData.videoTitle} onChange={(e) => setFormData({ ...formData, videoTitle: e.target.value })} placeholder="Video title" className="mt-1 h-11" />
             </div>
           </div>
         </div>
@@ -381,9 +381,9 @@ export default function AddTVStoryPage() {
             className="w-full min-h-[150px] rounded-lg border border-gray-200 p-4 resize-y bg-gray-50 text-gray-700" 
             value={rawTranscription} 
             onChange={(e) => setRawTranscription(e.target.value)} 
-            placeholder="Raw transcription will appear here after clicking 'Transcribe'..." 
+            placeholder="Transcribed text appears here..." 
           />
-          <p className="text-xs text-gray-400 mt-2">This raw transcription is used for AI analysis and won't be saved directly.</p>
+          <p className="text-xs text-gray-400 mt-2">Raw transcription for AI processing</p>
         </div>
 
         {/* Section 3: AI Analysis */}
@@ -413,7 +413,7 @@ export default function AddTVStoryPage() {
             <div className="p-2 bg-blue-100 rounded-lg"><FileText className="h-5 w-5 text-blue-600" /></div>
             <Label htmlFor="title" className="font-semibold text-gray-800">Story Title</Label>
           </div>
-          <Input id="title" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} placeholder="Title will be auto-filled by AI analysis" className="h-12 text-lg" required />
+          <Input id="title" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} placeholder="Enter story title" className="h-12 text-lg" required />
         </div>
 
         {/* Section 5: Story Content */}
@@ -441,7 +441,7 @@ export default function AddTVStoryPage() {
             className="w-full min-h-[120px] rounded-lg border border-gray-200 p-4 resize-y focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all" 
             value={formData.summary} 
             onChange={(e) => setFormData({ ...formData, summary: e.target.value })} 
-            placeholder="Summary will be auto-filled by AI analysis..." 
+            placeholder="Enter story summary..." 
           />
         </div>
 
@@ -500,7 +500,7 @@ export default function AddTVStoryPage() {
                 value={formData.keywords}
                 onChange={(value) => setFormData({ ...formData, keywords: value })}
                 availableKeywords={availableKeywords}
-                placeholder="Keywords will be auto-filled by AI analysis..."
+                placeholder="Search keywords..."
               />
             </div>
           </div>

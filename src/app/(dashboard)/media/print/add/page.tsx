@@ -352,9 +352,9 @@ export default function AddPrintStoryPage() {
             className="w-full min-h-[150px] rounded-lg border border-gray-200 p-4 resize-y bg-gray-50 text-gray-700" 
             value={rawOcrText} 
             onChange={(e) => setRawOcrText(e.target.value)} 
-            placeholder="Extracted text will appear here..." 
+            placeholder="Extracted text appears here..." 
           />
-          <p className="text-xs text-gray-400 mt-2">Raw OCR text used for AI analysis. Not saved directly.</p>
+          <p className="text-xs text-gray-400 mt-2">Raw OCR text for AI processing</p>
         </div>
 
         {/* Section 3: AI Analysis */}
@@ -384,7 +384,7 @@ export default function AddPrintStoryPage() {
             <div className="p-2 bg-blue-100 rounded-lg"><FileText className="h-5 w-5 text-blue-600" /></div>
             <Label htmlFor="title" className="font-semibold text-gray-800">Story Title</Label>
           </div>
-          <Input id="title" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} placeholder="Enter title" className="h-12 text-lg" required />
+          <Input id="title" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} placeholder="Enter article title" className="h-12 text-lg" required />
         </div>
 
         {/* Section 5: Story Content */}
@@ -412,7 +412,7 @@ export default function AddPrintStoryPage() {
             className="w-full min-h-[100px] rounded-lg border border-gray-200 p-4 resize-y focus:ring-2 focus:ring-orange-500 focus:border-transparent" 
             value={formData.summary} 
             onChange={(e) => setFormData({ ...formData, summary: e.target.value })} 
-            placeholder="Enter summary..." 
+            placeholder="Enter article summary..." 
           />
         </div>
 
