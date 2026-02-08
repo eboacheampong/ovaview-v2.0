@@ -122,13 +122,8 @@ export default function AdvancedReportsPage() {
       {/* Header Section */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 text-white">
-              <BarChart3 className="h-6 w-6" />
-            </div>
-            Advanced Analytics
-          </h1>
-          <p className="text-gray-500 mt-1">Real-time media monitoring insights and performance metrics</p>
+          <h1 className="text-2xl lg:text-3xl font-bold text-gray-800">Advanced Analytics</h1>
+          <p className="text-gray-500 mt-1">Media monitoring insights and performance metrics</p>
         </div>
         
         <div className="flex flex-wrap gap-2">
@@ -154,7 +149,7 @@ export default function AdvancedReportsPage() {
           <div className="flex flex-col lg:flex-row gap-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input placeholder="Search clients, keywords, topics..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10" />
+              <Input placeholder="Search..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10" />
             </div>
             
             <div className="flex gap-2">
@@ -246,7 +241,7 @@ export default function AdvancedReportsPage() {
                 </AreaChart>
               </ResponsiveContainer>
             ) : (
-              <div className="h-[300px] flex items-center justify-center text-gray-400">No coverage data available</div>
+              <div className="h-[300px] flex items-center justify-center text-gray-400">No data available</div>
             )}
           </CardContent>
         </Card>
@@ -283,7 +278,7 @@ export default function AdvancedReportsPage() {
                 </div>
               </>
             ) : (
-              <div className="h-[280px] flex items-center justify-center text-gray-400">No sentiment data available</div>
+              <div className="h-[280px] flex items-center justify-center text-gray-400">No data available</div>
             )}
           </CardContent>
         </Card>
@@ -326,7 +321,7 @@ export default function AdvancedReportsPage() {
                 </div>
               </div>
             ) : (
-              <div className="h-[200px] flex items-center justify-center text-gray-400">No share of voice data available</div>
+              <div className="h-[200px] flex items-center justify-center text-gray-400">No data available</div>
             )}
           </CardContent>
         </Card>
@@ -355,7 +350,7 @@ export default function AdvancedReportsPage() {
                 </RadarChart>
               </ResponsiveContainer>
             ) : (
-              <div className="h-[250px] flex items-center justify-center text-gray-400">No industry data available</div>
+              <div className="h-[250px] flex items-center justify-center text-gray-400">No data available</div>
             )}
           </CardContent>
         </Card>
@@ -383,7 +378,7 @@ export default function AdvancedReportsPage() {
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <div className="h-[250px] flex items-center justify-center text-gray-400">No hourly data available</div>
+              <div className="h-[250px] flex items-center justify-center text-gray-400">No data available</div>
             )}
           </CardContent>
         </Card>
@@ -420,7 +415,7 @@ export default function AdvancedReportsPage() {
                 </div>
               </>
             ) : (
-              <div className="h-[250px] flex items-center justify-center text-gray-400">No media data available</div>
+              <div className="h-[250px] flex items-center justify-center text-gray-400">No data available</div>
             )}
           </CardContent>
         </Card>
@@ -468,7 +463,7 @@ export default function AdvancedReportsPage() {
                 ))}
               </div>
             ) : (
-              <div className="h-[200px] flex items-center justify-center text-gray-400">No client data available</div>
+              <div className="h-[200px] flex items-center justify-center text-gray-400">No data available</div>
             )}
           </CardContent>
         </Card>
@@ -504,7 +499,7 @@ export default function AdvancedReportsPage() {
                 ))}
               </div>
             ) : (
-              <div className="h-[200px] flex items-center justify-center text-gray-400">No keyword data available</div>
+              <div className="h-[200px] flex items-center justify-center text-gray-400">No data available</div>
             )}
           </CardContent>
         </Card>
@@ -540,7 +535,7 @@ export default function AdvancedReportsPage() {
                 ))}
               </div>
             ) : (
-              <div className="h-[200px] flex items-center justify-center text-gray-400">No regional data available</div>
+              <div className="h-[200px] flex items-center justify-center text-gray-400">No data available</div>
             )}
           </CardContent>
         </Card>
@@ -585,7 +580,7 @@ export default function AdvancedReportsPage() {
                 ))}
               </div>
             ) : (
-              <div className="h-[200px] flex items-center justify-center text-gray-400">No publication data available</div>
+              <div className="h-[200px] flex items-center justify-center text-gray-400">No data available</div>
             )}
           </CardContent>
         </Card>
@@ -633,7 +628,7 @@ export default function AdvancedReportsPage() {
                 ))}
               </div>
             ) : (
-              <div className="h-[200px] flex items-center justify-center text-gray-400">No journalist data available</div>
+              <div className="h-[200px] flex items-center justify-center text-gray-400">No data available</div>
             )}
           </CardContent>
         </Card>
@@ -707,9 +702,7 @@ export default function AdvancedReportsPage() {
               </ComposedChart>
             </ResponsiveContainer>
           ) : (
-            <div className="h-[300px] flex items-center justify-center text-gray-400">
-              No competitor data available. Add clients with keywords to see comparison.
-            </div>
+            <div className="h-[300px] flex items-center justify-center text-gray-400">No data available</div>
           )}
         </CardContent>
       </Card>

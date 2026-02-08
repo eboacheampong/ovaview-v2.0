@@ -43,28 +43,26 @@ export default function LoginPage() {
 
   return (
     <div className="w-full max-w-md animate-fadeIn">
-      {/* Logo */}
       <div className="text-center mb-8">
         <Image
           src="/Ovaview-Media-Monitoring-Logo.png"
-          alt="Ovaview - Media Monitoring & Analysis"
-          width={280}
-          height={100}
+          alt="Ovaview"
+          width={240}
+          height={80}
           className="mx-auto"
           priority
         />
       </div>
 
-      {/* Login Card */}
-      <div className="glass-card rounded-2xl p-8">
+      <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8">
         <div className="text-center mb-6">
-          <h2 className="text-2xl font-semibold text-gray-800">Welcome back</h2>
-          <p className="text-gray-500 mt-1">Sign in to continue to your dashboard</p>
+          <h1 className="text-2xl font-bold text-gray-900">Welcome back</h1>
+          <p className="text-gray-500 mt-1">Sign in to your account</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
           {error && (
-            <div className="p-4 text-sm text-red-600 bg-red-50 rounded-xl border border-red-100 animate-fadeIn">
+            <div className="p-3 text-sm text-red-600 bg-red-50 rounded-lg border border-red-100">
               {error}
             </div>
           )}
@@ -76,11 +74,11 @@ export default function LoginPage() {
               <Input
                 id="email"
                 type="email"
-                placeholder="name@example.com"
+                placeholder="Enter your email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 disabled={isLoading}
-                className="pl-10 h-12 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 transition-all"
+                className="pl-10 h-12 rounded-lg border-gray-200 focus:border-orange-500 focus:ring-orange-500/20"
               />
             </div>
             {validationErrors.email && (
@@ -99,7 +97,7 @@ export default function LoginPage() {
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 disabled={isLoading}
-                className="pl-10 h-12 rounded-xl border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 transition-all"
+                className="pl-10 h-12 rounded-lg border-gray-200 focus:border-orange-500 focus:ring-orange-500/20"
               />
             </div>
             {validationErrors.password && (
@@ -109,7 +107,7 @@ export default function LoginPage() {
 
           <Button 
             type="submit" 
-            className="w-full h-12 rounded-xl gradient-primary hover:opacity-90 transition-all text-white font-medium text-base group"
+            className="w-full h-12 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-medium group"
             disabled={isLoading}
           >
             {isLoading ? (
@@ -127,8 +125,7 @@ export default function LoginPage() {
         </form>
       </div>
 
-      {/* Footer */}
-      <p className="text-center text-gray-400 text-sm mt-8">
+      <p className="text-center text-gray-400 text-sm mt-6">
         © {new Date().getFullYear()} Ovaview. All rights reserved.
       </p>
     </div>
