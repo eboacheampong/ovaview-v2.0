@@ -305,42 +305,43 @@ export async function GET(request: NextRequest) {
       ? Math.round(((totalCoverage - prevTotalCoverage) / prevTotalCoverage) * 100 * 10) / 10
       : 0
 
-    // Region data (based on publication regions)
-    const regionCounts = new Map<string, number>()
+    // Region data (based on publication/station locations and reach)
+    const locationCounts = new Map<string, number>()
+    
     webStories.forEach(s => {
-      const region = s.publication?.region || 'Unknown'
-      regionCounts.set(region, (regionCounts.get(region) || 0) + (s.publication?.reach || 1000))
+      const location = s.publication?.location || 'Unknown'
+      locationCounts.set(location, (locationCounts.get(location) || 0) + (s.publication?.reach || 0))
     })
     tvStories.forEach(s => {
-      const region = s.station?.region || 'Unknown'
-      regionCounts.set(region, (regionCounts.get(region) || 0) + (s.station?.reach || 1000))
+      const location = s.station?.location || 'Unknown'
+      locationCounts.set(location, (locationCounts.get(location) || 0) + (s.station?.reach || 0))
     })
     radioStories.forEach(s => {
-      const region = s.station?.region || 'Unknown'
-      regionCounts.set(region, (regionCounts.get(region) || 0) + (s.station?.reach || 1000))
+      const location = s.station?.location || 'Unknown'
+      locationCounts.set(location, (locationCounts.get(location) || 0) + (s.station?.reach || 0))
     })
     printStories.forEach(s => {
-      const region = s.publication?.region || 'Unknown'
-      regionCounts.set(region, (regionCounts.get(region) || 0) + (s.publication?.reach || 1000))
+      const location = s.publication?.location || 'Unknown'
+      locationCounts.set(location, (locationCounts.get(location) || 0) + (s.publication?.reach || 0))
     })
 
-    const totalRegionReach = Array.from(regionCounts.values()).reduce((a, b) => a + b, 0)
-    const reachByRegionData = Array.from(regionCounts.entries())
-      .filter(([region]) => region !== 'Unknown')
+    const totalLocationReach = Array.from(locationCounts.values()).reduce((a, b) => a + b, 0)
+    const reachByRegionData = Array.from(locationCounts.entries())
+      .filter(([location]) => location !== 'Unknown' && location)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 8)
       .map(([region, reach]) => ({
         region,
         reach,
-        percentage: totalRegionReach > 0 ? Math.round((reach / totalRegionReach) * 100) : 0,
+        percentage: totalLocationReach > 0 ? Math.round((reach / totalLocationReach) * 100) : 0,
       }))
 
-    // If no region data, provide defaults
+    // If no location data, provide defaults
     if (reachByRegionData.length === 0) {
       reachByRegionData.push(
         { region: 'Nairobi', reach: 0, percentage: 0 },
-        { region: 'Coast', reach: 0, percentage: 0 },
-        { region: 'Central', reach: 0, percentage: 0 },
+        { region: 'Accra', reach: 0, percentage: 0 },
+        { region: 'Kumasi', reach: 0, percentage: 0 },
       )
     }
 
