@@ -27,8 +27,24 @@ export async function GET(request: NextRequest) {
     const dateFilter = { gte: startDate, lte: now }
     const industryFilter = industryId ? { industryId } : {}
 
+    // Get client keywords if filtering by client
+    let clientKeywords: string[] = []
+    if (clientId) {
+      const client = await prisma.client.findUnique({
+        where: { id: clientId },
+        include: { keywords: { include: { keyword: true } } },
+      })
+      if (client) {
+        clientKeywords = [
+          client.name.toLowerCase(),
+          ...(client.newsKeywords?.split(',').map(k => k.trim().toLowerCase()).filter(Boolean) || []),
+          ...client.keywords.map(ck => ck.keyword.name.toLowerCase()),
+        ].filter(Boolean)
+      }
+    }
+
     // Fetch all story counts in parallel
-    const [webStories, tvStories, radioStories, printStories] = await Promise.all([
+    let [webStories, tvStories, radioStories, printStories] = await Promise.all([
       mediaFilter === 'all' || mediaFilter === 'web' 
         ? prisma.webStory.findMany({
             where: { date: dateFilter, ...industryFilter },
@@ -54,6 +70,18 @@ export async function GET(request: NextRequest) {
           })
         : [],
     ])
+
+    // Filter stories by client keywords if clientId is provided
+    if (clientId && clientKeywords.length > 0) {
+      const matchesClient = (story: { title: string; content: string | null; keywords: string | null }) => {
+        const content = `${story.title} ${story.content || ''} ${story.keywords || ''}`.toLowerCase()
+        return clientKeywords.some(kw => content.includes(kw))
+      }
+      webStories = webStories.filter(matchesClient)
+      tvStories = tvStories.filter(matchesClient)
+      radioStories = radioStories.filter(matchesClient)
+      printStories = printStories.filter(matchesClient)
+    }
 
     // Calculate total coverage
     const totalCoverage = webStories.length + tvStories.length + radioStories.length + printStories.length
@@ -294,13 +322,26 @@ export async function GET(request: NextRequest) {
 
     // Calculate previous period for comparison
     const prevStartDate = subDays(startDate, dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : dateRange === '90d' ? 90 : 365)
-    const [prevWebCount, prevTvCount, prevRadioCount, prevPrintCount] = await Promise.all([
-      prisma.webStory.count({ where: { date: { gte: prevStartDate, lt: startDate } } }),
-      prisma.tVStory.count({ where: { date: { gte: prevStartDate, lt: startDate } } }),
-      prisma.radioStory.count({ where: { date: { gte: prevStartDate, lt: startDate } } }),
-      prisma.printStory.count({ where: { date: { gte: prevStartDate, lt: startDate } } }),
+    let [prevWebStories, prevTvStories, prevRadioStories, prevPrintStories] = await Promise.all([
+      prisma.webStory.findMany({ where: { date: { gte: prevStartDate, lt: startDate } }, select: { title: true, content: true, keywords: true } }),
+      prisma.tVStory.findMany({ where: { date: { gte: prevStartDate, lt: startDate } }, select: { title: true, content: true, keywords: true } }),
+      prisma.radioStory.findMany({ where: { date: { gte: prevStartDate, lt: startDate } }, select: { title: true, content: true, keywords: true } }),
+      prisma.printStory.findMany({ where: { date: { gte: prevStartDate, lt: startDate } }, select: { title: true, content: true, keywords: true } }),
     ])
-    const prevTotalCoverage = prevWebCount + prevTvCount + prevRadioCount + prevPrintCount
+    
+    // Filter previous period by client keywords if clientId is provided
+    if (clientId && clientKeywords.length > 0) {
+      const matchesClient = (story: { title: string; content: string | null; keywords: string | null }) => {
+        const content = `${story.title} ${story.content || ''} ${story.keywords || ''}`.toLowerCase()
+        return clientKeywords.some(kw => content.includes(kw))
+      }
+      prevWebStories = prevWebStories.filter(matchesClient)
+      prevTvStories = prevTvStories.filter(matchesClient)
+      prevRadioStories = prevRadioStories.filter(matchesClient)
+      prevPrintStories = prevPrintStories.filter(matchesClient)
+    }
+    
+    const prevTotalCoverage = prevWebStories.length + prevTvStories.length + prevRadioStories.length + prevPrintStories.length
     const coverageChange = prevTotalCoverage > 0 
       ? Math.round(((totalCoverage - prevTotalCoverage) / prevTotalCoverage) * 100 * 10) / 10
       : 0
@@ -346,10 +387,15 @@ export async function GET(request: NextRequest) {
     }
 
     // Top clients by mentions (keyword matching)
-    const clients = await prisma.client.findMany({
+    let clients = await prisma.client.findMany({
       where: { isActive: true },
       include: { keywords: { include: { keyword: true } } },
     })
+
+    // If filtering by specific client, only show that client
+    if (clientId) {
+      clients = clients.filter(c => c.id === clientId)
+    }
 
     const topClientsData = clients
       .map(client => {

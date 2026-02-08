@@ -21,9 +21,16 @@ import type { AnalyticsData, CompetitorData } from '@/types/analytics'
 type DateRange = '7d' | '30d' | '90d' | '12m'
 type MediaFilter = 'all' | 'print' | 'radio' | 'tv' | 'web'
 
+interface Client {
+  id: string
+  name: string
+}
+
 export default function AdvancedReportsPage() {
   const [dateRange, setDateRange] = useState<DateRange>('30d')
   const [mediaFilter, setMediaFilter] = useState<MediaFilter>('all')
+  const [clientFilter, setClientFilter] = useState<string>('all')
+  const [clients, setClients] = useState<Client[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [isExporting, setIsExporting] = useState(false)
@@ -31,12 +38,29 @@ export default function AdvancedReportsPage() {
   const [competitorData, setCompetitorData] = useState<CompetitorData | null>(null)
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
 
+  // Fetch clients on mount
+  useEffect(() => {
+    const fetchClients = async () => {
+      try {
+        const res = await fetch('/api/clients')
+        if (res.ok) {
+          const data = await res.json()
+          setClients(data)
+        }
+      } catch (error) {
+        console.error('Failed to fetch clients:', error)
+      }
+    }
+    fetchClients()
+  }, [])
+
   const fetchData = useCallback(async () => {
     setIsLoading(true)
     try {
+      const clientParam = clientFilter !== 'all' ? `&clientId=${clientFilter}` : ''
       const [analyticsRes, competitorRes] = await Promise.all([
-        fetch(`/api/reports/analytics?dateRange=${dateRange}&mediaFilter=${mediaFilter}`),
-        fetch(`/api/reports/competitors?dateRange=${dateRange}`),
+        fetch(`/api/reports/analytics?dateRange=${dateRange}&mediaFilter=${mediaFilter}${clientParam}`),
+        fetch(`/api/reports/competitors?dateRange=${dateRange}${clientParam}`),
       ])
 
       if (analyticsRes.ok) {
@@ -53,7 +77,7 @@ export default function AdvancedReportsPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [dateRange, mediaFilter])
+  }, [dateRange, mediaFilter, clientFilter])
 
   useEffect(() => {
     fetchData()
@@ -147,16 +171,30 @@ export default function AdvancedReportsPage() {
       <Card className="glass-card mb-6">
         <CardContent className="p-4">
           <div className="flex flex-col lg:flex-row gap-4">
-            <div className="relative flex-1">
+            <div className="relative flex-1 max-w-xs">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input placeholder="Search..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10" />
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-gray-400" />
+              <select 
+                value={clientFilter} 
+                onChange={(e) => setClientFilter(e.target.value)}
+                className="h-9 rounded-md border border-gray-200 bg-white px-3 text-sm focus:ring-2 focus:ring-orange-500"
+              >
+                <option value="all">All Clients</option>
+                {clients.map(client => (
+                  <option key={client.id} value={client.id}>{client.name}</option>
+                ))}
+              </select>
             </div>
             
             <div className="flex gap-2">
               {(['7d', '30d', '90d', '12m'] as DateRange[]).map((range) => (
                 <Button key={range} variant={dateRange === range ? 'default' : 'outline'} size="sm" onClick={() => setDateRange(range)}
                   className={dateRange === range ? 'bg-orange-500 hover:bg-orange-600' : ''}>
-                  {range === '7d' ? '7 Days' : range === '30d' ? '30 Days' : range === '90d' ? '90 Days' : '12 Months'}
+                  {range === '7d' ? '7D' : range === '30d' ? '30D' : range === '90d' ? '90D' : '12M'}
                 </Button>
               ))}
             </div>
