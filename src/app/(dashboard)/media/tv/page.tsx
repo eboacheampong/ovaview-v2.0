@@ -78,10 +78,10 @@ export default function TVStoriesPage() {
       ),
     },
     {
-      accessorKey: 'station.channel',
-      header: 'Channel',
+      accessorKey: 'station.location',
+      header: 'Location',
       cell: ({ row }) => (
-        <span className="text-gray-600">{row.original.station?.channel || '-'}</span>
+        <span className="text-gray-600">{row.original.station?.location || '-'}</span>
       ),
     },
     {
