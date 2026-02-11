@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
         'X-Title': 'OvaView Media Monitoring',
       },
       body: JSON.stringify({
-        model: 'anthropic/claude-3.5-sonnet',
+        model: 'meta-llama/llama-3.1-8b-instruct',
         messages: [
           {
             role: 'user',
