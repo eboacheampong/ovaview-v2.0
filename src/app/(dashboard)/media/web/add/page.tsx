@@ -175,7 +175,10 @@ export default function AddWebStoryPage() {
       const response = await fetch('/api/analyze-article', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: formData.articleText }),
+        body: JSON.stringify({ 
+          content: formData.articleText,
+          existingKeywords: availableKeywords.map(k => k.name),
+        }),
       })
 
       const data = await response.json()

@@ -184,7 +184,10 @@ export async function POST(request: NextRequest) {
       }),
     ])
 
-    const keywordList = keywords.map((k: { id: string; name: string }) => k.name).join(', ')
+    // Use existing keywords if provided, otherwise use all keywords from DB
+    const keywordList = existingKeywords && existingKeywords.length > 0 
+      ? existingKeywords.join(', ')
+      : keywords.map((k: { id: string; name: string }) => k.name).join(', ')
     const industryList = industries.map((i: IndustryData) => `${i.name} (sub: ${i.subIndustries.map((s: { id: string; name: string }) => s.name).join(', ')})`).join('; ')
 
     // Prompt designed to request JSON output with summary and sentiment
@@ -194,6 +197,8 @@ export async function POST(request: NextRequest) {
 3. Overall sentiment (the category with highest percentage)
 4. Select relevant keywords from this list that match the content: ${keywordList || 'None available'}
 5. Select the most appropriate industry and sub-industries from: ${industryList || 'None available'}
+
+IMPORTANT: Only suggest keywords that exist in the provided list. Do not create or suggest new keywords.
 
 Return ONLY valid JSON in this exact format:
 {
@@ -295,6 +300,20 @@ ${truncatedContent}`
           // Determine overall sentiment from highest percentage (Requirement 1.3)
           const overallSentiment = determineOverallSentiment(normalizedSentiment)
 
+          // Filter suggested keywords to only include existing ones
+          let filteredKeywords: string[] = []
+          if (aiResponse.suggestedKeywords && Array.isArray(aiResponse.suggestedKeywords)) {
+            const availableKeywordNames = existingKeywords && existingKeywords.length > 0
+              ? existingKeywords.map((k: string) => k.toLowerCase())
+              : keywords.map((k: { id: string; name: string }) => k.name.toLowerCase())
+            
+            filteredKeywords = aiResponse.suggestedKeywords.filter((suggestedKeyword: string) =>
+              availableKeywordNames.some((existingKeyword: string) => 
+                existingKeyword === suggestedKeyword.toLowerCase()
+              )
+            )
+          }
+
           // Find industry ID from name
           let industryId: string | null = null
           let subIndustryIds: string[] = []
@@ -318,7 +337,7 @@ ${truncatedContent}`
             summary: cleanSummary,
             sentiment: normalizedSentiment,
             overallSentiment,
-            suggestedKeywords: aiResponse.suggestedKeywords || [],
+            suggestedKeywords: filteredKeywords,
             suggestedIndustryId: industryId,
             suggestedSubIndustryIds: subIndustryIds,
           }
