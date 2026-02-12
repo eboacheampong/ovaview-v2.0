@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import prisma from '@/lib/prisma'
+import { prisma } from '@/lib/prisma'
 import { generateSlug } from '@/lib/slug'
 
 // Validation helper for sentiment fields
