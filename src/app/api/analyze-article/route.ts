@@ -3,8 +3,8 @@ import { prisma } from '@/lib/prisma'
 
 // Models to try in order (primary + fallbacks)
 const MODELS = [
-  'mistralai/mistral-nemo',
   'meta-llama/llama-3.1-8b-instruct',
+  'mistralai/mistral-nemo',
   'openai/gpt-oss-20b',
   'openai/gpt-oss-120b',
 ]
