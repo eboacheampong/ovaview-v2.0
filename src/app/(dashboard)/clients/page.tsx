@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import { ConfirmDialog, PasswordConfirmModal, ViewModal, FormModal } from '@/components/modals'
+import { KeywordTagInput } from '@/components/forms/keyword-tag-input'
 import { useModal } from '@/hooks/use-modal'
 import { Client } from '@/types/client'
 import { Trash2, Users, Camera, Pencil, ChevronRight, ChevronLeft, Building2, Loader2, X } from 'lucide-react'
@@ -45,14 +46,14 @@ export default function ClientsPage() {
   // News config state
   const [newsEmailAlerts, setNewsEmailAlerts] = useState(false)
   const [newsSmsAlerts, setNewsSmsAlerts] = useState(false)
-  const [newsKeywords, setNewsKeywords] = useState('')
+  const [newsKeywords, setNewsKeywords] = useState<string[]>([])
   const [newsIndustryId, setNewsIndustryId] = useState('')
   const [newsSelectedSubIndustries, setNewsSelectedSubIndustries] = useState<string[]>([])
   
   // Tenders config state
   const [tendersEmailAlerts, setTendersEmailAlerts] = useState(false)
   const [tendersSmsAlerts, setTendersSmsAlerts] = useState(false)
-  const [tendersKeywords, setTendersKeywords] = useState('')
+  const [tendersKeywords, setTendersKeywords] = useState<string[]>([])
   const [tendersSelectedIndustries, setTendersSelectedIndustries] = useState<string[]>([])
   
   const [pendingAction, setPendingAction] = useState<{ type: 'create' | 'delete' | 'toggle'; data?: Client | typeof formData } | null>(null)
@@ -67,12 +68,12 @@ export default function ClientsPage() {
   const [editConfigTab, setEditConfigTab] = useState<ConfigTab>('news')
   const [editNewsEmailAlerts, setEditNewsEmailAlerts] = useState(false)
   const [editNewsSmsAlerts, setEditNewsSmsAlerts] = useState(false)
-  const [editNewsKeywords, setEditNewsKeywords] = useState('')
+  const [editNewsKeywords, setEditNewsKeywords] = useState<string[]>([])
   const [editNewsIndustryId, setEditNewsIndustryId] = useState('')
   const [editNewsSelectedSubIndustries, setEditNewsSelectedSubIndustries] = useState<string[]>([])
   const [editTendersEmailAlerts, setEditTendersEmailAlerts] = useState(false)
   const [editTendersSmsAlerts, setEditTendersSmsAlerts] = useState(false)
-  const [editTendersKeywords, setEditTendersKeywords] = useState('')
+  const [editTendersKeywords, setEditTendersKeywords] = useState<string[]>([])
   const [editTendersSelectedIndustries, setEditTendersSelectedIndustries] = useState<string[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -178,10 +179,10 @@ export default function ClientsPage() {
             address: formData.physicalAddress, postalAddress: formData.postalAddress,
             webAddress: formData.webAddress, contactPerson: formData.contactPerson,
             expiryDate: formData.expiryDate || null, isActive: formData.isActive, logoUrl,
-            newsEmailAlerts, newsSmsAlerts, newsKeywords,
+            newsEmailAlerts, newsSmsAlerts, newsKeywords: newsKeywords.join(', '),
             newsIndustryIds: newsSelectedSubIndustries,
             tenderEmailAlerts: tendersEmailAlerts, tenderSmsAlerts: tendersSmsAlerts,
-            tenderKeywords: tendersKeywords, tenderIndustryIds: tendersSelectedIndustries,
+            tenderKeywords: tendersKeywords.join(', '), tenderIndustryIds: tendersSelectedIndustries,
           }),
         })
         if (res.ok) {
@@ -210,8 +211,8 @@ export default function ClientsPage() {
 
   const resetForm = () => {
     setFormData({ name: '', email: '', postalAddress: '', physicalAddress: '', webAddress: '', phoneNumber: '', contactPerson: '', expiryDate: '', isActive: false })
-    setNewsEmailAlerts(false); setNewsSmsAlerts(false); setNewsKeywords(''); setNewsIndustryId(''); setNewsSelectedSubIndustries([])
-    setTendersEmailAlerts(false); setTendersSmsAlerts(false); setTendersKeywords(''); setTendersSelectedIndustries([])
+    setNewsEmailAlerts(false); setNewsSmsAlerts(false); setNewsKeywords([]); setNewsIndustryId(''); setNewsSelectedSubIndustries([])
+    setTendersEmailAlerts(false); setTendersSmsAlerts(false); setTendersKeywords([]); setTendersSelectedIndustries([])
     setLogoFile(null); setLogoPreview(null)
   }
 
@@ -229,12 +230,12 @@ export default function ClientsPage() {
     })
     setEditNewsEmailAlerts(client.newsEmailAlerts || false)
     setEditNewsSmsAlerts(client.newsSmsAlerts || false)
-    setEditNewsKeywords(client.newsKeywords || '')
+    setEditNewsKeywords(client.newsKeywords ? client.newsKeywords.split(',').map(k => k.trim()).filter(k => k) : [])
     setEditNewsIndustryId('')
     setEditNewsSelectedSubIndustries([])
     setEditTendersEmailAlerts(client.tenderEmailAlerts || false)
     setEditTendersSmsAlerts(client.tenderSmsAlerts || false)
-    setEditTendersKeywords(client.tenderKeywords || '')
+    setEditTendersKeywords(client.tenderKeywords ? client.tenderKeywords.split(',').map(k => k.trim()).filter(k => k) : [])
     setEditTendersSelectedIndustries([])
     setEditLogoPreview(client.logoUrl || null)
     setEditLogoFile(null)
@@ -257,10 +258,10 @@ export default function ClientsPage() {
           address: editFormData.physicalAddress, postalAddress: editFormData.postalAddress,
           webAddress: editFormData.webAddress, contactPerson: editFormData.contactPerson,
           expiryDate: editFormData.expiryDate || null, isActive: editFormData.isActive, logoUrl,
-          newsEmailAlerts: editNewsEmailAlerts, newsSmsAlerts: editNewsSmsAlerts, newsKeywords: editNewsKeywords,
+          newsEmailAlerts: editNewsEmailAlerts, newsSmsAlerts: editNewsSmsAlerts, newsKeywords: editNewsKeywords.join(', '),
           newsIndustryIds: editNewsSelectedSubIndustries,
           tenderEmailAlerts: editTendersEmailAlerts, tenderSmsAlerts: editTendersSmsAlerts,
-          tenderKeywords: editTendersKeywords, tenderIndustryIds: editTendersSelectedIndustries,
+          tenderKeywords: editTendersKeywords.join(', '), tenderIndustryIds: editTendersSelectedIndustries,
         }),
       })
       if (res.ok) {
@@ -344,7 +345,7 @@ export default function ClientsPage() {
                   <div className="flex items-center gap-2"><Checkbox id="newsEmail" checked={newsEmailAlerts} onCheckedChange={(c) => setNewsEmailAlerts(!!c)} /><Label htmlFor="newsEmail" className="text-sm cursor-pointer">Email Alerts</Label></div>
                   <div className="flex items-center gap-2"><Checkbox id="newsSms" checked={newsSmsAlerts} onCheckedChange={(c) => setNewsSmsAlerts(!!c)} /><Label htmlFor="newsSms" className="text-sm cursor-pointer">SMS Alerts</Label></div>
                 </div>
-                <div><Label className="text-gray-700">Keywords</Label><textarea className="w-full min-h-[80px] mt-1 rounded-md border border-gray-300 p-3 resize-y" value={newsKeywords} onChange={(e) => setNewsKeywords(e.target.value)} placeholder="keywords" /></div>
+                <div><Label className="text-gray-700">Keywords</Label><KeywordTagInput keywords={newsKeywords} onChange={setNewsKeywords} /></div>
                 <div><Label className="text-gray-700">Industry</Label>
                   <select className="w-full h-10 mt-1 rounded-md border border-gray-300 px-3 bg-white max-w-md" value={newsIndustryId} onChange={(e) => { setNewsIndustryId(e.target.value); setNewsSelectedSubIndustries([]) }}>
                     <option value="">Select Industry</option>
@@ -381,7 +382,7 @@ export default function ClientsPage() {
                   <div className="flex items-center gap-2"><Checkbox id="tendersEmail" checked={tendersEmailAlerts} onCheckedChange={(c) => setTendersEmailAlerts(!!c)} /><Label htmlFor="tendersEmail" className="text-sm cursor-pointer">Email Alerts</Label></div>
                   <div className="flex items-center gap-2"><Checkbox id="tendersSms" checked={tendersSmsAlerts} onCheckedChange={(c) => setTendersSmsAlerts(!!c)} /><Label htmlFor="tendersSms" className="text-sm cursor-pointer">SMS Alerts</Label></div>
                 </div>
-                <div><Label className="text-gray-700">Keywords</Label><textarea className="w-full min-h-[80px] mt-1 rounded-md border border-gray-300 p-3 resize-y" value={tendersKeywords} onChange={(e) => setTendersKeywords(e.target.value)} placeholder="keywords" /></div>
+                <div><Label className="text-gray-700">Keywords</Label><KeywordTagInput keywords={tendersKeywords} onChange={setTendersKeywords} /></div>
                 <div>
                   <h4 className="text-lg font-medium text-gray-700 mb-4">Industries</h4>
                   <div className="grid grid-cols-2 gap-6">
@@ -475,7 +476,7 @@ export default function ClientsPage() {
                   <div className="flex items-center gap-2"><Checkbox id="editNewsEmail" checked={editNewsEmailAlerts} onCheckedChange={(c) => setEditNewsEmailAlerts(!!c)} /><Label htmlFor="editNewsEmail" className="text-sm cursor-pointer">Email Alerts</Label></div>
                   <div className="flex items-center gap-2"><Checkbox id="editNewsSms" checked={editNewsSmsAlerts} onCheckedChange={(c) => setEditNewsSmsAlerts(!!c)} /><Label htmlFor="editNewsSms" className="text-sm cursor-pointer">SMS Alerts</Label></div>
                 </div>
-                <div><Label className="text-gray-700">Keywords</Label><textarea className="w-full min-h-[60px] mt-1 rounded-md border border-gray-300 p-3 resize-y" value={editNewsKeywords} onChange={(e) => setEditNewsKeywords(e.target.value)} placeholder="keywords" /></div>
+                <div><Label className="text-gray-700">Keywords</Label><KeywordTagInput keywords={editNewsKeywords} onChange={setEditNewsKeywords} /></div>
                 <div><Label className="text-gray-700">Industry</Label>
                   <select className="w-full h-10 mt-1 rounded-md border border-gray-300 px-3 bg-white" value={editNewsIndustryId} onChange={(e) => { setEditNewsIndustryId(e.target.value); setEditNewsSelectedSubIndustries([]) }}>
                     <option value="">Select Industry</option>
@@ -512,7 +513,7 @@ export default function ClientsPage() {
                   <div className="flex items-center gap-2"><Checkbox id="editTendersEmail" checked={editTendersEmailAlerts} onCheckedChange={(c) => setEditTendersEmailAlerts(!!c)} /><Label htmlFor="editTendersEmail" className="text-sm cursor-pointer">Email Alerts</Label></div>
                   <div className="flex items-center gap-2"><Checkbox id="editTendersSms" checked={editTendersSmsAlerts} onCheckedChange={(c) => setEditTendersSmsAlerts(!!c)} /><Label htmlFor="editTendersSms" className="text-sm cursor-pointer">SMS Alerts</Label></div>
                 </div>
-                <div><Label className="text-gray-700">Keywords</Label><textarea className="w-full min-h-[60px] mt-1 rounded-md border border-gray-300 p-3 resize-y" value={editTendersKeywords} onChange={(e) => setEditTendersKeywords(e.target.value)} placeholder="keywords" /></div>
+                <div><Label className="text-gray-700">Keywords</Label><KeywordTagInput keywords={editTendersKeywords} onChange={setEditTendersKeywords} /></div>
                 <div>
                   <h4 className="text-sm font-medium text-gray-700 mb-2">Industries</h4>
                   <div className="grid grid-cols-2 gap-4">

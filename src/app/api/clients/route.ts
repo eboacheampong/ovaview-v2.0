@@ -56,6 +56,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Client name is required' }, { status: 400 })
     }
 
+    // Get parent industry IDs from sub-industry IDs
+    const allIndustryIds = [...(newsIndustryIds || []), ...(tenderIndustryIds || [])]
+      .filter((id, i, arr) => arr.indexOf(id) === i)
+
+    const subIndustries = await prisma.subIndustry.findMany({
+      where: { id: { in: allIndustryIds } },
+      select: { industryId: true },
+    })
+
+    const parentIndustryIds = [...new Set(subIndustries.map(s => s.industryId))]
+
     const client = await prisma.client.create({
       data: {
         name,
@@ -75,9 +86,7 @@ export async function POST(request: NextRequest) {
         tenderSmsAlerts: tenderSmsAlerts ?? false,
         tenderKeywords,
         industries: {
-          create: [...(newsIndustryIds || []), ...(tenderIndustryIds || [])]
-            .filter((id, i, arr) => arr.indexOf(id) === i)
-            .map((industryId: string) => ({ industryId })),
+          create: parentIndustryIds.map((industryId: string) => ({ industryId })),
         },
       },
       include: {
