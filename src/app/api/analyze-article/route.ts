@@ -144,7 +144,7 @@ function determineOverallSentiment(sentiment: { positive: number; neutral: numbe
 
 export async function POST(request: NextRequest) {
   try {
-    const { content } = await request.json()
+    const { content, existingKeywords } = await request.json()
 
     if (!content || content.trim().length === 0) {
       return NextResponse.json(
