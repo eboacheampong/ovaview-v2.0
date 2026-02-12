@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
       select: { industryId: true },
     })
 
-    const parentIndustryIds = [...new Set(subIndustries.map(s => s.industryId))]
+    const parentIndustryIds = Array.from(new Set(subIndustries.map(s => s.industryId)))
 
     const client = await prisma.client.create({
       data: {
