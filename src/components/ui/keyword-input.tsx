@@ -54,11 +54,15 @@ export function KeywordInput({ value, onChange, availableKeywords, placeholder =
     setInputValue('')
     setShowSuggestions(false)
     setSelectedIndex(-1)
+    // keep focus on the input so typing can continue without interruption
+    setTimeout(() => inputRef.current?.focus(), 0)
   }
 
   const removeKeyword = (index: number) => {
     const newKeywords = currentKeywords.filter((_, i) => i !== index)
     onChange(newKeywords.join(', '))
+    // keep focus on the input after removing a tag
+    setTimeout(() => inputRef.current?.focus(), 0)
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -94,7 +98,7 @@ export function KeywordInput({ value, onChange, availableKeywords, placeholder =
         {currentKeywords.map((keyword, index) => (
           <span key={index} className="inline-flex items-center gap-1 px-2 py-1 bg-orange-100 text-orange-800 rounded-md text-sm">
             {keyword}
-            <button type="button" onClick={() => removeKeyword(index)} className="hover:bg-orange-200 rounded p-0.5">
+            <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => removeKeyword(index)} className="hover:bg-orange-200 rounded p-0.5">
               <X className="h-3 w-3" />
             </button>
           </span>
@@ -121,6 +125,7 @@ export function KeywordInput({ value, onChange, availableKeywords, placeholder =
             <button
               key={suggestion.id}
               type="button"
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => addKeyword(suggestion.name)}
               className={`w-full px-3 py-2 text-left text-sm hover:bg-orange-50 ${
                 index === selectedIndex ? 'bg-orange-100' : ''
