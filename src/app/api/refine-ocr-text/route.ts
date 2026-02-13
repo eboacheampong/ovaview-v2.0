@@ -51,55 +51,62 @@ export async function POST(request: NextRequest) {
         messages: [
           {
             role: 'user',
-            content: `You are an OCR text editor and content analyzer. The following text was extracted from a scanned newspaper or magazine image using OCR (Optical Character Recognition) and likely contains recognition errors.
+            content: `You are an advanced OCR text correction system with semantic understanding. The following text was extracted from a scanned newspaper or magazine using OCR and contains recognition errors.
 
-Please:
-1. Fix ONLY common OCR errors such as:
-   - Character confusion: l/1/I, O/0, rn/m, cl/d, vv/w, fi/fl ligatures
-   - Broken or split words from column layouts (words incorrectly merged or split across columns)
-   - Missing or extra spaces between words
-   - Garbled or nonsense characters
-   - Incorrect punctuation from scanning artifacts
-   - Words incorrectly joined together
-   - Line break issues causing incomplete word fragments
+CORRECTION STRATEGY:
+Use contextual and linguistic knowledge to fix errors intelligently. When you encounter a word that seems incorrect:
+1. Check if it's a real word in context
+2. If not, find the closest matching real word that makes semantic sense
+3. Apply character-level and contextual fixes simultaneously
 
-2. Preserve the original meaning, tone, journalistic style, and formatting structure. Do NOT rewrite or paraphrase content.
+SPECIFIC ERROR TYPES TO FIX:
+- Broken words: "breforms" → "reforms", "stuation" → "situation", "goverment" → "government"
+- Character substitutions: "l/1/I", "O/0", "rn/m", "cl/d", "vv/w", "fi/fl"
+- Words split across columns: merge fragments back together using context
+- Garbled words: replace with semantically appropriate real words
+- Repeated or missing characters: "reccommend" → "recommend", "siad" → "said"
+- Words that don't fit context: replace with similar words that do
 
-3. Detect and preserve formatting as HTML:
-   - Identify headers/titles and wrap them in <h2> tags
-   - Identify bulleted lists and wrap in <ul><li> tags
-   - Identify numbered lists and wrap in <ol><li> tags
-   - Preserve quotations (can wrap in <blockquote> or use quotation marks)
-   - Use <strong> for bold emphasis and <em> for italics if apparent
-   - Use <p> tags for paragraphs
-   - Important: Do NOT add formatting that wasn't in the original text
+PRESERVATION RULES:
+- Do NOT paraphrase or rewrite content
+- Do NOT add information that wasn't there
+- Preserve original tone, style, and journalistic intent
+- Only correct words that are clearly errors (not stylistic choices)
 
-4. Generate a concise, descriptive title (max 100 characters) that captures the main topic
+FORMATTING:
+Detect and preserve formatting as HTML:
+- Headers/titles: wrap in <h2> tags
+- Bullet lists: wrap in <ul><li> tags
+- Numbered lists: wrap in <ol><li> tags
+- Quotations: wrap in <blockquote> or preserve with quotation marks
+- Bold emphasis: wrap in <strong> tags
+- Italics: wrap in <em> tags
+- Paragraphs: wrap in <p> tags
+- Important: Do NOT add formatting that wasn't in the original text
 
-5. Analyze the sentiment of the content
-
-6. Select ONLY keywords that are directly and explicitly about the main topic from this list (be STRICT and CONSERVATIVE):
+ANALYSIS TASKS:
+1. Generate a concise, descriptive title (max 100 characters) capturing the main topic
+2. Analyze sentiment of the corrected content
+3. Select ONLY keywords directly relevant to the main topic from this list (STRICT and CONSERVATIVE):
    Available keywords: ${keywordList || 'None available'}
-
-7. Select the most appropriate industry and sub-industries from this list:
+4. Select the most appropriate industry and sub-industries from this list:
    Available industries: ${industryList || 'None available'}
 
-IMPORTANT KEYWORD SELECTION RULES:
-- ONLY select keywords that are the CORE TOPIC or PRIMARY FOCUS of the article
-- Be STRICT and CONSERVATIVE - when in doubt, exclude the keyword
-- Do NOT select related or tangentially mentioned topics
-- Prefer 0-3 highly relevant keywords over many loosely relevant ones
-- A keyword should only be included if the article is PRIMARILY ABOUT that topic
-- Ignore keywords that are just mentioned in passing or as background context
+KEYWORD SELECTION RULES:
+- ONLY keywords that are the CORE TOPIC or PRIMARY FOCUS
+- Be STRICT - when in doubt, exclude it
+- Do NOT select tangentially mentioned topics
+- Prefer 0-3 highly relevant keywords over many loose ones
+- Article must be PRIMARILY ABOUT the keyword, not just mention it in passing
 
-OCR text to refine:
+OCR text to correct and analyze:
 """
 ${text}
 """
 
 Respond in this exact JSON format only, no other text:
 {
-  "text": "the corrected and formatted text here with HTML markup for formatting",
+  "text": "the fully corrected and formatted text with HTML markup",
   "title": "Generated Title Here",
   "sentiment": {
     "positive": <number 0-100>,
@@ -112,7 +119,7 @@ Respond in this exact JSON format only, no other text:
   "suggestedSubIndustries": ["SubIndustry1", "SubIndustry2"]
 }
 
-The sentiment percentages must add up to 100. Only include keywords and industries from the provided lists that are truly relevant.`
+Sentiment percentages must sum to 100. Use semantic knowledge to fix broken words intelligently.`
           }
         ],
         temperature: 0.3,
