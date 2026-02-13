@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { ColumnDef } from '@tanstack/react-table'
 import { DataTable, DataTableColumnHeader } from '@/components/data-table'
 import { Button } from '@/components/ui/button'
@@ -162,7 +162,7 @@ export default function PrintIssuesPage() {
     },
   ]
 
-  const FormContent = () => (
+  const FormContent = useMemo(() => () => (
     <div className="space-y-4">
       <div>
         <Label className="text-gray-600 text-sm">Issue Number</Label>
@@ -196,7 +196,7 @@ export default function PrintIssuesPage() {
         />
       </div>
     </div>
-  )
+  ), [formData])
 
   const ViewContent = () => (
     <div className="space-y-3">

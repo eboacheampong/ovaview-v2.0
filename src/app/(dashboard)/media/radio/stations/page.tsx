@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { ColumnDef } from '@tanstack/react-table'
 import { DataTable, DataTableColumnHeader } from '@/components/data-table'
 import { Button } from '@/components/ui/button'
@@ -27,18 +27,28 @@ const formatReach = (reach: number | undefined): string => {
   return `${reach} Listeners`
 }
 
-const mockStations: RadioStationWithReach[] = [
-  { id: '1', name: 'Joy FM', frequency: '99.7 FM', location: 'Accra', reach: 2500000, isActive: true },
-  { id: '2', name: 'Citi FM', frequency: '97.3 FM', location: 'Accra', reach: 1800000, isActive: true },
-  { id: '3', name: 'Peace FM', frequency: '104.3 FM', location: 'Accra', reach: 3200000, isActive: true },
-  { id: '4', name: 'Adom FM', frequency: '106.3 FM', location: 'Accra', reach: 2100000, isActive: true },
-  { id: '5', name: 'Starr FM', frequency: '103.5 FM', location: 'Accra', reach: 1500000, isActive: false },
-  { id: '6', name: 'Asempa FM', frequency: '94.7 FM', location: 'Accra', reach: 1200000, isActive: true },
-]
-
 export default function RadioStationsPage() {
-  const [stations, setStations] = useState<RadioStationWithReach[]>(mockStations)
+  const [stations, setStations] = useState<RadioStationWithReach[]>([])
   const [formData, setFormData] = useState({ name: '', frequency: '', location: '', reach: '', isActive: true })
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchStations = async () => {
+      try {
+        setIsLoading(true)
+        const res = await fetch('/api/radio-stations')
+        if (!res.ok) throw new Error('Failed to load stations')
+        const data = await res.json()
+        setStations(data)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load radio stations')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    fetchStations()
+  }, [])
   
   const createModal = useModal<undefined>()
   const editModal = useModal<RadioStationWithReach>()
@@ -46,32 +56,64 @@ export default function RadioStationsPage() {
   const deleteModal = useModal<RadioStationWithReach>()
 
   const handleCreate = async () => {
-    const newStation: RadioStationWithReach = {
-      id: String(Date.now()),
-      name: formData.name,
-      frequency: formData.frequency,
-      location: formData.location,
-      reach: formData.reach ? parseInt(formData.reach) : undefined,
-      isActive: formData.isActive,
+    try {
+      const res = await fetch('/api/radio-stations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.name,
+          frequency: formData.frequency,
+          location: formData.location,
+          reach: formData.reach ? parseInt(formData.reach) : null,
+          isActive: formData.isActive,
+        })
+      })
+      if (!res.ok) throw new Error('Failed to create station')
+      const newStation = await res.json()
+      setStations([...stations, newStation])
+      setFormData({ name: '', frequency: '', location: '', reach: '', isActive: true })
+      createModal.close()
+    } catch (err) {
+      console.error('Create station error:', err)
+      alert(err instanceof Error ? err.message : 'Failed to create station')
     }
-    setStations([...stations, newStation])
-    setFormData({ name: '', frequency: '', location: '', reach: '', isActive: true })
-    createModal.close()
   }
 
   const handleEdit = async () => {
     if (!editModal.data) return
-    setStations(stations.map(s => 
-      s.id === editModal.data!.id 
-        ? { ...s, name: formData.name, frequency: formData.frequency, location: formData.location, reach: formData.reach ? parseInt(formData.reach) : undefined, isActive: formData.isActive }
-        : s
-    ))
-    editModal.close()
+    try {
+      const res = await fetch(`/api/radio-stations/${editModal.data.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.name,
+          frequency: formData.frequency,
+          location: formData.location,
+          reach: formData.reach ? parseInt(formData.reach) : null,
+          isActive: formData.isActive,
+        })
+      })
+      if (!res.ok) throw new Error('Failed to update station')
+      const updated = await res.json()
+      setStations(stations.map(s => s.id === updated.id ? updated : s))
+      editModal.close()
+    } catch (err) {
+      console.error('Edit station error:', err)
+      alert(err instanceof Error ? err.message : 'Failed to update station')
+    }
   }
 
   const handleDelete = async () => {
     if (!deleteModal.data) return
-    setStations(stations.filter(s => s.id !== deleteModal.data!.id))
+    try {
+      const res = await fetch(`/api/radio-stations/${deleteModal.data.id}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error('Failed to delete station')
+      setStations(stations.filter(s => s.id !== deleteModal.data!.id))
+      deleteModal.close()
+    } catch (err) {
+      console.error('Delete station error:', err)
+      alert(err instanceof Error ? err.message : 'Failed to delete station')
+    }
   }
 
   const columns: ColumnDef<RadioStationWithReach>[] = [
@@ -124,7 +166,7 @@ export default function RadioStationsPage() {
     },
   ]
 
-  const FormContent = () => (
+  const FormContent = useMemo(() => () => (
     <div className="space-y-4">
       <div>
         <Label className="text-gray-600 text-sm">Station Name</Label>
@@ -174,7 +216,7 @@ export default function RadioStationsPage() {
         <Label htmlFor="isActive" className="text-gray-600 text-sm cursor-pointer">Active</Label>
       </div>
     </div>
-  )
+  ), [formData])
 
   const ViewContent = () => (
     <div className="space-y-3">

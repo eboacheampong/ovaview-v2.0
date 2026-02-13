@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { ColumnDef } from '@tanstack/react-table'
 import { DataTable, DataTableColumnHeader } from '@/components/data-table'
 import { Button } from '@/components/ui/button'
@@ -27,15 +27,28 @@ const formatReach = (reach: number | undefined): string => {
   return `${reach} Readers`
 }
 
-const mockPublications: PrintPublication[] = [
-  { id: '1', name: 'Daily Times', location: 'Accra', reach: 150000, isActive: true },
-  { id: '2', name: 'Business Weekly', location: 'Accra', reach: 85000, isActive: true },
-  { id: '3', name: 'The Chronicle', location: 'Kumasi', reach: 120000, isActive: false },
-]
-
 export default function PrintPublicationsPage() {
-  const [publications, setPublications] = useState<PrintPublication[]>(mockPublications)
+  const [publications, setPublications] = useState<PrintPublication[]>([])
   const [formData, setFormData] = useState({ name: '', location: '', reach: '', isActive: true })
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchPublications = async () => {
+      try {
+        setIsLoading(true)
+        const res = await fetch('/api/print-publications')
+        if (!res.ok) throw new Error('Failed to load publications')
+        const data = await res.json()
+        setPublications(data)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load publications')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    fetchPublications()
+  }, [])
   
   const createModal = useModal<undefined>()
   const editModal = useModal<PrintPublication>()
@@ -43,31 +56,62 @@ export default function PrintPublicationsPage() {
   const deleteModal = useModal<PrintPublication>()
 
   const handleCreate = async () => {
-    const newPublication: PrintPublication = {
-      id: String(Date.now()),
-      name: formData.name,
-      location: formData.location,
-      reach: formData.reach ? parseInt(formData.reach) : undefined,
-      isActive: formData.isActive,
+    try {
+      const res = await fetch('/api/print-publications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.name,
+          location: formData.location,
+          reach: formData.reach ? parseInt(formData.reach) : null,
+          isActive: formData.isActive,
+        })
+      })
+      if (!res.ok) throw new Error('Failed to create publication')
+      const newPublication = await res.json()
+      setPublications([...publications, newPublication])
+      setFormData({ name: '', location: '', reach: '', isActive: true })
+      createModal.close()
+    } catch (err) {
+      console.error('Create publication error:', err)
+      alert(err instanceof Error ? err.message : 'Failed to create publication')
     }
-    setPublications([...publications, newPublication])
-    setFormData({ name: '', location: '', reach: '', isActive: true })
-    createModal.close()
   }
 
   const handleEdit = async () => {
     if (!editModal.data) return
-    setPublications(publications.map(p => 
-      p.id === editModal.data!.id 
-        ? { ...p, name: formData.name, location: formData.location, reach: formData.reach ? parseInt(formData.reach) : undefined, isActive: formData.isActive }
-        : p
-    ))
-    editModal.close()
+    try {
+      const res = await fetch(`/api/print-publications/${editModal.data.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.name,
+          location: formData.location,
+          reach: formData.reach ? parseInt(formData.reach) : null,
+          isActive: formData.isActive,
+        })
+      })
+      if (!res.ok) throw new Error('Failed to update publication')
+      const updated = await res.json()
+      setPublications(publications.map(p => p.id === updated.id ? updated : p))
+      editModal.close()
+    } catch (err) {
+      console.error('Edit publication error:', err)
+      alert(err instanceof Error ? err.message : 'Failed to update publication')
+    }
   }
 
   const handleDelete = async () => {
     if (!deleteModal.data) return
-    setPublications(publications.filter(p => p.id !== deleteModal.data!.id))
+    try {
+      const res = await fetch(`/api/print-publications/${deleteModal.data.id}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error('Failed to delete publication')
+      setPublications(publications.filter(p => p.id !== deleteModal.data!.id))
+      deleteModal.close()
+    } catch (err) {
+      console.error('Delete publication error:', err)
+      alert(err instanceof Error ? err.message : 'Failed to delete publication')
+    }
   }
 
   const columns: ColumnDef<PrintPublication>[] = [
@@ -116,7 +160,7 @@ export default function PrintPublicationsPage() {
     },
   ]
 
-  const FormContent = () => (
+  const FormContent = useMemo(() => () => (
     <div className="space-y-4">
       <div>
         <Label className="text-gray-600 text-sm">Publication Name</Label>
@@ -157,7 +201,7 @@ export default function PrintPublicationsPage() {
         <Label htmlFor="isActive" className="text-gray-600 text-sm cursor-pointer">Active</Label>
       </div>
     </div>
-  )
+  ), [formData])
 
   const ViewContent = () => (
     <div className="space-y-3">
