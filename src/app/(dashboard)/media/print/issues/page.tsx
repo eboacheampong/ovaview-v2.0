@@ -15,6 +15,11 @@ import { format } from 'date-fns'
 interface PrintPublication {
   id: string
   name: string
+  issues?: Array<{
+    id?: string
+    issueNumber: string
+    publicationDate?: string
+  }>
 }
 
 interface PrintIssue {

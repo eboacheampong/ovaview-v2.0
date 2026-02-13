@@ -15,6 +15,12 @@ import { Plus, Pencil, Trash2, Eye, Tv } from 'lucide-react'
 interface TVStation {
   id: string
   name: string
+  programs?: Array<{
+    id?: string
+    name: string
+    startTime?: string
+    endTime?: string
+  }>
 }
 
 interface TVProgram {
