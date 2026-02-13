@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ColumnDef } from '@tanstack/react-table'
 import { DataTable, DataTableColumnHeader } from '@/components/data-table'
 import { Button } from '@/components/ui/button'
@@ -27,16 +27,29 @@ const formatReach = (reach: number | undefined): string => {
   return `${reach} Readers`
 }
 
-const mockPublications: WebPublication[] = [
-  { id: '1', name: 'TechCrunch Africa', location: 'Nairobi', reach: 2500000, isActive: true },
-  { id: '2', name: 'Business Daily Online', location: 'Nairobi', reach: 1800000, isActive: true },
-  { id: '3', name: 'The Star Online', location: 'Nairobi', reach: 2100000, isActive: true },
-  { id: '4', name: 'Nation Online', location: 'Nairobi', reach: 3200000, isActive: false },
-]
-
 export default function WebPublicationsPage() {
-  const [publications, setPublications] = useState<WebPublication[]>(mockPublications)
+  const [publications, setPublications] = useState<WebPublication[]>([])
   const [formData, setFormData] = useState({ name: '', location: '', reach: '', isActive: true })
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  // Load publications from API
+  useEffect(() => {
+    const fetchPubs = async () => {
+      try {
+        setIsLoading(true)
+        const res = await fetch('/api/web-publications')
+        if (!res.ok) throw new Error('Failed to load publications')
+        const data = await res.json()
+        setPublications(data)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load publications')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    fetchPubs()
+  }, [])
   
   const createModal = useModal<undefined>()
   const editModal = useModal<WebPublication>()
@@ -44,31 +57,46 @@ export default function WebPublicationsPage() {
   const deleteModal = useModal<WebPublication>()
 
   const handleCreate = async () => {
-    const newPublication: WebPublication = {
-      id: String(Date.now()),
-      name: formData.name,
-      location: formData.location,
-      reach: formData.reach ? parseInt(formData.reach) : undefined,
-      isActive: formData.isActive,
+    try {
+      const payload = { name: formData.name, website: '', location: formData.location, reach: formData.reach ? parseInt(formData.reach) : undefined, isActive: formData.isActive }
+      const res = await fetch('/api/web-publications', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+      if (!res.ok) throw new Error('Failed to create publication')
+      const created = await res.json()
+      setPublications(prev => [...prev, created])
+      setFormData({ name: '', location: '', reach: '', isActive: true })
+      createModal.close()
+    } catch (err) {
+      console.error('Create publication error:', err)
+      alert(err instanceof Error ? err.message : 'Failed to create publication')
     }
-    setPublications([...publications, newPublication])
-    setFormData({ name: '', location: '', reach: '', isActive: true })
-    createModal.close()
   }
 
   const handleEdit = async () => {
     if (!editModal.data) return
-    setPublications(publications.map(p => 
-      p.id === editModal.data!.id 
-        ? { ...p, name: formData.name, location: formData.location, reach: formData.reach ? parseInt(formData.reach) : undefined, isActive: formData.isActive }
-        : p
-    ))
-    editModal.close()
+    try {
+      const payload = { name: formData.name, website: '', location: formData.location, reach: formData.reach ? parseInt(formData.reach) : undefined, isActive: formData.isActive }
+      const res = await fetch(`/api/web-publications/${editModal.data.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+      if (!res.ok) throw new Error('Failed to update publication')
+      const updated = await res.json()
+      setPublications(publications.map(p => p.id === updated.id ? updated : p))
+      editModal.close()
+    } catch (err) {
+      console.error('Update publication error:', err)
+      alert(err instanceof Error ? err.message : 'Failed to update publication')
+    }
   }
 
   const handleDelete = async () => {
     if (!deleteModal.data) return
-    setPublications(publications.filter(p => p.id !== deleteModal.data!.id))
+    try {
+      const res = await fetch(`/api/web-publications/${deleteModal.data.id}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error('Failed to delete publication')
+      setPublications(publications.filter(p => p.id !== deleteModal.data!.id))
+      deleteModal.close()
+    } catch (err) {
+      console.error('Delete publication error:', err)
+      alert(err instanceof Error ? err.message : 'Failed to delete publication')
+    }
   }
 
   const columns: ColumnDef<WebPublication>[] = [

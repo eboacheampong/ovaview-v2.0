@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ColumnDef } from '@tanstack/react-table'
 import { DataTable, DataTableColumnHeader } from '@/components/data-table'
 import { Button } from '@/components/ui/button'
@@ -25,22 +25,34 @@ interface PrintIssue {
   publicationDate: Date
 }
 
-const mockPublications: PrintPublication[] = [
-  { id: '1', name: 'Daily Times' },
-  { id: '2', name: 'Business Weekly' },
-  { id: '3', name: 'The Chronicle' },
-]
-
-const mockIssues: PrintIssue[] = [
-  { id: '1', issueNumber: 'Vol. 45, No. 12', publicationId: '1', publication: { id: '1', name: 'Daily Times' }, publicationDate: new Date('2024-01-15') },
-  { id: '2', issueNumber: 'Vol. 45, No. 11', publicationId: '1', publication: { id: '1', name: 'Daily Times' }, publicationDate: new Date('2024-01-14') },
-  { id: '3', issueNumber: 'Issue 234', publicationId: '2', publication: { id: '2', name: 'Business Weekly' }, publicationDate: new Date('2024-01-12') },
-]
-
 export default function PrintIssuesPage() {
-  const [issues, setIssues] = useState<PrintIssue[]>(mockIssues)
-  const [publications] = useState<PrintPublication[]>(mockPublications)
+  const [issues, setIssues] = useState<PrintIssue[]>([])
+  const [publications, setPublications] = useState<PrintPublication[]>([])
   const [formData, setFormData] = useState({ issueNumber: '', publicationId: '', publicationDate: '' })
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setIsLoading(true)
+        const res = await fetch('/api/print-publications')
+        if (!res.ok) throw new Error('Failed to load publications')
+        const pubs = await res.json()
+        setPublications(pubs)
+        const allIssues: PrintIssue[] = []
+        pubs.forEach((pub: any) => {
+          (pub.issues || []).forEach((iss: any) => allIssues.push({ ...iss, publicationId: pub.id, publication: { id: pub.id, name: pub.name } }))
+        })
+        setIssues(allIssues)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load issues')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    fetchData()
+  }, [])
   
   const createModal = useModal<undefined>()
   const editModal = useModal<PrintIssue>()
@@ -48,33 +60,64 @@ export default function PrintIssuesPage() {
   const deleteModal = useModal<PrintIssue>()
 
   const handleCreate = async () => {
-    const selectedPublication = publications.find(p => p.id === formData.publicationId)
-    const newIssue: PrintIssue = {
-      id: String(Date.now()),
-      issueNumber: formData.issueNumber,
-      publicationId: formData.publicationId,
-      publication: selectedPublication,
-      publicationDate: new Date(formData.publicationDate),
+    try {
+      const pub = publications.find(p => p.id === formData.publicationId)
+      if (!pub) throw new Error('Publication not selected')
+      const existingIssues = (pub as any).issues || []
+      const issuesPayload = existingIssues.concat([{ issueNumber: formData.issueNumber, publicationDate: formData.publicationDate }])
+      const res = await fetch(`/api/print-publications/${pub.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ issues: issuesPayload }) })
+      if (!res.ok) throw new Error('Failed to add issue')
+      const updated = await res.json()
+      const allIssues: PrintIssue[] = []
+      updated.issues.forEach((iss: any) => allIssues.push({ ...iss, publicationId: updated.id, publication: { id: updated.id, name: updated.name } }))
+      setIssues(prev => [...prev.filter(i => i.publicationId !== updated.id), ...allIssues])
+      setPublications(prev => prev.map(p => p.id === updated.id ? updated : p))
+      setFormData({ issueNumber: '', publicationId: '', publicationDate: '' })
+      createModal.close()
+    } catch (err) {
+      console.error('Create issue error:', err)
+      alert(err instanceof Error ? err.message : 'Failed to create issue')
     }
-    setIssues([...issues, newIssue])
-    setFormData({ issueNumber: '', publicationId: '', publicationDate: '' })
-    createModal.close()
   }
 
   const handleEdit = async () => {
     if (!editModal.data) return
-    const selectedPublication = publications.find(p => p.id === formData.publicationId)
-    setIssues(issues.map(i => 
-      i.id === editModal.data!.id 
-        ? { ...i, issueNumber: formData.issueNumber, publicationId: formData.publicationId, publication: selectedPublication, publicationDate: new Date(formData.publicationDate) }
-        : i
-    ))
-    editModal.close()
+    try {
+      const pub = publications.find(p => p.id === formData.publicationId)
+      if (!pub) throw new Error('Publication not found')
+      const issuesPayload = ((pub as any).issues || []).map((iss: any) => iss.id === editModal.data!.id ? { issueNumber: formData.issueNumber, publicationDate: formData.publicationDate } : { issueNumber: iss.issueNumber, publicationDate: iss.publicationDate })
+      const res = await fetch(`/api/print-publications/${pub.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ issues: issuesPayload }) })
+      if (!res.ok) throw new Error('Failed to update issue')
+      const updated = await res.json()
+      const allIssues: PrintIssue[] = []
+      updated.issues.forEach((iss: any) => allIssues.push({ ...iss, publicationId: updated.id, publication: { id: updated.id, name: updated.name } }))
+      setIssues(prev => [...prev.filter(i => i.publicationId !== updated.id), ...allIssues])
+      setPublications(prev => prev.map(p => p.id === updated.id ? updated : p))
+      editModal.close()
+    } catch (err) {
+      console.error('Edit issue error:', err)
+      alert(err instanceof Error ? err.message : 'Failed to update issue')
+    }
   }
 
   const handleDelete = async () => {
     if (!deleteModal.data) return
-    setIssues(issues.filter(i => i.id !== deleteModal.data!.id))
+    try {
+      const pub = publications.find(p => p.id === deleteModal.data!.publicationId)
+      if (!pub) throw new Error('Publication not found')
+      const issuesPayload = ((pub as any).issues || []).filter((iss: any) => iss.id !== deleteModal.data!.id).map((iss: any) => ({ issueNumber: iss.issueNumber, publicationDate: iss.publicationDate }))
+      const res = await fetch(`/api/print-publications/${pub.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ issues: issuesPayload }) })
+      if (!res.ok) throw new Error('Failed to delete issue')
+      const updated = await res.json()
+      const allIssues: PrintIssue[] = []
+      updated.issues.forEach((iss: any) => allIssues.push({ ...iss, publicationId: updated.id, publication: { id: updated.id, name: updated.name } }))
+      setIssues(prev => [...prev.filter(i => i.publicationId !== updated.id), ...allIssues])
+      setPublications(prev => prev.map(p => p.id === updated.id ? updated : p))
+      deleteModal.close()
+    } catch (err) {
+      console.error('Delete issue error:', err)
+      alert(err instanceof Error ? err.message : 'Failed to delete issue')
+    }
   }
 
   const columns: ColumnDef<PrintIssue>[] = [

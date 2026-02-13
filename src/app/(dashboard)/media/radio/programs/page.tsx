@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ColumnDef } from '@tanstack/react-table'
 import { DataTable, DataTableColumnHeader } from '@/components/data-table'
 import { Button } from '@/components/ui/button'
@@ -27,23 +27,33 @@ interface RadioProgram {
   isActive: boolean
 }
 
-const mockStations: RadioStation[] = [
-  { id: '1', name: 'Joy FM' },
-  { id: '2', name: 'Citi FM' },
-  { id: '3', name: 'Peace FM' },
-  { id: '4', name: 'Adom FM' },
-]
-
-const mockPrograms: RadioProgram[] = [
-  { id: '1', name: 'Morning Show', stationId: '1', station: { id: '1', name: 'Joy FM' }, startTime: '06:00', endTime: '09:00', isActive: true },
-  { id: '2', name: 'Drive Time', stationId: '1', station: { id: '1', name: 'Joy FM' }, startTime: '16:00', endTime: '19:00', isActive: true },
-  { id: '3', name: 'Weekend Vibes', stationId: '2', station: { id: '2', name: 'Citi FM' }, startTime: '10:00', endTime: '14:00', isActive: true },
-  { id: '4', name: 'News Hour', stationId: '3', station: { id: '3', name: 'Peace FM' }, startTime: '12:00', endTime: '13:00', isActive: false },
-]
-
 export default function RadioProgramsPage() {
-  const [programs, setPrograms] = useState<RadioProgram[]>(mockPrograms)
-  const [stations] = useState<RadioStation[]>(mockStations)
+  const [programs, setPrograms] = useState<RadioProgram[]>([])
+  const [stations, setStations] = useState<RadioStation[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setIsLoading(true)
+        const stationsRes = await fetch('/api/radio-stations')
+        if (!stationsRes.ok) throw new Error('Failed to load stations')
+        const s = await stationsRes.json()
+        setStations(s)
+        const allPrograms: RadioProgram[] = []
+        s.forEach((st: any) => {
+          (st.programs || []).forEach((p: any) => allPrograms.push({ ...p, stationId: st.id, station: { id: st.id, name: st.name } }))
+        })
+        setPrograms(allPrograms)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load radio programs')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    fetchData()
+  }, [])
   const [formData, setFormData] = useState({ name: '', stationId: '', startTime: '', endTime: '', isActive: true })
   
   const createModal = useModal<undefined>()
@@ -52,35 +62,64 @@ export default function RadioProgramsPage() {
   const deleteModal = useModal<RadioProgram>()
 
   const handleCreate = async () => {
-    const selectedStation = stations.find(s => s.id === formData.stationId)
-    const newProgram: RadioProgram = {
-      id: String(Date.now()),
-      name: formData.name,
-      stationId: formData.stationId,
-      station: selectedStation,
-      startTime: formData.startTime,
-      endTime: formData.endTime,
-      isActive: formData.isActive,
+    try {
+      const station = stations.find(s => s.id === formData.stationId)
+      if (!station) throw new Error('Station not selected')
+      const existingPrograms = station.programs || []
+      const programsPayload = existingPrograms.concat([{ name: formData.name, startTime: formData.startTime, endTime: formData.endTime }])
+      const res = await fetch(`/api/radio-stations/${station.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ programs: programsPayload }) })
+      if (!res.ok) throw new Error('Failed to add program')
+      const updated = await res.json()
+      const allPrograms: RadioProgram[] = []
+      updated.programs.forEach((p: any) => allPrograms.push({ ...p, stationId: updated.id, station: { id: updated.id, name: updated.name } }))
+      setPrograms(prev => [...prev.filter(pr => pr.stationId !== updated.id), ...allPrograms])
+      setStations(prev => prev.map(s => s.id === updated.id ? updated : s))
+      setFormData({ name: '', stationId: '', startTime: '', endTime: '', isActive: true })
+      createModal.close()
+    } catch (err) {
+      console.error('Create radio program error:', err)
+      alert(err instanceof Error ? err.message : 'Failed to create program')
     }
-    setPrograms([...programs, newProgram])
-    setFormData({ name: '', stationId: '', startTime: '', endTime: '', isActive: true })
-    createModal.close()
   }
 
   const handleEdit = async () => {
     if (!editModal.data) return
-    const selectedStation = stations.find(s => s.id === formData.stationId)
-    setPrograms(programs.map(p => 
-      p.id === editModal.data!.id 
-        ? { ...p, name: formData.name, stationId: formData.stationId, station: selectedStation, startTime: formData.startTime, endTime: formData.endTime, isActive: formData.isActive }
-        : p
-    ))
-    editModal.close()
+    try {
+      const station = stations.find(s => s.id === formData.stationId)
+      if (!station) throw new Error('Station not found')
+      const programsPayload = (station.programs || []).map((p: any) => p.id === editModal.data!.id ? { name: formData.name, startTime: formData.startTime, endTime: formData.endTime } : { name: p.name, startTime: p.startTime, endTime: p.endTime })
+      const res = await fetch(`/api/radio-stations/${station.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ programs: programsPayload }) })
+      if (!res.ok) throw new Error('Failed to update program')
+      const updated = await res.json()
+      const allPrograms: RadioProgram[] = []
+      updated.programs.forEach((p: any) => allPrograms.push({ ...p, stationId: updated.id, station: { id: updated.id, name: updated.name } }))
+      setPrograms(prev => [...prev.filter(pr => pr.stationId !== updated.id), ...allPrograms])
+      setStations(prev => prev.map(s => s.id === updated.id ? updated : s))
+      editModal.close()
+    } catch (err) {
+      console.error('Edit radio program error:', err)
+      alert(err instanceof Error ? err.message : 'Failed to update program')
+    }
   }
 
   const handleDelete = async () => {
     if (!deleteModal.data) return
-    setPrograms(programs.filter(p => p.id !== deleteModal.data!.id))
+    try {
+      const station = stations.find(s => s.id === deleteModal.data!.stationId)
+      if (!station) throw new Error('Station not found')
+      const programsPayload = (station.programs || []).filter((p: any) => p.id !== deleteModal.data!.id).map((p: any) => ({ name: p.name, startTime: p.startTime, endTime: p.endTime }))
+      const res = await fetch(`/api/radio-stations/${station.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ programs: programsPayload }) })
+      if (!res.ok) throw new Error('Failed to delete program')
+      const updated = await res.json()
+      const allPrograms: RadioProgram[] = []
+      updated.programs.forEach((p: any) => allPrograms.push({ ...p, stationId: updated.id, station: { id: updated.id, name: updated.name } }))
+      setPrograms(prev => [...prev.filter(pr => pr.stationId !== updated.id), ...allPrograms])
+      setStations(prev => prev.map(s => s.id === updated.id ? updated : s))
+      deleteModal.close()
+    } catch (err) {
+      console.error('Delete radio program error:', err)
+      alert(err instanceof Error ? err.message : 'Failed to delete program')
+    }
   }
 
   const formatTime = (time?: string) => {
