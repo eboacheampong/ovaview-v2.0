@@ -186,10 +186,27 @@ export default function AddPrintStoryPage() {
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Failed to analyze')
       
+      // Generate summary from the refined text
+      let summary = ''
+      try {
+        const summaryResponse = await fetch('/api/summarize-article', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content: data.text || rawOcrText }),
+        })
+        const summaryData = await summaryResponse.json()
+        if (summaryResponse.ok && summaryData.summary) {
+          summary = summaryData.summary
+        }
+      } catch (summaryErr) {
+        console.warn('Failed to generate summary:', summaryErr)
+      }
+      
       setFormData(prev => ({ 
         ...prev, 
         title: data.title || prev.title,
         content: data.text || prev.content,
+        summary: summary || prev.summary,
         industryId: data.suggestedIndustryId || prev.industryId,
         keywords: data.suggestedKeywords?.length > 0 ? data.suggestedKeywords.join(', ') : prev.keywords,
       }))

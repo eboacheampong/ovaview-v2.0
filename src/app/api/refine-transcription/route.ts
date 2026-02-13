@@ -68,11 +68,19 @@ Please:
 
 4. Analyze the sentiment of the content
 
-5. Select relevant keywords from this list that match the content (pick only those that are truly relevant):
+5. Select ONLY keywords that are directly and explicitly about the main topic from this list (be STRICT and CONSERVATIVE):
    Available keywords: ${keywordList || 'None available'}
 
 6. Select the most appropriate industry and sub-industries from this list:
    Available industries: ${industryList || 'None available'}
+
+IMPORTANT KEYWORD SELECTION RULES:
+- ONLY select keywords that are the CORE TOPIC or PRIMARY FOCUS of the content
+- Be STRICT and CONSERVATIVE - when in doubt, exclude the keyword
+- Do NOT select related or tangentially mentioned topics
+- Prefer 0-3 highly relevant keywords over many loosely relevant ones
+- A keyword should only be included if the content is PRIMARILY ABOUT that topic
+- Ignore keywords that are just mentioned in passing or as background context
 
 IMPORTANT: Preserve the original meaning, tone, and style. Only fix obvious transcription errors.
 

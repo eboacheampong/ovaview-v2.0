@@ -195,10 +195,17 @@ export async function POST(request: NextRequest) {
 1. A professional summary in 2-4 sentences
 2. Sentiment breakdown as percentages (must sum to 100)
 3. Overall sentiment (the category with highest percentage)
-4. Select relevant keywords from this list that match the content: ${keywordList || 'None available'}
+4. Select ONLY keywords that are directly and explicitly about the main topic of the article from: ${keywordList || 'None available'}
 5. Select the most appropriate industry and sub-industries from: ${industryList || 'None available'}
 
-IMPORTANT: Only suggest keywords that exist in the provided list. Do not create or suggest new keywords.
+IMPORTANT KEYWORD SELECTION RULES:
+- ONLY select keywords that are the CORE TOPIC or PRIMARY FOCUS of the article
+- Be STRICT and CONSERVATIVE - when in doubt, exclude the keyword
+- Do NOT select related or tangentially mentioned topics
+- Prefer 0-3 highly relevant keywords over many loosely relevant ones
+- A keyword should only be included if the article is PRIMARILY ABOUT that topic
+- Ignore keywords that are just mentioned in passing or as background context
+- Only suggest keywords that exist in the provided list. Do not create new keywords.
 
 Return ONLY valid JSON in this exact format:
 {

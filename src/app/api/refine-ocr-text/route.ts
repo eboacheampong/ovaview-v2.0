@@ -54,28 +54,43 @@ export async function POST(request: NextRequest) {
             content: `You are an OCR text editor and content analyzer. The following text was extracted from a scanned newspaper or magazine image using OCR (Optical Character Recognition) and likely contains recognition errors.
 
 Please:
-1. Fix common OCR errors such as:
+1. Fix ONLY common OCR errors such as:
    - Character confusion: l/1/I, O/0, rn/m, cl/d, vv/w, fi/fl ligatures
-   - Broken or split words from column layouts
+   - Broken or split words from column layouts (words incorrectly merged or split across columns)
    - Missing or extra spaces between words
    - Garbled or nonsense characters
    - Incorrect punctuation from scanning artifacts
    - Words incorrectly joined together
-   - Line break issues causing word fragments
-   
-2. Reconstruct proper paragraphs and sentence structure
+   - Line break issues causing incomplete word fragments
 
-3. Generate a concise, descriptive title (max 100 characters) that captures the main topic
+2. Preserve the original meaning, tone, journalistic style, and formatting structure. Do NOT rewrite or paraphrase content.
 
-4. Analyze the sentiment of the content
+3. Detect and preserve formatting as HTML:
+   - Identify headers/titles and wrap them in <h2> tags
+   - Identify bulleted lists and wrap in <ul><li> tags
+   - Identify numbered lists and wrap in <ol><li> tags
+   - Preserve quotations (can wrap in <blockquote> or use quotation marks)
+   - Use <strong> for bold emphasis and <em> for italics if apparent
+   - Use <p> tags for paragraphs
+   - Important: Do NOT add formatting that wasn't in the original text
 
-5. Select relevant keywords from this list that match the content (pick only those that are truly relevant):
+4. Generate a concise, descriptive title (max 100 characters) that captures the main topic
+
+5. Analyze the sentiment of the content
+
+6. Select ONLY keywords that are directly and explicitly about the main topic from this list (be STRICT and CONSERVATIVE):
    Available keywords: ${keywordList || 'None available'}
 
-6. Select the most appropriate industry and sub-industries from this list:
+7. Select the most appropriate industry and sub-industries from this list:
    Available industries: ${industryList || 'None available'}
 
-IMPORTANT: Preserve the original meaning, tone, and journalistic style. Only fix obvious OCR errors, do not rewrite or paraphrase the content.
+IMPORTANT KEYWORD SELECTION RULES:
+- ONLY select keywords that are the CORE TOPIC or PRIMARY FOCUS of the article
+- Be STRICT and CONSERVATIVE - when in doubt, exclude the keyword
+- Do NOT select related or tangentially mentioned topics
+- Prefer 0-3 highly relevant keywords over many loosely relevant ones
+- A keyword should only be included if the article is PRIMARILY ABOUT that topic
+- Ignore keywords that are just mentioned in passing or as background context
 
 OCR text to refine:
 """
@@ -84,7 +99,7 @@ ${text}
 
 Respond in this exact JSON format only, no other text:
 {
-  "text": "the corrected text here",
+  "text": "the corrected and formatted text here with HTML markup for formatting",
   "title": "Generated Title Here",
   "sentiment": {
     "positive": <number 0-100>,
