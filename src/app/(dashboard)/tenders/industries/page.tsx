@@ -83,7 +83,7 @@ export default function TenderIndustriesPage() {
     },
   ]
 
-  const FormContent = () => (
+  const renderFormContent = () => (
     <div className="space-y-4">
       <div><Label>Industry Name</Label><Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} /></div>
     </div>
@@ -103,8 +103,8 @@ export default function TenderIndustriesPage() {
 
       <DataTable columns={columns} data={industries} searchPlaceholder="Search industries..." searchColumn="name" />
 
-      <FormModal isOpen={createModal.isOpen} onClose={createModal.close} title="Add Tender Industry" onSubmit={handleCreate} isSubmitting={false}><FormContent /></FormModal>
-      <FormModal isOpen={editModal.isOpen} onClose={editModal.close} title="Edit Tender Industry" onSubmit={handleEdit} isSubmitting={false}><FormContent /></FormModal>
+      <FormModal isOpen={createModal.isOpen} onClose={createModal.close} title="Add Tender Industry" onSubmit={handleCreate} isSubmitting={false}>{renderFormContent()}</FormModal>
+      <FormModal isOpen={editModal.isOpen} onClose={editModal.close} title="Edit Tender Industry" onSubmit={handleEdit} isSubmitting={false}>{renderFormContent()}</FormModal>
       <ConfirmDialog isOpen={deleteModal.isOpen} onClose={deleteModal.close} onConfirm={handleDelete} title="Delete Industry" description={`Delete "${deleteModal.data?.name}"?`} confirmLabel="Delete" variant="destructive" />
     </div>
   )

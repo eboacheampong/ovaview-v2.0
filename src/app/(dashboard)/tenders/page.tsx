@@ -107,7 +107,7 @@ export default function TendersPage() {
     },
   ]
 
-  const FormContent = () => (
+  const renderFormContent = () => (
     <div className="space-y-4">
       <div><Label>Title</Label><Input value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} /></div>
       <div><Label>Description</Label><textarea className="w-full min-h-[100px] rounded-md border p-2" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} /></div>
@@ -136,8 +136,8 @@ export default function TendersPage() {
 
       <DataTable columns={columns} data={tenders} searchPlaceholder="Search tenders..." searchColumn="title" />
 
-      <FormModal isOpen={createModal.isOpen} onClose={createModal.close} title="Add Tender" onSubmit={handleCreate} isSubmitting={false}><FormContent /></FormModal>
-      <FormModal isOpen={editModal.isOpen} onClose={editModal.close} title="Edit Tender" onSubmit={handleEdit} isSubmitting={false}><FormContent /></FormModal>
+      <FormModal isOpen={createModal.isOpen} onClose={createModal.close} title="Add Tender" onSubmit={handleCreate} isSubmitting={false}>{renderFormContent()}</FormModal>
+      <FormModal isOpen={editModal.isOpen} onClose={editModal.close} title="Edit Tender" onSubmit={handleEdit} isSubmitting={false}>{renderFormContent()}</FormModal>
       
       <FormModal isOpen={viewModal.isOpen} onClose={viewModal.close} title={viewModal.data?.title || 'Tender'} onSubmit={async () => viewModal.close()} isSubmitting={false} submitLabel="Close">
         <div className="space-y-4">

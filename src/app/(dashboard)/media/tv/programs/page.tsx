@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { ColumnDef } from '@tanstack/react-table'
 import { DataTable, DataTableColumnHeader } from '@/components/data-table'
 import { Button } from '@/components/ui/button'
@@ -192,7 +192,7 @@ export default function TVProgramsPage() {
     },
   ]
 
-  const FormContent = useMemo(() => () => (
+  const renderFormContent = () => (
     <div className="space-y-4">
       <div>
         <Label className="text-gray-600 text-sm">TV Station</Label>
@@ -247,7 +247,7 @@ export default function TVProgramsPage() {
         <Label htmlFor="isActive" className="text-gray-600 text-sm cursor-pointer">Active</Label>
       </div>
     </div>
-  ), [formData])
+  )
 
   const ViewContent = () => (
     <div className="space-y-3">
@@ -272,11 +272,11 @@ export default function TVProgramsPage() {
       <DataTable columns={columns} data={programs} searchPlaceholder="Search programs..." searchColumn="name" />
 
       <FormModal isOpen={createModal.isOpen} onClose={createModal.close} title="Add TV Program" icon={<Tv className="h-6 w-6" />} onSubmit={handleCreate} isSubmitting={false}>
-        <FormContent />
+        {renderFormContent()}
       </FormModal>
       
       <FormModal isOpen={editModal.isOpen} onClose={editModal.close} title="Edit TV Program" icon={<Pencil className="h-6 w-6" />} onSubmit={handleEdit} isSubmitting={false} submitLabel="Save">
-        <FormContent />
+        {renderFormContent()}
       </FormModal>
 
       <FormModal isOpen={viewModal.isOpen} onClose={viewModal.close} title={viewModal.data?.name || 'Program Details'} icon={<Tv className="h-6 w-6" />} onSubmit={async () => viewModal.close()} isSubmitting={false} submitLabel="Close" cancelLabel="">

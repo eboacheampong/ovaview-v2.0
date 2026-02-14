@@ -80,7 +80,7 @@ export default function TenderTypesPage() {
     },
   ]
 
-  const FormContent = () => (
+  const renderFormContent = () => (
     <div className="space-y-4">
       <div><Label>Type Name</Label><Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} /></div>
       <div><Label>Description</Label><textarea className="w-full min-h-[80px] rounded-md border p-2" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} /></div>
@@ -101,8 +101,8 @@ export default function TenderTypesPage() {
 
       <DataTable columns={columns} data={types} searchPlaceholder="Search types..." searchColumn="name" />
 
-      <FormModal isOpen={createModal.isOpen} onClose={createModal.close} title="Add Tender Type" onSubmit={handleCreate} isSubmitting={false}><FormContent /></FormModal>
-      <FormModal isOpen={editModal.isOpen} onClose={editModal.close} title="Edit Tender Type" onSubmit={handleEdit} isSubmitting={false}><FormContent /></FormModal>
+      <FormModal isOpen={createModal.isOpen} onClose={createModal.close} title="Add Tender Type" onSubmit={handleCreate} isSubmitting={false}>{renderFormContent()}</FormModal>
+      <FormModal isOpen={editModal.isOpen} onClose={editModal.close} title="Edit Tender Type" onSubmit={handleEdit} isSubmitting={false}>{renderFormContent()}</FormModal>
       <ConfirmDialog isOpen={deleteModal.isOpen} onClose={deleteModal.close} onConfirm={handleDelete} title="Delete Type" description={`Delete "${deleteModal.data?.name}"?`} confirmLabel="Delete" variant="destructive" />
     </div>
   )

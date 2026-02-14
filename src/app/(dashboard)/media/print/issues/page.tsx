@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { ColumnDef } from '@tanstack/react-table'
 import { DataTable, DataTableColumnHeader } from '@/components/data-table'
 import { Button } from '@/components/ui/button'
@@ -162,7 +162,7 @@ export default function PrintIssuesPage() {
     },
   ]
 
-  const FormContent = useMemo(() => () => (
+  const renderFormContent = () => (
     <div className="space-y-4">
       <div>
         <Label className="text-gray-600 text-sm">Issue Number</Label>
@@ -196,7 +196,7 @@ export default function PrintIssuesPage() {
         />
       </div>
     </div>
-  ), [formData])
+  )
 
   const ViewContent = () => (
     <div className="space-y-3">
@@ -220,11 +220,11 @@ export default function PrintIssuesPage() {
       <DataTable columns={columns} data={issues} searchPlaceholder="Search issues..." searchColumn="issueNumber" />
 
       <FormModal isOpen={createModal.isOpen} onClose={createModal.close} title="Add Print Issue" icon={<FileText className="h-6 w-6" />} onSubmit={handleCreate} isSubmitting={false}>
-        <FormContent />
+        {renderFormContent()}
       </FormModal>
       
       <FormModal isOpen={editModal.isOpen} onClose={editModal.close} title="Edit Print Issue" icon={<Pencil className="h-6 w-6" />} onSubmit={handleEdit} isSubmitting={false} submitLabel="Save">
-        <FormContent />
+        {renderFormContent()}
       </FormModal>
 
       <FormModal isOpen={viewModal.isOpen} onClose={viewModal.close} title={viewModal.data?.issueNumber || 'Issue Details'} icon={<FileText className="h-6 w-6" />} onSubmit={async () => viewModal.close()} isSubmitting={false} submitLabel="Close" cancelLabel="">
