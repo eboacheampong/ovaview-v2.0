@@ -169,6 +169,53 @@ export default function AddPrintStoryPage() {
     }
   }
 
+  // Extract text from all images using AI (Gemma model)
+  const handleExtractWithAI = async () => {
+    if (uploadedImages.length === 0) {
+      setExtractError('Please upload images first')
+      return
+    }
+    setIsExtracting(true)
+    setExtractError('')
+    let allExtractedText = ''
+    try {
+      for (let i = 0; i < uploadedImages.length; i++) {
+        setExtractingIndex(i)
+        const image = uploadedImages[i]
+        const formData = new FormData()
+        formData.append('file', image.file)
+        
+        const response = await fetch('/api/extract-article-ai', {
+          method: 'POST',
+          body: formData,
+        })
+        
+        if (!response.ok) {
+          const data = await response.json()
+          throw new Error(data.error || 'Failed to extract with AI')
+        }
+        
+        const data = await response.json()
+        if (data.text) {
+          allExtractedText += (allExtractedText ? '\n\n' : '') + data.text
+          setUploadedImages(prev => {
+            const newImages = [...prev]
+            newImages[i] = { ...newImages[i], extractedText: data.text }
+            return newImages
+          })
+        }
+      }
+      if (allExtractedText) {
+        setRawOcrText(allExtractedText)
+      }
+    } catch (error) {
+      setExtractError(error instanceof Error ? error.message : 'Failed to extract with AI')
+    } finally {
+      setIsExtracting(false)
+      setExtractingIndex(null)
+    }
+  }
+
   // Analyze with AI - refines OCR text and fills all fields
   const handleAnalyze = async () => {
     if (!rawOcrText || rawOcrText.trim().length < 20) {
@@ -342,13 +389,22 @@ export default function AddPrintStoryPage() {
                 <p className="text-sm text-gray-500">Extract text from images using OCR</p>
               </div>
             </div>
-            <Button type="button" onClick={handleExtractText} disabled={isExtracting || uploadedImages.length === 0} variant="outline" className="flex items-center gap-2 text-blue-600 border-blue-200 hover:bg-blue-50">
-              {isExtracting ? (
-                <><Loader2 className="h-4 w-4 animate-spin" />Extracting...</>
-              ) : (
-                <><ScanText className="h-4 w-4" />Extract Text</>
-              )}
-            </Button>
+            <div className="flex gap-2">
+              <Button type="button" onClick={handleExtractText} disabled={isExtracting || uploadedImages.length === 0} variant="outline" className="flex items-center gap-2 text-blue-600 border-blue-200 hover:bg-blue-50">
+                {isExtracting ? (
+                  <><Loader2 className="h-4 w-4 animate-spin" />Extracting...</>
+                ) : (
+                  <><ScanText className="h-4 w-4" />Extract Text</>
+                )}
+              </Button>
+              <Button type="button" onClick={handleExtractWithAI} disabled={isExtracting || uploadedImages.length === 0} variant="outline" className="flex items-center gap-2 text-purple-600 border-purple-200 hover:bg-purple-50">
+                {isExtracting ? (
+                  <><Loader2 className="h-4 w-4 animate-spin" />Extracting...</>
+                ) : (
+                  <><Sparkles className="h-4 w-4" />Extract with AI</>
+                )}
+              </Button>
+            </div>
           </div>
           
           {isExtracting && (
