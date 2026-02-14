@@ -51,45 +51,55 @@ export async function POST(request: NextRequest) {
         messages: [
           {
             role: 'user',
-            content: `You are an advanced OCR text correction system with semantic understanding. The following text was extracted from a scanned newspaper or magazine using OCR and contains recognition errors.
+            content: `You are an advanced OCR text correction system with strong semantic understanding. The following text was extracted from a scanned newspaper or magazine using OCR and contains recognition errors.
 
-CORRECTION STRATEGY:
-Use contextual and linguistic knowledge to fix errors intelligently. When you encounter a word that seems incorrect:
-1. Check if it's a real word in context
-2. If not, find the closest matching real word that makes semantic sense
-3. Apply character-level and contextual fixes simultaneously
+CRITICAL PREPROCESSING:
+1. Start the article from where actual editorial content begins - SKIP any headers, page numbers, publication info, or preamble text
+2. Remove OCR artifacts that are just metadata or page markers
+3. The output should be the pure article content, nothing before it starts
 
-SPECIFIC ERROR TYPES TO FIX:
-- Broken words: "breforms" → "reforms", "stuation" → "situation", "goverment" → "government"
-- Character substitutions: "l/1/I", "O/0", "rn/m", "cl/d", "vv/w", "fi/fl"
-- Words split across columns: merge fragments back together using context
-- Garbled words: replace with semantically appropriate real words
-- Repeated or missing characters: "reccommend" → "recommend", "siad" → "said"
-- Words that don't fit context: replace with similar words that do
+AGGRESSIVE SEMANTIC CORRECTION:
+Apply strong linguistic knowledge to fix errors. When a word is clearly wrong:
+1. Recognize non-existent words and replace with the correct similar word that makes sense in context
+2. Example: "breforms" → "reforms" (not real word, but reforms makes semantic sense)
+3. Example: "stuation" → "situation" (obvious OCR error, one real word matches)
+4. Example: "goverment" → "government" (clear typo, fix it)
+5. Example: "reccommend" → "recommend" (extra character, fix it)
+6. Example: "per cent" → "percent" (compound word correction)
+7. Use context clues to determine the intended word when multiple similar words exist
+
+CHARACTER AND FORMATTING FIXES:
+- Character confusion: l/1/I, O/0, rn/m, cl/d, vv/w, fi/fl
+- Words split/merged across columns: reconstruct intelligently
+- Missing/extra spaces between words
+- Repeated characters: "thee" → "the"
+- CRITICAL: Do NOT interpret single bolded letters at word starts as intentional formatting
+  - These are OCR artifacts from scanning and should be ignored
+  - Only preserve formatting that spans multiple characters or full words
+
+LEGITIMATE FORMATTING TO PRESERVE (HTML):
+- Actual headers/titles (usually larger text): wrap in <h2> tags
+- Actual bullet/numbered lists (with visible bullets/numbers): wrap in <ul><li> or <ol><li> tags
+- Extended quotations (block quotes): wrap in <blockquote> tags
+- Full words or phrases that are bold: wrap in <strong> tags
+- Full words or phrases that are italic: wrap in <em> tags
+- Paragraphs: wrap in <p> tags
+- Standard punctuation like quotation marks in the text: KEEP THEM
+- Important: Only preserve formatting that is clearly intentional, not OCR scanning artifacts
 
 PRESERVATION RULES:
 - Do NOT paraphrase or rewrite content
-- Do NOT add information that wasn't there
+- Do NOT add information that wasn't in the original
 - Preserve original tone, style, and journalistic intent
-- Only correct words that are clearly errors (not stylistic choices)
-
-FORMATTING:
-Detect and preserve formatting as HTML:
-- Headers/titles: wrap in <h2> tags
-- Bullet lists: wrap in <ul><li> tags
-- Numbered lists: wrap in <ol><li> tags
-- Quotations: wrap in <blockquote> or preserve with quotation marks
-- Bold emphasis: wrap in <strong> tags
-- Italics: wrap in <em> tags
-- Paragraphs: wrap in <p> tags
-- Important: Do NOT add formatting that wasn't in the original text
+- Keep all quotation marks and attributed speech exactly as they appear
+- Only correct clear OCR errors, not stylistic choices
 
 ANALYSIS TASKS:
 1. Generate a concise, descriptive title (max 100 characters) capturing the main topic
 2. Analyze sentiment of the corrected content
 3. Select ONLY keywords directly relevant to the main topic from this list (STRICT and CONSERVATIVE):
    Available keywords: ${keywordList || 'None available'}
-4. Select the most appropriate industry and sub-industries from this list:
+4. Select the most appropriate industry and sub-industries:
    Available industries: ${industryList || 'None available'}
 
 KEYWORD SELECTION RULES:
@@ -97,7 +107,7 @@ KEYWORD SELECTION RULES:
 - Be STRICT - when in doubt, exclude it
 - Do NOT select tangentially mentioned topics
 - Prefer 0-3 highly relevant keywords over many loose ones
-- Article must be PRIMARILY ABOUT the keyword, not just mention it in passing
+- Article must be PRIMARILY ABOUT the keyword
 
 OCR text to correct and analyze:
 """
@@ -106,7 +116,7 @@ ${text}
 
 Respond in this exact JSON format only, no other text:
 {
-  "text": "the fully corrected and formatted text with HTML markup",
+  "text": "the fully corrected and formatted article with HTML markup, starting from actual content",
   "title": "Generated Title Here",
   "sentiment": {
     "positive": <number 0-100>,
@@ -119,7 +129,7 @@ Respond in this exact JSON format only, no other text:
   "suggestedSubIndustries": ["SubIndustry1", "SubIndustry2"]
 }
 
-Sentiment percentages must sum to 100. Use semantic knowledge to fix broken words intelligently.`
+Use aggressive semantic knowledge to fix broken/non-existent words. Sentiment percentages must sum to 100.`
           }
         ],
         temperature: 0.3,
