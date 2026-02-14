@@ -22,6 +22,7 @@ export async function POST(request: NextRequest) {
     const buffer = await file.arrayBuffer()
     const base64 = Buffer.from(buffer).toString('base64')
     const mediaType = file.type || 'image/jpeg'
+    const imageDataUrl = `data:${mediaType};base64,${base64}`
 
     // Send to Gemma 3 4B IT model for extraction
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -54,11 +55,9 @@ EXTRACTION RULES:
 Return the extracted article text:`,
               },
               {
-                type: 'image',
-                source: {
-                  type: 'base64',
-                  media_type: mediaType,
-                  data: base64,
+                type: 'image_url',
+                image_url: {
+                  url: imageDataUrl,
                 },
               },
             ],
