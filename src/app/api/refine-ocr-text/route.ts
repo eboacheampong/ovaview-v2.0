@@ -99,7 +99,7 @@ ANALYSIS TASKS:
 2. Analyze sentiment of the corrected content
 3. Select ONLY keywords directly relevant to the main topic from this list (STRICT and CONSERVATIVE):
    Available keywords: ${keywordList || 'None available'}
-4. Select the most appropriate industry and sub-industries:
+4. Select the most appropriate industry and sub-industries (STRICT and CONSERVATIVE):
    Available industries: ${industryList || 'None available'}
 
 KEYWORD SELECTION RULES:
@@ -108,6 +108,15 @@ KEYWORD SELECTION RULES:
 - Do NOT select tangentially mentioned topics
 - Prefer 0-3 highly relevant keywords over many loose ones
 - Article must be PRIMARILY ABOUT the keyword
+
+INDUSTRY SELECTION RULES:
+- ONLY select industry if the article is PRIMARILY ABOUT that industry's core business/activities
+- Be STRICT and CONSERVATIVE - select at most 1 industry
+- Do NOT select if the industry is just mentioned in passing or as context
+- The industry selected should be the MAIN SECTOR/FOCUS of the article
+- If no industry is a clear primary match, return null
+- Sub-industries: ONLY select sub-industries under the primary industry if they are explicitly relevant
+- Prefer 0-2 sub-industries maximum
 
 OCR text to correct and analyze:
 """
