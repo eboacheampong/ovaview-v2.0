@@ -160,7 +160,7 @@ export default function PrintPublicationsPage() {
     },
   ]
 
-  const FormContent = useMemo(() => () => (
+  const renderFormContent = () => (
     <div className="space-y-4">
       <div>
         <Label className="text-gray-600 text-sm">Publication Name</Label>
@@ -201,7 +201,7 @@ export default function PrintPublicationsPage() {
         <Label htmlFor="isActive" className="text-gray-600 text-sm cursor-pointer">Active</Label>
       </div>
     </div>
-  ), [formData])
+  )
 
   const ViewContent = () => (
     <div className="space-y-3">
@@ -226,11 +226,11 @@ export default function PrintPublicationsPage() {
       <DataTable columns={columns} data={publications} searchPlaceholder="Search publications..." searchColumn="name" />
 
       <FormModal isOpen={createModal.isOpen} onClose={createModal.close} title="Add Print Publication" icon={<Newspaper className="h-6 w-6" />} onSubmit={handleCreate} isSubmitting={false}>
-        <FormContent />
+        {renderFormContent()}
       </FormModal>
       
       <FormModal isOpen={editModal.isOpen} onClose={editModal.close} title="Edit Print Publication" icon={<Pencil className="h-6 w-6" />} onSubmit={handleEdit} isSubmitting={false} submitLabel="Save">
-        <FormContent />
+        {renderFormContent()}
       </FormModal>
 
       <FormModal isOpen={viewModal.isOpen} onClose={viewModal.close} title={viewModal.data?.name || 'Publication Details'} icon={<Newspaper className="h-6 w-6" />} onSubmit={async () => viewModal.close()} isSubmitting={false} submitLabel="Close" cancelLabel="">
