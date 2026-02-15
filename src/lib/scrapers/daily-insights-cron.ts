@@ -45,7 +45,7 @@ export function initializeDailyInsightsCron(config?: CronTaskConfig) {
       const scraperPath = path.resolve(process.cwd(), '..', 'scrapy_crawler')
 
       const { stdout, stderr } = await execAsync(
-        `cd "${scraperPath}" && python crawler_runner.py`,
+        `cd "${scraperPath}" && "C:\\Users\\lenovo\\AppData\\Local\\Programs\\Python\\Python313\\python.exe" crawler_runner.py`,
         {
           maxBuffer: 10 * 1024 * 1024, // 10MB buffer
           timeout: 5 * 60 * 1000, // 5 minute timeout

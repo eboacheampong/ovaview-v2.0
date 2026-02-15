@@ -15,8 +15,11 @@ export async function POST(request: NextRequest) {
     // process.cwd() = ovaview folder, so go up 1 level to get ovaview-v2
     const scraperPath = path.resolve(process.cwd(), '..', 'scrapy_crawler')
     
+    // Use full path to Python executable to ensure it's found
+    const pythonPath = 'C:\\Users\\lenovo\\AppData\\Local\\Programs\\Python\\Python313\\python.exe'
+    
     // Run the crawler
-    const { stdout, stderr } = await execAsync(`cd "${scraperPath}" && python crawler_runner.py`, {
+    const { stdout, stderr } = await execAsync(`cd "${scraperPath}" && "${pythonPath}" crawler_runner.py`, {
       maxBuffer: 10 * 1024 * 1024, // 10MB buffer for output
       timeout: 5 * 60 * 1000, // 5 minute timeout
     })
