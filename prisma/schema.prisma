@@ -75,6 +75,7 @@ model Client {
   articleViewLogs     ArticleViewLog[]
   competitors         ClientCompetitor[] @relation("ClientCompetitors")
   competitorOf        ClientCompetitor[] @relation("CompetitorOf")
+  dailyInsights       DailyInsight[]
 }
 
 // Competitor Tracking
@@ -524,4 +525,32 @@ model TenderViewLog {
   @@index([userId])
   @@index([tenderId])
   @@index([viewedAt(sort: Desc)])
+}
+
+enum DailyInsightStatus {
+  pending
+  accepted
+  archived
+}
+
+model DailyInsight {
+  id        String   @id @default(cuid())
+  title     String
+  url       String   @unique
+  description String?
+  source    String?
+  industry  String   @default("general")
+  
+  clientId  String?
+  client    Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  
+  status    DailyInsightStatus @default(pending)
+  scrapedAt DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clientId])
+  @@index([status])
+  @@index([scrapedAt(sort: Desc)])
+  @@index([industry])
 }

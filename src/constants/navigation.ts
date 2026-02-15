@@ -25,6 +25,7 @@ import {
   Antenna,
   NotebookText,
   Tag,
+  Sparkles,
 } from 'lucide-react'
 import { UserRole } from '@/types/user'
 
@@ -48,6 +49,12 @@ export interface NavSection {
 }
 
 export const navigationSections: NavSection[] = [
+  {
+    title: 'INSIGHTS',
+    items: [
+      { label: 'Daily Insights', href: '/daily-insights', icon: Sparkles },
+    ],
+  },
   {
     title: 'USER MANAGEMENT',
     items: [

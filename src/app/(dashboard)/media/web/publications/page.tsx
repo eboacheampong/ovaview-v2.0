@@ -10,7 +10,8 @@ import { ConfirmDialog } from '@/components/modals/confirm-dialog'
 import { useModal } from '@/hooks/use-modal'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Plus, Pencil, Trash2, Eye, Globe } from 'lucide-react'
+import { Plus, Pencil, Trash2, Eye, Globe, AlertCircle } from 'lucide-react'
+import { useSearchParams } from 'next/navigation'
 
 interface WebPublication {
   id: string
@@ -28,10 +29,13 @@ const formatReach = (reach: number | undefined): string => {
 }
 
 export default function WebPublicationsPage() {
+  const searchParams = useSearchParams()
   const [publications, setPublications] = useState<WebPublication[]>([])
   const [formData, setFormData] = useState({ name: '', location: '', reach: '', isActive: true })
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [acceptedUrl, setAcceptedUrl] = useState<string | null>(null)
+  const [acceptedTitle, setAcceptedTitle] = useState<string | null>(null)
 
   // Load publications from API
   useEffect(() => {
@@ -50,6 +54,19 @@ export default function WebPublicationsPage() {
     }
     fetchPubs()
   }, [])
+
+  // Load accepted URL from query parameters
+  useEffect(() => {
+    const url = searchParams.get('acceptedUrl')
+    const title = searchParams.get('acceptedTitle')
+    if (url) {
+      setAcceptedUrl(url)
+      setAcceptedTitle(title)
+      // Auto-open create modal with pre-filled URL
+      setFormData(prev => ({ ...prev, location: url }))
+      createModal.open()
+    }
+  }, [searchParams])
   
   const createModal = useModal<undefined>()
   const editModal = useModal<WebPublication>()
@@ -64,6 +81,8 @@ export default function WebPublicationsPage() {
       const created = await res.json()
       setPublications(prev => [...prev, created])
       setFormData({ name: '', location: '', reach: '', isActive: true })
+      setAcceptedUrl(null)
+      setAcceptedTitle(null)
       createModal.close()
     } catch (err) {
       console.error('Create publication error:', err)
@@ -147,6 +166,17 @@ export default function WebPublicationsPage() {
 
   const renderFormContent = () => (
     <div className="space-y-4">
+      {acceptedUrl && (
+        <div className="bg-blue-50 border border-blue-200 rounded-md p-3 flex gap-2">
+          <AlertCircle className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+          <div className="text-sm">
+            <p className="font-medium text-blue-900">From Daily Insights</p>
+            <p className="text-blue-700 text-xs mt-1">
+              {acceptedTitle && <span>Article: <strong>{acceptedTitle}</strong></span>}
+            </p>
+          </div>
+        </div>
+      )}
       <div>
         <Label className="text-gray-600 text-sm">Publication Name</Label>
         <Input 
@@ -157,13 +187,21 @@ export default function WebPublicationsPage() {
         />
       </div>
       <div>
-        <Label className="text-gray-600 text-sm">Location</Label>
+        <Label className="text-gray-600 text-sm">
+          {acceptedUrl ? 'Article URL (from Daily Insights)' : 'Location/URL'}
+        </Label>
         <Input 
           value={formData.location} 
           onChange={(e) => setFormData({ ...formData, location: e.target.value })} 
-          placeholder="Location"
+          placeholder={acceptedUrl ? acceptedUrl : 'Location'}
           className="mt-1"
+          readOnly={acceptedUrl ? false : undefined}
         />
+        {acceptedUrl && (
+          <p className="text-xs text-gray-500 mt-1">
+            Pre-filled from Daily Insights. You can modify if needed.
+          </p>
+        )}
       </div>
       <div>
         <Label className="text-gray-600 text-sm">Reach/Coverage</Label>
@@ -210,7 +248,7 @@ export default function WebPublicationsPage() {
 
       <DataTable columns={columns} data={publications} searchPlaceholder="Search publications..." searchColumn="name" />
 
-      <FormModal isOpen={createModal.isOpen} onClose={createModal.close} title="Add Web Publication" icon={<Globe className="h-6 w-6" />} onSubmit={handleCreate} isSubmitting={false}>
+      <FormModal isOpen={createModal.isOpen} onClose={createModal.close} title={acceptedUrl ? 'Create Web Publication from Daily Insights' : 'Add Web Publication'} icon={<Globe className="h-6 w-6" />} onSubmit={handleCreate} isSubmitting={false}>
         {renderFormContent()}
       </FormModal>
       
