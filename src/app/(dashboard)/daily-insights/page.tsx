@@ -6,7 +6,7 @@ import { DataTable, DataTableColumnHeader } from '@/components/data-table'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { useModal } from '@/hooks/use-modal'
-import { Eye, CheckCircle, Archive, ExternalLink, Loader2 } from 'lucide-react'
+import { Eye, CheckCircle, Archive, ExternalLink, Loader2, RefreshCw } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import {
   Dialog,
@@ -40,6 +40,8 @@ export default function DailyInsightsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isAccepting, setIsAccepting] = useState<string | null>(null)
+  const [isScraperRunning, setIsScraperRunning] = useState(false)
+  const [scraperMessage, setScraperMessage] = useState<string | null>(null)
 
   const viewModal = useModal<DailyInsight>()
 
@@ -99,6 +101,31 @@ export default function DailyInsightsPage() {
       setArticles(articles.filter(a => a.id !== article.id))
     } catch (err) {
       console.error('Error archiving article:', err)
+    }
+  }
+
+  const handleRunScraper = async () => {
+    try {
+      setIsScraperRunning(true)
+      setScraperMessage(null)
+      const res = await fetch('/api/daily-insights/scrape', { method: 'POST' })
+      const data = await res.json()
+
+      if (!res.ok) {
+        throw new Error(data.message || 'Failed to run scraper')
+      }
+
+      setScraperMessage('✓ Scraper completed! Refreshing articles...')
+      // Refresh articles after scraping
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      await fetchArticles()
+    } catch (err) {
+      console.error('Error running scraper:', err)
+      setScraperMessage(
+        err instanceof Error ? `✗ Error: ${err.message}` : '✗ Failed to run scraper'
+      )
+    } finally {
+      setIsScraperRunning(false)
     }
   }
 
@@ -201,7 +228,38 @@ export default function DailyInsightsPage() {
             AI-powered news articles collected from various sources. Review and accept articles to create publications.
           </p>
         </div>
+        <Button
+          onClick={handleRunScraper}
+          disabled={isScraperRunning}
+          className="gap-2"
+          size="lg"
+        >
+          {isScraperRunning ? (
+            <>
+              <span className="h-4 w-4 animate-spin">⟳</span>
+              Scraping...
+            </>
+          ) : (
+            <>
+              <RefreshCw className="h-4 w-4" />
+              Run Scraper
+            </>
+          )}
+        </Button>
       </div>
+
+      {/* Scraper Message */}
+      {scraperMessage && (
+        <div
+          className={`p-4 rounded-lg text-sm font-medium ${
+            scraperMessage.startsWith('✓')
+              ? 'bg-green-50 text-green-700 border border-green-200'
+              : 'bg-red-50 text-red-700 border border-red-200'
+          }`}
+        >
+          {scraperMessage}
+        </div>
+      )}
 
       {/* Error Alert */}
       {error && (
