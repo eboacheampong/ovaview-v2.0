@@ -42,7 +42,7 @@ export function initializeDailyInsightsCron(config?: CronTaskConfig) {
     console.log('[Daily Insights] Starting scheduled scraper run...')
 
     try {
-      const scraperPath = path.resolve(process.cwd(), '..', '..', 'scrapy_crawler')
+      const scraperPath = path.resolve(process.cwd(), '..', 'scrapy_crawler')
 
       const { stdout, stderr } = await execAsync(
         `cd "${scraperPath}" && python crawler_runner.py`,
