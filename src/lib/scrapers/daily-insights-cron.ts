@@ -1,9 +1,6 @@
 import cron, { ScheduledTask } from 'node-cron'
-import { exec } from 'child_process'
-import { promisify } from 'util'
-import path from 'path'
 
-const execAsync = promisify(exec)
+const SCRAPER_API = process.env.NEXT_PUBLIC_SCRAPER_API || 'http://localhost:5000'
 
 export interface CronTaskConfig {
   schedule?: string
@@ -16,13 +13,11 @@ let scheduledTask: ScheduledTask | null = null
 // Cron patterns (minute hour day month weekday):
 // '0 */6 * * *' = Every 6 hours
 // '0 0 * * *' = Every day at midnight
-// '0 12 * * *' = Every day at noon
 // '0 6,12,18 * * *' = At 6am, noon, and 6pm daily
 export function initializeDailyInsightsCron(config?: CronTaskConfig) {
-  // Get schedule from config, environment, or use default
   const schedule = config?.schedule || 
                    process.env.DAILY_INSIGHTS_CRON_SCHEDULE || 
-                   '0 */6 * * *' // Default: every 6 hours
+                   '0 */6 * * *'
 
   const enabled = config?.enabled !== false && 
                   (process.env.ENABLE_CRON === 'true' || 
@@ -42,23 +37,18 @@ export function initializeDailyInsightsCron(config?: CronTaskConfig) {
     console.log('[Daily Insights] Starting scheduled scraper run...')
 
     try {
-      const scraperPath = path.resolve(process.cwd(), '..', 'scrapy_crawler')
+      const res = await fetch(`${SCRAPER_API}/api/scrape`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      })
 
-      const { stdout, stderr } = await execAsync(
-        `cd "${scraperPath}" && "C:\\Users\\lenovo\\AppData\\Local\\Programs\\Python\\Python313\\python.exe" crawler_runner.py`,
-        {
-          maxBuffer: 10 * 1024 * 1024, // 10MB buffer
-          timeout: 5 * 60 * 1000, // 5 minute timeout
-        }
-      )
-
-      console.log('[Daily Insights] Scraper completed successfully')
-
-      // Parse output to count articles
-      const articleCount = (stdout.match(/Article saved/g) || []).length
-      if (articleCount > 0) {
-        console.log(`[Daily Insights] Scraped ${articleCount} new articles`)
+      if (!res.ok) {
+        throw new Error(`Scraper API returned ${res.status}`)
       }
+
+      const data = await res.json()
+      console.log(`[Daily Insights] Scraper completed: ${data.stats?.total_articles || 0} articles scraped`)
     } catch (error) {
       console.error('[Daily Insights] Scraper failed:', error)
     }
@@ -68,11 +58,9 @@ export function initializeDailyInsightsCron(config?: CronTaskConfig) {
   scheduledTask = task
 
   console.log(`[Daily Insights] Cron job initialized with schedule: ${schedule}`)
-
   return task
 }
 
-// Stop the scheduled cron job
 export function stopDailyInsightsCron() {
   if (scheduledTask) {
     scheduledTask.stop()
@@ -81,7 +69,6 @@ export function stopDailyInsightsCron() {
   }
 }
 
-// Check if cron job is running
 export function isDailyInsightsCronRunning(): boolean {
   return scheduledTask !== null
 }
