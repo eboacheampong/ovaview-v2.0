@@ -14,23 +14,35 @@ export async function POST(request: NextRequest) {
 
     console.log(`Calling scraper API at ${SCRAPER_API}/api/scrape`)
 
-    // Call the remote scraper API hosted on Render
-    const scraperResponse = await fetch(`${SCRAPER_API}/api/scrape`, {
+    // Try POST first, fall back to GET if Method Not Allowed
+    let scraperResponse = await fetch(`${SCRAPER_API}/api/scrape`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({}),
     })
 
+    // If POST returns 405 Method Not Allowed, try GET
+    if (scraperResponse.status === 405) {
+      console.log('POST not allowed, trying GET...')
+      scraperResponse = await fetch(`${SCRAPER_API}/api/scrape`)
+    }
+
     if (!scraperResponse.ok) {
       const errorText = await scraperResponse.text()
-      console.error('Scraper API error:', errorText)
+      console.error(`Scraper API error (${scraperResponse.status}):`, errorText)
       return NextResponse.json(
-        { success: false, error: `Scraper API returned ${scraperResponse.status}`, message: errorText },
-        { status: scraperResponse.status }
+        {
+          success: false,
+          error: `Scraper API returned ${scraperResponse.status}: ${scraperResponse.statusText}`,
+          message: `The scraper at ${SCRAPER_API} returned an error. Make sure the latest api_server.py is deployed to Render.`,
+        },
+        { status: 502 }
       )
     }
 
     const scraperData = await scraperResponse.json()
+    console.log('Scraper response keys:', Object.keys(scraperData))
+    console.log('Articles count:', scraperData.articles?.length ?? 'no articles key')
 
     if (!scraperData.success) {
       return NextResponse.json(
