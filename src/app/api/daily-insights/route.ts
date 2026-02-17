@@ -21,8 +21,19 @@ export async function GET(request: NextRequest) {
       ? (statusParam as DailyInsightStatus)
       : 'pending'
 
-    const where: any = { status }
-    if (clientId) where.clientId = clientId
+    const where: any = {}
+    
+    // Support 'all' status to get everything, or filter by specific status
+    if (statusParam !== 'all') {
+      where.status = status
+    }
+    
+    // Support 'unassigned' as a special clientId value
+    if (clientId === 'unassigned') {
+      where.clientId = null
+    } else if (clientId) {
+      where.clientId = clientId
+    }
 
     const articles = await prisma.dailyInsight.findMany({
       where,

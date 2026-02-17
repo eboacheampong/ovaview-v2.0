@@ -56,9 +56,9 @@ export async function POST(request: NextRequest) {
           continue
         }
 
-        // Check if article already exists
-        const existing = await prisma.dailyInsight.findFirst({
-          where: { url, clientId },
+        // Check if article already exists (url is unique)
+        const existing = await prisma.dailyInsight.findUnique({
+          where: { url },
         })
 
         if (existing) {

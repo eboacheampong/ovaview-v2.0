@@ -1,106 +1,50 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { ColumnDef } from '@tanstack/react-table'
-import { DataTable, DataTableColumnHeader } from '@/components/data-table'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { useModal } from '@/hooks/use-modal'
-import { Eye, CheckCircle, Archive, ExternalLink, Loader2, RefreshCw } from 'lucide-react'
-import { useRouter } from 'next/navigation'
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from '@/components/ui/dialog'
+  Loader2, RefreshCw, Sparkles, ChevronRight,
+  Clock, CheckCircle, FileText
+} from 'lucide-react'
+import Link from 'next/link'
 
-interface DailyInsight {
+interface ClientSummary {
   id: string
-  title: string
-  url: string
-  description?: string
-  source?: string
-  industry?: string
-  status: 'pending' | 'accepted' | 'archived'
-  scrapedAt: string
-  createdAt: string
+  name: string
+  pending: number
+  accepted: number
+  total: number
 }
 
-const statusConfig = {
-  pending: { label: 'Pending', variant: 'secondary' as const },
-  accepted: { label: 'Accepted', variant: 'success' as const },
-  archived: { label: 'Archived', variant: 'outline' as const },
+interface SummaryData {
+  clients: ClientSummary[]
+  unassigned: { pending: number; accepted: number; total: number }
 }
 
 export default function DailyInsightsPage() {
-  const router = useRouter()
-  const [articles, setArticles] = useState<DailyInsight[]>([])
+  const [summary, setSummary] = useState<SummaryData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [isAccepting, setIsAccepting] = useState<string | null>(null)
   const [isScraperRunning, setIsScraperRunning] = useState(false)
   const [scraperMessage, setScraperMessage] = useState<string | null>(null)
 
-  const viewModal = useModal<DailyInsight>()
-
-  // Load articles from API
   useEffect(() => {
-    fetchArticles()
+    fetchSummary()
   }, [])
 
-  const fetchArticles = async () => {
+  const fetchSummary = async () => {
     try {
       setIsLoading(true)
-      setError(null)
-      const res = await fetch('/api/daily-insights?status=pending&limit=100')
-      if (!res.ok) throw new Error('Failed to load articles')
-      const data = await res.json()
-      setArticles(data.articles || [])
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load articles')
+      const res = await fetch('/api/daily-insights/summary')
+      if (res.ok) {
+        const data = await res.json()
+        setSummary(data)
+      }
+    } catch (error) {
+      console.error('Failed to fetch summary:', error)
     } finally {
       setIsLoading(false)
-    }
-  }
-
-  const handleAccept = async (article: DailyInsight) => {
-    try {
-      setIsAccepting(article.id)
-      const res = await fetch('/api/daily-insights/accept', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ articleId: article.id }),
-      })
-      if (!res.ok) throw new Error('Failed to accept article')
-      
-      // Navigate to web publications with pre-filled URL
-      const url = new URL('/dashboard/media/web/publications', window.location.origin)
-      url.searchParams.set('acceptedUrl', article.url)
-      url.searchParams.set('acceptedTitle', article.title)
-      router.push(url.toString())
-    } catch (err) {
-      console.error('Error accepting article:', err)
-      alert('Failed to accept article. Please try again.')
-    } finally {
-      setIsAccepting(null)
-    }
-  }
-
-  const handleArchive = async (article: DailyInsight) => {
-    try {
-      const res = await fetch(`/api/daily-insights/${article.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'archived' }),
-      })
-      if (!res.ok) throw new Error('Failed to archive article')
-      
-      // Remove from list
-      setArticles(articles.filter(a => a.id !== article.id))
-    } catch (err) {
-      console.error('Error archiving article:', err)
     }
   }
 
@@ -108,292 +52,192 @@ export default function DailyInsightsPage() {
     try {
       setIsScraperRunning(true)
       setScraperMessage(null)
-      const res = await fetch('/api/daily-insights/scrape', { method: 'POST' })
+      const res = await fetch('/api/daily-insights/scrape', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      })
       const data = await res.json()
 
       if (!res.ok) {
-        throw new Error(data.message || 'Failed to run scraper')
+        throw new Error(data.message || data.error || 'Failed to run scraper')
       }
 
-      setScraperMessage('✓ Scraper completed! Refreshing articles...')
-      // Refresh articles after scraping
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      await fetchArticles()
+      setScraperMessage(`✓ ${data.message}`)
+      await fetchSummary()
     } catch (err) {
-      console.error('Error running scraper:', err)
       setScraperMessage(
-        err instanceof Error ? `✗ Error: ${err.message}` : '✗ Failed to run scraper'
+        err instanceof Error ? `✗ ${err.message}` : '✗ Failed to run scraper'
       )
     } finally {
       setIsScraperRunning(false)
     }
   }
 
-  const columns: ColumnDef<DailyInsight>[] = [
-    {
-      accessorKey: 'title',
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Title" />
-      ),
-      cell: ({ row }) => (
-        <div className="max-w-md">
-          <p className="truncate font-medium text-sm">{row.original.title}</p>
-          <p className="truncate text-xs text-muted-foreground">{row.original.source}</p>
+  if (isLoading) {
+    return (
+      <div className="p-6 flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-orange-500 mx-auto mb-4" />
+          <p className="text-gray-500">Loading insights...</p>
         </div>
-      ),
-    },
-    {
-      accessorKey: 'industry',
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Industry" />
-      ),
-      cell: ({ row }) => (
-        <Badge variant="outline">{row.original.industry || 'General'}</Badge>
-      ),
-    },
-    {
-      accessorKey: 'scrapedAt',
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Scraped" />
-      ),
-      cell: ({ row }) => (
-        <span className="text-sm text-muted-foreground">
-          {new Date(row.original.scrapedAt).toLocaleDateString()} at{' '}
-          {new Date(row.original.scrapedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-        </span>
-      ),
-    },
-    {
-      accessorKey: 'status',
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Status" />
-      ),
-      cell: ({ row }) => (
-        <Badge variant={statusConfig[row.original.status].variant}>
-          {statusConfig[row.original.status].label}
-        </Badge>
-      ),
-    },
-    {
-      id: 'actions',
-      cell: ({ row }) => {
-        const article = row.original
-        return (
-          <div className="flex items-center gap-2 justify-end">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => viewModal.open(article)}
-              className="text-blue-600 hover:text-blue-800"
-              title="View article details"
-            >
-              <Eye className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => handleAccept(article)}
-              disabled={isAccepting === article.id}
-              className="text-green-600 hover:text-green-800"
-              title="Accept and create web publication"
-            >
-              {isAccepting === article.id ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <CheckCircle className="h-4 w-4" />
-              )}
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => handleArchive(article)}
-              className="text-gray-500 hover:text-gray-700"
-              title="Archive article"
-            >
-              <Archive className="h-4 w-4" />
-            </Button>
-          </div>
-        )
-      },
-    },
-  ]
+      </div>
+    )
+  }
+
+  const totalPending = (summary?.clients.reduce((s, c) => s + c.pending, 0) || 0) + (summary?.unassigned.pending || 0)
+  const totalAccepted = (summary?.clients.reduce((s, c) => s + c.accepted, 0) || 0) + (summary?.unassigned.accepted || 0)
+  const totalArticles = (summary?.clients.reduce((s, c) => s + c.total, 0) || 0) + (summary?.unassigned.total || 0)
 
   return (
-    <div className="space-y-6">
+    <div className="p-4 sm:p-6 space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Daily Insights</h1>
-          <p className="text-muted-foreground mt-2">
-            AI-powered news articles collected from various sources. Review and accept articles to create publications.
-          </p>
+          <h1 className="text-2xl lg:text-3xl font-bold text-gray-800">Daily Insights</h1>
+          <p className="text-gray-500 mt-1">Review scraped articles by client</p>
         </div>
         <Button
           onClick={handleRunScraper}
           disabled={isScraperRunning}
-          className="gap-2"
-          size="lg"
+          className="gap-2 bg-orange-500 hover:bg-orange-600"
         >
           {isScraperRunning ? (
-            <>
-              <span className="h-4 w-4 animate-spin">⟳</span>
-              Scraping...
-            </>
+            <><Loader2 className="h-4 w-4 animate-spin" /> Scraping...</>
           ) : (
-            <>
-              <RefreshCw className="h-4 w-4" />
-              Run Scraper
-            </>
+            <><RefreshCw className="h-4 w-4" /> Run Scraper</>
           )}
         </Button>
       </div>
 
       {/* Scraper Message */}
       {scraperMessage && (
-        <div
-          className={`p-4 rounded-lg text-sm font-medium ${
-            scraperMessage.startsWith('✓')
-              ? 'bg-green-50 text-green-700 border border-green-200'
-              : 'bg-red-50 text-red-700 border border-red-200'
-          }`}
-        >
+        <div className={`p-3 rounded-lg text-sm font-medium ${
+          scraperMessage.startsWith('✓')
+            ? 'bg-green-50 text-green-700 border border-green-200'
+            : 'bg-red-50 text-red-700 border border-red-200'
+        }`}>
           {scraperMessage}
         </div>
       )}
 
-      {/* Error Alert */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-          {error}
-        </div>
-      )}
-
-      {/* Articles Table */}
-      <div className="bg-white rounded-lg border">
-        {isLoading ? (
-          <div className="flex justify-center items-center h-96">
-            <div className="text-center">
-              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 text-gray-400" />
-              <p className="text-muted-foreground">Loading articles...</p>
+      {/* Overview Stats */}
+      <div className="grid grid-cols-3 gap-4">
+        <Card>
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-amber-100">
+              <Clock className="h-5 w-5 text-amber-600" />
             </div>
-          </div>
-        ) : articles.length === 0 ? (
-          <div className="flex justify-center items-center h-96">
-            <div className="text-center">
-              <p className="text-muted-foreground mb-2">No pending articles found</p>
-              <p className="text-sm text-muted-foreground">
-                Articles will appear here when they are scraped from configured sources
-              </p>
+            <div>
+              <p className="text-2xl font-bold text-gray-800">{totalPending}</p>
+              <p className="text-sm text-gray-500">Pending</p>
             </div>
-          </div>
-        ) : (
-          <DataTable
-            columns={columns}
-            data={articles}
-            searchPlaceholder="Search articles..."
-            searchColumn="title"
-          />
-        )}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-emerald-100">
+              <CheckCircle className="h-5 w-5 text-emerald-600" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-gray-800">{totalAccepted}</p>
+              <p className="text-sm text-gray-500">Accepted</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-blue-100">
+              <FileText className="h-5 w-5 text-blue-600" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-gray-800">{totalArticles}</p>
+              <p className="text-sm text-gray-500">Total</p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Article View Modal */}
-      <Dialog open={viewModal.isOpen} onOpenChange={viewModal.close}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-xl">{viewModal.data?.title}</DialogTitle>
-            <DialogDescription className="text-base">
-              {viewModal.data?.source && (
-                <span className="text-muted-foreground">
-                  From <strong>{viewModal.data.source}</strong>
-                </span>
-              )}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            {/* Metadata */}
-            <div className="grid grid-cols-2 gap-4 bg-muted p-3 rounded">
-              {viewModal.data?.industry && (
-                <div>
-                  <span className="text-xs font-semibold text-muted-foreground">Industry</span>
-                  <p className="text-sm font-medium">{viewModal.data.industry}</p>
+      {/* Client Cards */}
+      <div className="space-y-3">
+        {summary?.clients.filter(c => c.total > 0).map((client) => (
+          <Link key={client.id} href={`/daily-insights/${client.id}`}>
+            <Card className="hover:shadow-md transition-shadow cursor-pointer group">
+              <CardContent className="p-4 flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-amber-500 flex items-center justify-center text-white font-semibold">
+                    {client.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-800">{client.name}</p>
+                    <p className="text-sm text-gray-500">{client.total} articles</p>
+                  </div>
                 </div>
-              )}
-              <div>
-                <span className="text-xs font-semibold text-muted-foreground">Scraped Date</span>
-                <p className="text-sm font-medium">
-                  {new Date(viewModal.data?.scrapedAt || '').toLocaleDateString()} at{' '}
-                  {new Date(viewModal.data?.scrapedAt || '').toLocaleTimeString()}
-                </p>
-              </div>
-            </div>
+                <div className="flex items-center gap-3">
+                  {client.pending > 0 && (
+                    <Badge variant="secondary" className="bg-amber-100 text-amber-700 hover:bg-amber-100">
+                      <Clock className="h-3 w-3 mr-1" />
+                      {client.pending} pending
+                    </Badge>
+                  )}
+                  {client.accepted > 0 && (
+                    <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
+                      <CheckCircle className="h-3 w-3 mr-1" />
+                      {client.accepted} accepted
+                    </Badge>
+                  )}
+                  <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-orange-500 transition-colors" />
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+        ))}
 
-            {/* Description */}
-            {viewModal.data?.description && (
-              <div>
-                <h3 className="font-semibold text-sm mb-2">Summary</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  {viewModal.data.description}
-                </p>
-              </div>
-            )}
+        {/* Unassigned articles */}
+        {summary && summary.unassigned.total > 0 && (
+          <Link href="/daily-insights/unassigned">
+            <Card className="hover:shadow-md transition-shadow cursor-pointer group border-dashed">
+              <CardContent className="p-4 flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 font-semibold">
+                    <Sparkles className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-800">Unassigned</p>
+                    <p className="text-sm text-gray-500">{summary.unassigned.total} articles not linked to a client</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  {summary.unassigned.pending > 0 && (
+                    <Badge variant="secondary" className="bg-amber-100 text-amber-700 hover:bg-amber-100">
+                      <Clock className="h-3 w-3 mr-1" />
+                      {summary.unassigned.pending} pending
+                    </Badge>
+                  )}
+                  {summary.unassigned.accepted > 0 && (
+                    <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
+                      <CheckCircle className="h-3 w-3 mr-1" />
+                      {summary.unassigned.accepted} accepted
+                    </Badge>
+                  )}
+                  <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-orange-500 transition-colors" />
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+        )}
 
-            {/* URL */}
-            <div>
-              <h3 className="font-semibold text-sm mb-2">Source URL</h3>
-              <div className="flex items-center gap-2 bg-muted p-3 rounded text-sm">
-                <code className="text-xs truncate flex-1">{viewModal.data?.url}</code>
-                {viewModal.data?.url && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => window.open(viewModal.data?.url, '_blank')}
-                    className="whitespace-nowrap"
-                  >
-                    <ExternalLink className="h-4 w-4 mr-1" />
-                    Open
-                  </Button>
-                )}
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex gap-2 pt-4 border-t">
-              <Button
-                onClick={() => handleAccept(viewModal.data!)}
-                disabled={isAccepting === viewModal.data?.id}
-                className="flex-1"
-              >
-                {isAccepting === viewModal.data?.id ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Accepting...
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                    Accept & Create Publication
-                  </>
-                )}
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  handleArchive(viewModal.data!)
-                  viewModal.close()
-                }}
-                className="flex-1"
-              >
-                <Archive className="h-4 w-4 mr-2" />
-                Archive
-              </Button>
-              <Button variant="ghost" onClick={viewModal.close} className="flex-1">
-                Close
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+        {/* Empty state */}
+        {summary && summary.clients.every(c => c.total === 0) && summary.unassigned.total === 0 && (
+          <Card>
+            <CardContent className="p-12 text-center">
+              <Sparkles className="h-10 w-10 text-gray-300 mx-auto mb-3" />
+              <p className="text-gray-500 mb-1">No articles yet</p>
+              <p className="text-sm text-gray-400">Click "Run Scraper" to fetch articles from configured sources</p>
+            </CardContent>
+          </Card>
+        )}
+      </div>
     </div>
   )
 }
