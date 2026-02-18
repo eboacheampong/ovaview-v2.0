@@ -7,41 +7,80 @@ const SCRAPER_API = process.env.NEXT_PUBLIC_SCRAPER_API || 'http://localhost:500
 
 /**
  * POST /api/daily-insights/scrape
- * Build sources from web publications + client keywords, call remote scraper, save results
+ * 
+ * Scraping strategy:
+ * 1. Fetch all web publications (sources to scrape)
+ * 2. Fetch all active clients with their newsKeywords + linked Keywords
+ * 3. Send sources to remote scraper
+ * 4. For each returned article, match to clients using keyword relevance:
+ *    - Build a keyword→client map from each client's newsKeywords + Keyword relations
+ *    - Score each article against every client's keywords
+ *    - If a keyword is unique to one client → strong match
+ *    - If a keyword is shared by multiple clients → weak match (only counts if other unique keywords also match)
+ *    - Assign to the client with the highest relevance score
+ *    - Only mark as unassigned if no keywords match at all
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}))
     const forceClientId = body?.clientId || null
 
-    // Build sources from web publications that have a website URL
+    // 1. Get web publication URLs (scraping sources)
     const publications = await prisma.webPublication.findMany({
       where: { isActive: true, website: { not: null } },
       select: { website: true },
     })
 
-    // Get client keywords for industry tagging
+    // 2. Get all active clients with their keywords
     const clients = await prisma.client.findMany({
       where: { isActive: true },
       include: { keywords: { include: { keyword: true } } },
     })
 
-    // Collect unique industry keywords from clients
-    const industryKeywords = new Set<string>()
-    clients.forEach(c => {
+    // 3. Build per-client keyword lists (newsKeywords + linked Keywords)
+    const clientKeywordData = clients.map(c => {
+      const kwSet = new Set<string>()
+
+      // Add client name as implicit keyword
+      kwSet.add(c.name.toLowerCase().trim())
+
+      // Add newsKeywords (comma-separated string from client config)
       if (c.newsKeywords) {
         c.newsKeywords.split(',').forEach(k => {
           const trimmed = k.trim().toLowerCase()
-          if (trimmed) industryKeywords.add(trimmed)
+          if (trimmed) kwSet.add(trimmed)
         })
       }
-      c.keywords.forEach(ck => industryKeywords.add(ck.keyword.name.toLowerCase()))
+
+      // Add linked Keywords from the keyword management system
+      c.keywords.forEach(ck => {
+        kwSet.add(ck.keyword.name.toLowerCase().trim())
+      })
+
+      return {
+        clientId: c.id,
+        clientName: c.name,
+        keywords: Array.from(kwSet),
+      }
     })
 
-    // Build sources array: [url, spider_type, industry]
+    // 4. Build keyword→clients ownership map to detect shared vs unique keywords
+    const keywordOwnership = new Map<string, string[]>()
+    for (const entry of clientKeywordData) {
+      for (const kw of entry.keywords) {
+        const owners = keywordOwnership.get(kw) || []
+        owners.push(entry.clientId)
+        keywordOwnership.set(kw, owners)
+      }
+    }
+
+    // Collect all unique keywords across all clients for the scraper's industry tag
+    const allKeywords = Array.from(keywordOwnership.keys())
+
+    // 5. Build sources array for the remote scraper
     const sources = publications
       .filter(p => p.website)
-      .map(p => [p.website!, 'news', Array.from(industryKeywords).slice(0, 3).join(',') || 'general'])
+      .map(p => [p.website!, 'news', allKeywords.slice(0, 10).join(',') || 'general'])
 
     if (sources.length === 0) {
       return NextResponse.json({
@@ -51,9 +90,9 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    console.log(`Calling scraper with ${sources.length} sources from web publications`)
+    console.log(`Scraping ${sources.length} sources, matching against ${clientKeywordData.length} clients with ${allKeywords.length} total keywords`)
 
-    // Call remote scraper with our sources
+    // 6. Call remote scraper
     let scraperResponse = await fetch(`${SCRAPER_API}/api/scrape`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -83,16 +122,7 @@ export async function POST(request: NextRequest) {
 
     const articlesData: any[] = scraperData.articles || []
 
-    // Build client keyword map for auto-matching
-    const clientKeywordMap = clients.map(c => ({
-      clientId: c.id,
-      keywords: [
-        c.name.toLowerCase(),
-        ...(c.newsKeywords?.split(',').map(k => k.trim().toLowerCase()).filter(Boolean) || []),
-        ...c.keywords.map(ck => ck.keyword.name.toLowerCase()),
-      ].filter(Boolean),
-    }))
-
+    // 7. Match articles to clients using intelligent keyword scoring
     let savedCount = 0
     let duplicateCount = 0
     const errors: string[] = []
@@ -105,16 +135,63 @@ export async function POST(request: NextRequest) {
         const existing = await prisma.dailyInsight.findUnique({ where: { url } })
         if (existing) { duplicateCount++; continue }
 
-        // Auto-match to client
+        // Determine client assignment
         let matchedClientId = forceClientId
+        let matchedIndustry = industry || 'general'
+
         if (!matchedClientId) {
-          const text = `${title} ${description || ''} ${source || ''}`.toLowerCase()
-          for (const entry of clientKeywordMap) {
-            if (entry.keywords.some(kw => text.includes(kw))) {
-              matchedClientId = entry.clientId
-              break
+          const articleText = `${title} ${description || ''}`.toLowerCase()
+
+          // Score each client based on keyword matches
+          let bestClientId: string | null = null
+          let bestScore = 0
+          let bestKeywordsMatched: string[] = []
+
+          for (const entry of clientKeywordData) {
+            let score = 0
+            const matched: string[] = []
+
+            for (const kw of entry.keywords) {
+              // Check if keyword appears in article text
+              // Use word boundary-aware matching for short keywords (<=4 chars)
+              // and substring matching for longer keywords
+              let found = false
+              if (kw.length <= 4) {
+                // For short keywords, require word boundary to avoid false positives
+                // e.g. "AI" shouldn't match "said", "oil" shouldn't match "soil"
+                const regex = new RegExp(`\\b${kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i')
+                found = regex.test(articleText)
+              } else {
+                found = articleText.includes(kw)
+              }
+
+              if (found) {
+                matched.push(kw)
+                const owners = keywordOwnership.get(kw) || []
+                if (owners.length === 1) {
+                  // Unique keyword — strong signal, worth more
+                  score += 3
+                } else {
+                  // Shared keyword — weaker signal
+                  score += 1
+                }
+              }
+            }
+
+            if (score > bestScore) {
+              bestScore = score
+              bestClientId = entry.clientId
+              bestKeywordsMatched = matched
             }
           }
+
+          // Only assign if we have a meaningful match (at least one keyword hit)
+          if (bestScore > 0 && bestClientId) {
+            matchedClientId = bestClientId
+            // Use the matched keywords as the industry tag for context
+            matchedIndustry = bestKeywordsMatched.slice(0, 3).join(', ') || matchedIndustry
+          }
+          // If bestScore is 0, matchedClientId stays null → unassigned
         }
 
         await prisma.dailyInsight.create({
@@ -123,7 +200,7 @@ export async function POST(request: NextRequest) {
             url,
             description: description ? description.substring(0, 1000) : '',
             source: source || '',
-            industry: industry || 'general',
+            industry: matchedIndustry,
             clientId: matchedClientId,
             status: 'pending',
             scrapedAt: scraped_at ? new Date(scraped_at) : new Date(),
@@ -135,10 +212,18 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const assignedCount = savedCount - errors.length
     return NextResponse.json({
       success: true,
-      message: `Scraped ${sources.length} sources. Saved ${savedCount}, skipped ${duplicateCount} duplicates.`,
-      stats: { scraped: articlesData.length, saved: savedCount, duplicates: duplicateCount, sources: sources.length },
+      message: `Scraped ${sources.length} sources. Saved ${savedCount} articles, skipped ${duplicateCount} duplicates.`,
+      stats: {
+        scraped: articlesData.length,
+        saved: savedCount,
+        duplicates: duplicateCount,
+        sources: sources.length,
+        clients: clientKeywordData.length,
+        keywords: allKeywords.length,
+      },
     })
   } catch (error) {
     console.error('Scraper error:', error)
