@@ -6,27 +6,70 @@ export const dynamic = 'force-dynamic'
 const SCRAPER_API = process.env.NEXT_PUBLIC_SCRAPER_API || 'http://localhost:5000'
 
 /**
+ * Escape special regex characters properly
+ */
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+/**
+ * Check if a keyword matches anywhere in the article text or URL.
+ * - Keywords <= 3 chars: word-boundary match only
+ * - Keywords 4-5 chars: word-boundary start match + URL substring
+ * - Keywords 6+ chars: plain substring match + stem variants
+ */
+function keywordMatchesText(keyword: string, text: string, url: string): boolean {
+  const kw = keyword.toLowerCase().trim()
+  if (!kw) return false
+  const lowerText = text.toLowerCase()
+  const lowerUrl = url.toLowerCase()
+
+  if (kw.length <= 3) {
+    const pattern = new RegExp('\\b' + escapeRegex(kw) + '\\b', 'i')
+    return pattern.test(lowerText) || pattern.test(lowerUrl)
+  }
+
+  if (kw.length <= 5) {
+    const pattern = new RegExp('\\b' + escapeRegex(kw), 'i')
+    return pattern.test(lowerText) || lowerUrl.includes(kw)
+  }
+
+  // 6+ chars: substring match
+  if (lowerText.includes(kw) || lowerUrl.includes(kw)) return true
+
+  // Try stem matching: strip common suffixes and check
+  const suffixes = ['ing', 'tion', 'sion', 'ment', 'ness', 'ity', 'ies', 'ous', 'ive', 'able', 'ible', 'ful', 'less', 'ence', 'ance', 'ers', 'est', 'ism', 'ist', 'al', 'ly', 'ed', 'er', 'es', 's']
+  for (const suffix of suffixes) {
+    if (kw.endsWith(suffix) && kw.length - suffix.length >= 4) {
+      const stem = kw.slice(0, -suffix.length)
+      if (lowerText.includes(stem)) return true
+    }
+  }
+
+  return false
+}
+
+/**
  * POST /api/daily-insights/scrape
  *
- * Strategy:
- * 1. Scrape articles from web publication URLs
- * 2. Match each article to clients using their newsKeywords + linked Keywords
- * 3. If an article matches multiple clients, create a row for EACH client
- *    (same url, different clientId — composite unique on [url, clientId])
- * 4. Articles that match zero clients are discarded (no "unassigned")
+ * 1. Fetch FRESH client keywords from DB every time
+ * 2. Scrape articles from web publication URLs
+ * 3. Match each article against title + description + URL + source
+ * 4. Multi-client: same article can appear under multiple clients
+ * 5. No "unassigned" — unmatched articles are discarded
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}))
     const forceClientId = body?.clientId || null
 
-    // 1. Get sources
+    // 1. Get sources from web publications
     const publications = await prisma.webPublication.findMany({
       where: { isActive: true, website: { not: null } },
       select: { website: true },
     })
 
-    // 2. Get clients with keywords
+    // 2. ALWAYS fetch fresh client keywords from DB
     const clients = await prisma.client.findMany({
       where: { isActive: true },
       include: { keywords: { include: { keyword: true } } },
@@ -35,25 +78,35 @@ export async function POST(request: NextRequest) {
     // 3. Build per-client keyword lists
     const clientKeywordData = clients.map(c => {
       const kwSet = new Set<string>()
-      kwSet.add(c.name.toLowerCase().trim())
+
+      // Client name
+      const name = c.name.toLowerCase().trim()
+      if (name) kwSet.add(name)
+
+      // newsKeywords field (comma-separated)
       if (c.newsKeywords) {
         c.newsKeywords.split(',').forEach(k => {
           const t = k.trim().toLowerCase()
           if (t) kwSet.add(t)
         })
       }
-      c.keywords.forEach(ck => kwSet.add(ck.keyword.name.toLowerCase().trim()))
+
+      // Linked Keyword records
+      c.keywords.forEach(ck => {
+        const kn = ck.keyword.name.toLowerCase().trim()
+        if (kn) kwSet.add(kn)
+      })
+
       return { clientId: c.id, clientName: c.name, keywords: Array.from(kwSet) }
     })
 
-    // Collect all keywords for the scraper tag
     const allKeywords = new Set<string>()
     clientKeywordData.forEach(e => e.keywords.forEach(k => allKeywords.add(k)))
 
     // 4. Build sources
     const sources = publications
       .filter(p => p.website)
-      .map(p => [p.website!, 'news', Array.from(allKeywords).slice(0, 10).join(',') || 'general'])
+      .map(p => [p.website!, 'news', Array.from(allKeywords).slice(0, 15).join(',') || 'general'])
 
     if (sources.length === 0) {
       return NextResponse.json({
@@ -63,7 +116,8 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    console.log(`Scraping ${sources.length} sources, matching against ${clientKeywordData.length} clients`)
+    console.log(`[Scraper] ${sources.length} sources, ${clientKeywordData.length} clients, ${allKeywords.size} keywords`)
+    clientKeywordData.forEach(c => console.log(`  -> ${c.clientName}: [${c.keywords.join(', ')}]`))
 
     // 5. Call remote scraper
     let scraperResponse = await fetch(`${SCRAPER_API}/api/scrape`, {
@@ -94,8 +148,9 @@ export async function POST(request: NextRequest) {
     }
 
     const articlesData: any[] = scraperData.articles || []
+    console.log(`[Scraper] Received ${articlesData.length} articles`)
 
-    // 6. Match & save — each article can go to multiple clients
+    // 6. Match & save
     let savedCount = 0
     let duplicateCount = 0
     let skippedNoMatch = 0
@@ -105,7 +160,7 @@ export async function POST(request: NextRequest) {
         const { title, url, description, source, industry, scraped_at } = article
         if (!title || !url) continue
 
-        // If forceClientId, just save for that client
+        // Force-assign to a specific client
         if (forceClientId) {
           const existing = await prisma.dailyInsight.findFirst({
             where: { url, clientId: forceClientId },
@@ -124,35 +179,26 @@ export async function POST(request: NextRequest) {
           continue
         }
 
-        // Score each client
-        const articleText = `${title} ${description || ''}`.toLowerCase()
+        // Match against all clients using title + description + source + url
+        const searchText = `${title} ${description || ''} ${source || ''}`
         const matchedClients: { clientId: string; keyword: string }[] = []
 
         for (const entry of clientKeywordData) {
           for (const kw of entry.keywords) {
-            let found = false
-            if (kw.length <= 4) {
-              const escaped = kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-              found = new RegExp(`\\b${escaped}\\b`, 'i').test(articleText)
-            } else {
-              found = articleText.includes(kw)
-            }
-            if (found) {
+            if (keywordMatchesText(kw, searchText, url)) {
               matchedClients.push({ clientId: entry.clientId, keyword: kw })
-              break // one keyword match is enough to assign to this client
+              break // one match per client is enough
             }
           }
         }
 
-        // Deduplicate client IDs
         const uniqueClientIds = Array.from(new Set(matchedClients.map(m => m.clientId)))
 
         if (uniqueClientIds.length === 0) {
           skippedNoMatch++
-          continue // no match = don't save at all
+          continue
         }
 
-        // Create a row for each matched client
         for (const cid of uniqueClientIds) {
           const existing = await prisma.dailyInsight.findFirst({
             where: { url, clientId: cid },
@@ -176,6 +222,8 @@ export async function POST(request: NextRequest) {
         console.error('Error saving article:', error)
       }
     }
+
+    console.log(`[Scraper] Done: saved=${savedCount}, dupes=${duplicateCount}, unmatched=${skippedNoMatch}`)
 
     return NextResponse.json({
       success: true,
