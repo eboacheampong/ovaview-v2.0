@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
+export const dynamic = 'force-dynamic'
+
 // Helper to sync keywords from text to Keyword table
 async function syncKeywords(keywordsText: string | null | undefined, clientId: string) {
   if (!keywordsText) return

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * PUT /api/daily-insights/[id]
  * Update a daily insight (e.g. mark as accepted)

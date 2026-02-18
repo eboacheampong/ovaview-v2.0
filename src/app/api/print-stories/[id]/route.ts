@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
+export const dynamic = 'force-dynamic'
+
 // Validation helper for sentiment fields
 function validateSentimentFields(body: {
   sentimentPositive?: number | null

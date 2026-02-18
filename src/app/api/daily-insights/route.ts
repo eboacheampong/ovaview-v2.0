@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { DailyInsightStatus } from '@prisma/client'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * GET /api/daily-insights
  * Fetch daily insights articles for a specific client
