@@ -6,17 +6,16 @@ export const dynamic = 'force-dynamic'
 /**
  * GET /api/daily-insights/summary
  * Returns article counts grouped by client with pending/accepted breakdown
+ * No "unassigned" — every article belongs to at least one client
  */
 export async function GET() {
   try {
-    // Get all clients
     const clients = await prisma.client.findMany({
       where: { isActive: true },
       select: { id: true, name: true },
       orderBy: { name: 'asc' },
     })
 
-    // Get counts per client
     const clientSummaries = await Promise.all(
       clients.map(async (client) => {
         const [pending, accepted, total] = await Promise.all([
@@ -28,17 +27,7 @@ export async function GET() {
       })
     )
 
-    // Also get unassigned articles (no client)
-    const [unassignedPending, unassignedAccepted, unassignedTotal] = await Promise.all([
-      prisma.dailyInsight.count({ where: { clientId: null, status: 'pending' } }),
-      prisma.dailyInsight.count({ where: { clientId: null, status: 'accepted' } }),
-      prisma.dailyInsight.count({ where: { clientId: null } }),
-    ])
-
-    return NextResponse.json({
-      clients: clientSummaries,
-      unassigned: { pending: unassignedPending, accepted: unassignedAccepted, total: unassignedTotal },
-    })
+    return NextResponse.json({ clients: clientSummaries })
   } catch (error) {
     console.error('Error fetching daily insights summary:', error)
     return NextResponse.json({ error: 'Failed to fetch summary' }, { status: 500 })

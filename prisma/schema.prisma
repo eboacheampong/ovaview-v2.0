@@ -536,7 +536,7 @@ enum DailyInsightStatus {
 model DailyInsight {
   id        String   @id @default(cuid())
   title     String
-  url       String   @unique
+  url       String
   description String?
   source    String?
   industry  String   @default("general")
@@ -549,6 +549,7 @@ model DailyInsight {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@unique([url, clientId])
   @@index([clientId])
   @@index([status])
   @@index([scrapedAt(sort: Desc)])

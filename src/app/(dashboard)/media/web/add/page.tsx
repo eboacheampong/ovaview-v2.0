@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label'
 import { RichTextEditor } from '@/components/ui/rich-text-editor'
 import { SentimentDisplay } from '@/components/ui/sentiment-display'
 import { KeywordInput } from '@/components/ui/keyword-input'
-import { Camera, ChevronRight, ChevronLeft, Link2, Loader2, Sparkles, X, Globe, Calendar, User, FileText, Image as ImageIcon, Trash2, Wand2 } from 'lucide-react'
+import { Camera, ChevronRight, ChevronLeft, Link2, Loader2, Sparkles, X, Globe, Calendar, User, FileText, Image as ImageIcon, Trash2, Wand2, AlertTriangle } from 'lucide-react'
 
 interface Publication {
   id: string
@@ -69,6 +69,36 @@ export default function AddWebStoryPage() {
   const [extractSuccess, setExtractSuccess] = useState(false)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [analyzeError, setAnalyzeError] = useState('')
+  const [urlDuplicate, setUrlDuplicate] = useState<{ exists: boolean; story?: { id: string; title: string } } | null>(null)
+  const [isCheckingUrl, setIsCheckingUrl] = useState(false)
+
+  // Check URL for duplicates when it changes
+  const checkUrlDuplicate = useCallback(async (url: string) => {
+    if (!url || url.length < 10) {
+      setUrlDuplicate(null)
+      return
+    }
+    setIsCheckingUrl(true)
+    try {
+      const res = await fetch(`/api/web-stories/check-url?url=${encodeURIComponent(url)}`)
+      if (res.ok) {
+        const data = await res.json()
+        setUrlDuplicate(data)
+      }
+    } catch {
+      setUrlDuplicate(null)
+    } finally {
+      setIsCheckingUrl(false)
+    }
+  }, [])
+
+  // Debounce URL check
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (formData.sourceUrl) checkUrlDuplicate(formData.sourceUrl)
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [formData.sourceUrl, checkUrlDuplicate])
 
   useEffect(() => {
     const fetchData = async () => {
@@ -276,7 +306,7 @@ export default function AddWebStoryPage() {
         throw new Error(error.details || error.error || 'Failed to create story')
       }
 
-      // If this was from a daily insight, mark it as accepted
+      // If this was from a daily insight, mark all insights with this URL as accepted
       if (insightId) {
         try {
           await fetch(`/api/daily-insights/${insightId}`, {
@@ -284,6 +314,14 @@ export default function AddWebStoryPage() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ status: 'accepted' }),
           })
+          // Also mark other client copies of the same URL as accepted
+          if (formData.sourceUrl) {
+            await fetch('/api/daily-insights/mark-accepted', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ url: formData.sourceUrl }),
+            })
+          }
         } catch (e) {
           console.error('Failed to mark insight as accepted:', e)
         }
@@ -340,6 +378,12 @@ export default function AddWebStoryPage() {
 
           {extractError && <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">{extractError}</div>}
           {extractSuccess && <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg text-green-600 text-sm flex items-center gap-2"><Sparkles className="h-4 w-4" />Article content and images extracted successfully!</div>}
+          {urlDuplicate?.exists && (
+            <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-700 text-sm flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+              <span>This URL has already been published as "<span className="font-medium">{urlDuplicate.story?.title}</span>"</span>
+            </div>
+          )}
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">

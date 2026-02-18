@@ -30,10 +30,7 @@ export async function GET(request: NextRequest) {
       where.status = status
     }
     
-    // Support 'unassigned' as a special clientId value
-    if (clientId === 'unassigned') {
-      where.clientId = null
-    } else if (clientId) {
+    if (clientId) {
       where.clientId = clientId
     }
 
