@@ -64,10 +64,21 @@ interface ClientKeywordEntry {
 /**
  * Fetch fresh client keyword data from DB.
  * Combines: client name + newsKeywords field + linked Keyword records.
+ * If specificClientId is provided, only fetch keywords for that client.
  */
-async function getClientKeywords(): Promise<ClientKeywordEntry[]> {
+async function getClientKeywords(specificClientId?: string | null): Promise<ClientKeywordEntry[]> {
+  const whereClause: { isActive?: boolean; id?: string } = {}
+  
+  if (specificClientId) {
+    // For single-client scrape, fetch that client regardless of active status
+    whereClause.id = specificClientId
+  } else {
+    // For global scrape, only active clients
+    whereClause.isActive = true
+  }
+
   const clients = await prisma.client.findMany({
-    where: { isActive: true },
+    where: whereClause,
     include: { keywords: { include: { keyword: true } } },
   })
 
@@ -250,7 +261,25 @@ export async function POST(request: NextRequest) {
     })
 
     // 2. Fetch FRESH keywords from DB
-    const clientKeywordData = await getClientKeywords()
+    // If clientId is provided, only get that client's keywords
+    const clientKeywordData = await getClientKeywords(forceClientId)
+
+    // If single-client mode and client has no keywords, return early
+    if (forceClientId && clientKeywordData.length === 0) {
+      return NextResponse.json({
+        success: false,
+        error: 'Client not found',
+        message: 'The specified client does not exist.',
+      }, { status: 404 })
+    }
+
+    if (forceClientId && clientKeywordData[0]?.keywords.length === 0) {
+      return NextResponse.json({
+        success: true,
+        message: 'No keywords configured for this client. Add keywords to enable scraping.',
+        stats: { scraped: 0, saved: 0, duplicates: 0 },
+      })
+    }
 
     // Collect all keywords for scraper tag
     const allKeywords = new Set<string>()
@@ -269,7 +298,10 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    console.log(`[Scraper] ${sources.length} sources, ${clientKeywordData.length} clients, ${allKeywords.size} keywords`)
+    const clientInfo = forceClientId 
+      ? `single client (${clientKeywordData[0]?.clientName})` 
+      : `${clientKeywordData.length} clients`
+    console.log(`[Scraper] ${sources.length} sources, ${clientInfo}, ${allKeywords.size} keywords`)
     clientKeywordData.forEach(c => console.log(`  -> ${c.clientName}: [${c.keywords.join(', ')}]`))
 
     // 4. Call remote scraper
@@ -314,26 +346,7 @@ export async function POST(request: NextRequest) {
         const { title, url, description, source, industry, scraped_at } = article
         if (!title || !url) continue
 
-        // Force-assign mode
-        if (forceClientId) {
-          const existing = await prisma.dailyInsight.findFirst({
-            where: { url, clientId: forceClientId },
-          })
-          if (existing) { duplicateCount++; continue }
-          await prisma.dailyInsight.create({
-            data: {
-              title: title.substring(0, 255), url,
-              description: description ? description.substring(0, 1000) : '',
-              source: source || '', industry: industry || 'general',
-              clientId: forceClientId, status: 'pending',
-              scrapedAt: scraped_at ? new Date(scraped_at) : new Date(),
-            },
-          })
-          savedCount++
-          continue
-        }
-
-        // Quick match
+        // Quick match against client keywords (works for both single and multi-client)
         const matches = matchArticleToClients(article, clientKeywordData)
         const uniqueClientIds = Array.from(new Set(matches.map(m => m.clientId)))
 
