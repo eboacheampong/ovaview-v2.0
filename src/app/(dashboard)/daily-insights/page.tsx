@@ -13,6 +13,7 @@ import Link from 'next/link'
 interface ClientSummary {
   id: string
   name: string
+  logoUrl?: string | null
   pending: number
   accepted: number
   total: number
@@ -142,9 +143,17 @@ export default function DailyInsightsPage() {
             <Card className="hover:shadow-md transition-shadow cursor-pointer group">
               <CardContent className="p-4 flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-amber-500 flex items-center justify-center text-white font-semibold">
-                    {client.name.charAt(0).toUpperCase()}
-                  </div>
+                  {client.logoUrl ? (
+                    <img 
+                      src={client.logoUrl} 
+                      alt={client.name} 
+                      className="w-10 h-10 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-amber-500 flex items-center justify-center text-white font-semibold">
+                      {client.name.charAt(0).toUpperCase()}
+                    </div>
+                  )}
                   <div>
                     <p className="font-semibold text-gray-800">{client.name}</p>
                     <p className="text-sm text-gray-500">{client.total} articles</p>

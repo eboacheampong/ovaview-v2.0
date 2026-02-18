@@ -12,7 +12,7 @@ export async function GET() {
   try {
     const clients = await prisma.client.findMany({
       where: { isActive: true },
-      select: { id: true, name: true },
+      select: { id: true, name: true, logoUrl: true },
       orderBy: { name: 'asc' },
     })
 
@@ -23,7 +23,7 @@ export async function GET() {
           prisma.dailyInsight.count({ where: { clientId: client.id, status: 'accepted' } }),
           prisma.dailyInsight.count({ where: { clientId: client.id } }),
         ])
-        return { id: client.id, name: client.name, pending, accepted, total }
+        return { id: client.id, name: client.name, logoUrl: client.logoUrl, pending, accepted, total }
       })
     )
 
