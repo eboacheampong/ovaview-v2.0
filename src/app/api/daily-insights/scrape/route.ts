@@ -125,9 +125,9 @@ function matchArticleToClients(
 }
 
 /**
- * Try to fetch the actual article page and extract more text.
- * This gives us much better keyword matching than just title + description.
- * Returns extracted text or empty string on failure.
+ * Extract ONLY the main article content from a webpage.
+ * Focuses on: title, meta tags, and the first ~1500 chars of actual article body.
+ * Excludes: footers, sidebars, nav, related articles, comments, ads.
  */
 async function fetchArticleFullText(url: string): Promise<string> {
   try {
@@ -146,32 +146,74 @@ async function fetchArticleFullText(url: string): Promise<string> {
     if (!res.ok) return ''
 
     const html = await res.text()
-
-    // Quick extraction: grab text from <p> tags, <article>, <meta description>
-    // We don't need perfect HTML parsing — just enough text for keyword matching
     let text = ''
 
-    // Meta description
-    const metaMatch = html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["']/i)
-    if (metaMatch) text += ' ' + metaMatch[1]
+    // 1. Meta tags (these are reliable and specific to the article)
+    const metaDesc = html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["']/i)
+    if (metaDesc) text += ' ' + metaDesc[1]
 
-    // Meta keywords
-    const kwMatch = html.match(/<meta[^>]*name=["']keywords["'][^>]*content=["']([^"']+)["']/i)
-    if (kwMatch) text += ' ' + kwMatch[1]
-
-    // OG title and description
     const ogTitle = html.match(/<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']+)["']/i)
     if (ogTitle) text += ' ' + ogTitle[1]
+
     const ogDesc = html.match(/<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']+)["']/i)
     if (ogDesc) text += ' ' + ogDesc[1]
 
-    // Strip HTML tags and get raw text from <p> tags (first 3000 chars)
-    const pTags = html.match(/<p[^>]*>([\s\S]*?)<\/p>/gi) || []
-    const pText = pTags
-      .map(p => p.replace(/<[^>]+>/g, '').trim())
-      .filter(t => t.length > 20)
-      .join(' ')
-    text += ' ' + pText.substring(0, 3000)
+    // 2. Page title
+    const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i)
+    if (titleMatch) text += ' ' + titleMatch[1]
+
+    // 3. Main headline (h1)
+    const h1Match = html.match(/<h1[^>]*>([^<]+)<\/h1>/i)
+    if (h1Match) text += ' ' + h1Match[1]
+
+    // 4. Try to find the main article content area
+    // Look for <article>, <main>, or common content class patterns
+    let articleHtml = ''
+    
+    // Try <article> tag first
+    const articleMatch = html.match(/<article[^>]*>([\s\S]*?)<\/article>/i)
+    if (articleMatch) {
+      articleHtml = articleMatch[1]
+    } else {
+      // Try <main> tag
+      const mainMatch = html.match(/<main[^>]*>([\s\S]*?)<\/main>/i)
+      if (mainMatch) {
+        articleHtml = mainMatch[1]
+      } else {
+        // Try common content div patterns
+        const contentMatch = html.match(/<div[^>]*class=["'][^"']*(?:article|content|post|entry|story)[^"']*["'][^>]*>([\s\S]*?)<\/div>/i)
+        if (contentMatch) {
+          articleHtml = contentMatch[1]
+        }
+      }
+    }
+
+    // 5. If we found article content, extract paragraphs from it
+    // Otherwise fall back to first few <p> tags from the page (but limit strictly)
+    if (articleHtml) {
+      // Remove noise sections from article HTML
+      articleHtml = articleHtml
+        .replace(/<(nav|footer|aside|header|script|style|noscript|iframe)[^>]*>[\s\S]*?<\/\1>/gi, '')
+        .replace(/<div[^>]*class=["'][^"']*(?:related|sidebar|comment|share|social|ad|promo|newsletter|footer|nav)[^"']*["'][^>]*>[\s\S]*?<\/div>/gi, '')
+
+      // Extract paragraphs from cleaned article
+      const pTags = articleHtml.match(/<p[^>]*>([\s\S]*?)<\/p>/gi) || []
+      const pText = pTags
+        .slice(0, 8) // Only first 8 paragraphs (the actual article intro)
+        .map(p => p.replace(/<[^>]+>/g, '').trim())
+        .filter(t => t.length > 30) // Skip very short paragraphs
+        .join(' ')
+      text += ' ' + pText.substring(0, 1500)
+    } else {
+      // Fallback: just get first 3 substantial paragraphs
+      const pTags = html.match(/<p[^>]*>([\s\S]*?)<\/p>/gi) || []
+      const pText = pTags
+        .slice(0, 5)
+        .map(p => p.replace(/<[^>]+>/g, '').trim())
+        .filter(t => t.length > 50)
+        .join(' ')
+      text += ' ' + pText.substring(0, 800)
+    }
 
     return text.trim()
   } catch {
