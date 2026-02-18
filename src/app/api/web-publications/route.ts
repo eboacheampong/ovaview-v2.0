@@ -17,8 +17,16 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { name, website } = body
-    const publication = await prisma.webPublication.create({ data: { name, website } })
+    const { name, website, location, reach, isActive } = body
+    const publication = await prisma.webPublication.create({
+      data: {
+        name,
+        website: website || null,
+        location: location || null,
+        reach: reach ? parseInt(reach) : 0,
+        isActive: isActive !== false,
+      },
+    })
     return NextResponse.json(publication, { status: 201 })
   } catch (error) {
     console.error('Error creating web publication:', error)

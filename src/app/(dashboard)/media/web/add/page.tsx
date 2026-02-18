@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -33,6 +33,9 @@ interface Keyword {
 
 export default function AddWebStoryPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const insightUrl = searchParams.get('insightUrl')
+  const insightId = searchParams.get('insightId')
   const [publications, setPublications] = useState<Publication[]>([])
   const [industries, setIndustries] = useState<Industry[]>([])
   const [availableKeywords, setAvailableKeywords] = useState<Keyword[]>([])
@@ -41,7 +44,7 @@ export default function AddWebStoryPage() {
     author: '',
     publicationId: '',
     publicationDate: '',
-    sourceUrl: '',
+    sourceUrl: insightUrl || '',
     summary: '',
     keywords: '',
     articleText: '',
@@ -271,6 +274,19 @@ export default function AddWebStoryPage() {
         const error = await response.json()
         console.error('API Error Response:', error)
         throw new Error(error.details || error.error || 'Failed to create story')
+      }
+
+      // If this was from a daily insight, mark it as accepted
+      if (insightId) {
+        try {
+          await fetch(`/api/daily-insights/${insightId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'accepted' }),
+          })
+        } catch (e) {
+          console.error('Failed to mark insight as accepted:', e)
+        }
       }
 
       router.push('/media/web')

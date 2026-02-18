@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
   Loader2, RefreshCw, Sparkles, ChevronRight,
-  Clock, CheckCircle, FileText
+  Clock, CheckCircle, FileText, Trash2
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -27,6 +27,7 @@ export default function DailyInsightsPage() {
   const [summary, setSummary] = useState<SummaryData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isScraperRunning, setIsScraperRunning] = useState(false)
+  const [isClearing, setIsClearing] = useState(false)
   const [scraperMessage, setScraperMessage] = useState<string | null>(null)
 
   useEffect(() => {
@@ -74,6 +75,23 @@ export default function DailyInsightsPage() {
     }
   }
 
+  const handleClearInsights = async () => {
+    if (!confirm('Delete all insights? This cannot be undone.')) return
+    try {
+      setIsClearing(true)
+      setScraperMessage(null)
+      const res = await fetch('/api/daily-insights/clear', { method: 'DELETE' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to clear')
+      setScraperMessage(`✓ Cleared ${data.deleted} insights`)
+      await fetchSummary()
+    } catch (err) {
+      setScraperMessage(err instanceof Error ? `✗ ${err.message}` : '✗ Failed to clear')
+    } finally {
+      setIsClearing(false)
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="p-6 flex items-center justify-center min-h-[60vh]">
@@ -97,17 +115,31 @@ export default function DailyInsightsPage() {
           <h1 className="text-2xl lg:text-3xl font-bold text-gray-800">Daily Insights</h1>
           <p className="text-gray-500 mt-1">Review scraped articles by client</p>
         </div>
-        <Button
-          onClick={handleRunScraper}
-          disabled={isScraperRunning}
-          className="gap-2 bg-orange-500 hover:bg-orange-600"
-        >
-          {isScraperRunning ? (
-            <><Loader2 className="h-4 w-4 animate-spin" /> Scraping...</>
-          ) : (
-            <><RefreshCw className="h-4 w-4" /> Run Scraper</>
-          )}
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            onClick={handleClearInsights}
+            disabled={isClearing || isScraperRunning}
+            variant="outline"
+            className="gap-2 text-red-600 border-red-200 hover:bg-red-50"
+          >
+            {isClearing ? (
+              <><Loader2 className="h-4 w-4 animate-spin" /> Clearing...</>
+            ) : (
+              <><Trash2 className="h-4 w-4" /> Clear Insights</>
+            )}
+          </Button>
+          <Button
+            onClick={handleRunScraper}
+            disabled={isScraperRunning || isClearing}
+            className="gap-2 bg-orange-500 hover:bg-orange-600"
+          >
+            {isScraperRunning ? (
+              <><Loader2 className="h-4 w-4 animate-spin" /> Scraping...</>
+            ) : (
+              <><RefreshCw className="h-4 w-4" /> Run Scraper</>
+            )}
+          </Button>
+        </div>
       </div>
 
       {/* Scraper Message */}

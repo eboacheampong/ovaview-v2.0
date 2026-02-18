@@ -5,44 +5,73 @@ const SCRAPER_API = process.env.NEXT_PUBLIC_SCRAPER_API || 'http://localhost:500
 
 /**
  * POST /api/daily-insights/scrape
- * Trigger the remote Scrapy crawler, auto-match articles to clients by keywords, and save to DB
+ * Build sources from web publications + client keywords, call remote scraper, save results
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}))
     const forceClientId = body?.clientId || null
 
-    console.log(`Calling scraper API at ${SCRAPER_API}/api/scrape`)
+    // Build sources from web publications that have a website URL
+    const publications = await prisma.webPublication.findMany({
+      where: { isActive: true, website: { not: null } },
+      select: { website: true },
+    })
 
-    // Try POST first, fall back to GET if Method Not Allowed
+    // Get client keywords for industry tagging
+    const clients = await prisma.client.findMany({
+      where: { isActive: true },
+      include: { keywords: { include: { keyword: true } } },
+    })
+
+    // Collect unique industry keywords from clients
+    const industryKeywords = new Set<string>()
+    clients.forEach(c => {
+      if (c.newsKeywords) {
+        c.newsKeywords.split(',').forEach(k => {
+          const trimmed = k.trim().toLowerCase()
+          if (trimmed) industryKeywords.add(trimmed)
+        })
+      }
+      c.keywords.forEach(ck => industryKeywords.add(ck.keyword.name.toLowerCase()))
+    })
+
+    // Build sources array: [url, spider_type, industry]
+    const sources = publications
+      .filter(p => p.website)
+      .map(p => [p.website!, 'news', Array.from(industryKeywords).slice(0, 3).join(',') || 'general'])
+
+    if (sources.length === 0) {
+      return NextResponse.json({
+        success: true,
+        message: 'No web publications with URLs configured. Add URLs to your web publications first.',
+        stats: { scraped: 0, saved: 0, duplicates: 0 },
+      })
+    }
+
+    console.log(`Calling scraper with ${sources.length} sources from web publications`)
+
+    // Call remote scraper with our sources
     let scraperResponse = await fetch(`${SCRAPER_API}/api/scrape`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({}),
+      body: JSON.stringify({ sources }),
     })
 
     if (scraperResponse.status === 405) {
-      console.log('POST not allowed, trying GET...')
       scraperResponse = await fetch(`${SCRAPER_API}/api/scrape`)
     }
 
     if (!scraperResponse.ok) {
       const errorText = await scraperResponse.text()
-      console.error(`Scraper API error (${scraperResponse.status}):`, errorText)
+      console.error(`Scraper error (${scraperResponse.status}):`, errorText)
       return NextResponse.json(
-        {
-          success: false,
-          error: `Scraper returned ${scraperResponse.status}`,
-          message: `The scraper at ${SCRAPER_API} returned an error. Ensure the latest code is deployed.`,
-        },
+        { success: false, error: `Scraper returned ${scraperResponse.status}`, message: errorText },
         { status: 502 }
       )
     }
 
     const scraperData = await scraperResponse.json()
-    console.log('Scraper response keys:', Object.keys(scraperData))
-    console.log('Articles count:', scraperData.articles?.length ?? 'no articles key')
-
     if (!scraperData.success) {
       return NextResponse.json(
         { success: false, error: scraperData.error || 'Scraper failed' },
@@ -52,14 +81,8 @@ export async function POST(request: NextRequest) {
 
     const articlesData: any[] = scraperData.articles || []
 
-    // Load all active clients with their keywords for auto-matching
-    const clients = await prisma.client.findMany({
-      where: { isActive: true },
-      include: { keywords: { include: { keyword: true } } },
-    })
-
-    // Build keyword map: lowercased keyword -> clientId
-    const clientKeywordMap: { clientId: string; keywords: string[] }[] = clients.map(c => ({
+    // Build client keyword map for auto-matching
+    const clientKeywordMap = clients.map(c => ({
       clientId: c.id,
       keywords: [
         c.name.toLowerCase(),
@@ -75,25 +98,17 @@ export async function POST(request: NextRequest) {
     for (const article of articlesData) {
       try {
         const { title, url, description, source, industry, scraped_at } = article
+        if (!title || !url) continue
 
-        if (!title || !url) {
-          errors.push('Skipping: missing title or url')
-          continue
-        }
-
-        // Check duplicate by unique url
         const existing = await prisma.dailyInsight.findUnique({ where: { url } })
-        if (existing) {
-          duplicateCount++
-          continue
-        }
+        if (existing) { duplicateCount++; continue }
 
-        // Auto-match to client by keywords (unless a specific clientId was forced)
+        // Auto-match to client
         let matchedClientId = forceClientId
         if (!matchedClientId) {
-          const articleText = `${title} ${description || ''} ${source || ''}`.toLowerCase()
+          const text = `${title} ${description || ''} ${source || ''}`.toLowerCase()
           for (const entry of clientKeywordMap) {
-            if (entry.keywords.some(kw => articleText.includes(kw))) {
+            if (entry.keywords.some(kw => text.includes(kw))) {
               matchedClientId = entry.clientId
               break
             }
@@ -112,33 +127,21 @@ export async function POST(request: NextRequest) {
             scrapedAt: scraped_at ? new Date(scraped_at) : new Date(),
           },
         })
-
         savedCount++
       } catch (error) {
-        const errorMsg = error instanceof Error ? error.message : String(error)
-        console.error('Error saving article:', errorMsg)
-        errors.push(`Save failed: ${errorMsg}`)
+        errors.push(error instanceof Error ? error.message : String(error))
       }
     }
 
     return NextResponse.json({
       success: true,
-      message: `Saved ${savedCount} articles, skipped ${duplicateCount} duplicates.`,
-      stats: {
-        scraped: articlesData.length,
-        saved: savedCount,
-        duplicates: duplicateCount,
-        errors: errors.length > 0 ? errors : undefined,
-      },
+      message: `Scraped ${sources.length} sources. Saved ${savedCount}, skipped ${duplicateCount} duplicates.`,
+      stats: { scraped: articlesData.length, saved: savedCount, duplicates: duplicateCount, sources: sources.length },
     })
   } catch (error) {
-    console.error('Error running scraper:', error)
+    console.error('Scraper error:', error)
     return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to run scraper',
-        message: 'Could not reach the scraper service.',
-      },
+      { success: false, error: error instanceof Error ? error.message : 'Failed to run scraper' },
       { status: 500 }
     )
   }
@@ -148,7 +151,6 @@ export async function GET() {
   try {
     const healthRes = await fetch(`${SCRAPER_API}/health`).catch(() => null)
     return NextResponse.json({
-      message: 'Scraper endpoint is active',
       scraperApi: SCRAPER_API,
       scraperHealthy: healthRes?.ok || false,
     })

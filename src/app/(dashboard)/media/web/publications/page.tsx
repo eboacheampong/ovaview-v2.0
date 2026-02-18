@@ -10,12 +10,12 @@ import { ConfirmDialog } from '@/components/modals/confirm-dialog'
 import { useModal } from '@/hooks/use-modal'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Plus, Pencil, Trash2, Eye, Globe, AlertCircle } from 'lucide-react'
-import { useSearchParams } from 'next/navigation'
+import { Plus, Pencil, Trash2, Globe } from 'lucide-react'
 
 interface WebPublication {
   id: string
   name: string
+  website?: string
   location?: string
   reach?: number
   isActive: boolean
@@ -23,31 +23,24 @@ interface WebPublication {
 
 const formatReach = (reach: number | undefined): string => {
   if (!reach) return '-'
-  if (reach >= 1000000) return `${(reach / 1000000).toFixed(1)}M Readers`
-  if (reach >= 1000) return `${(reach / 1000).toFixed(0)}K Readers`
-  return `${reach} Readers`
+  if (reach >= 1000000) return `${(reach / 1000000).toFixed(1)}M`
+  if (reach >= 1000) return `${(reach / 1000).toFixed(0)}K`
+  return `${reach}`
 }
 
 export default function WebPublicationsPage() {
-  const searchParams = useSearchParams()
   const [publications, setPublications] = useState<WebPublication[]>([])
-  const [formData, setFormData] = useState({ name: '', location: '', reach: '', isActive: true })
+  const [formData, setFormData] = useState({ name: '', website: '', location: '', reach: '', isActive: true })
   const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [acceptedUrl, setAcceptedUrl] = useState<string | null>(null)
-  const [acceptedTitle, setAcceptedTitle] = useState<string | null>(null)
 
-  // Load publications from API
   useEffect(() => {
     const fetchPubs = async () => {
       try {
         setIsLoading(true)
         const res = await fetch('/api/web-publications')
-        if (!res.ok) throw new Error('Failed to load publications')
-        const data = await res.json()
-        setPublications(data)
+        if (res.ok) setPublications(await res.json())
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load publications')
+        console.error('Failed to load publications:', err)
       } finally {
         setIsLoading(false)
       }
@@ -55,37 +48,25 @@ export default function WebPublicationsPage() {
     fetchPubs()
   }, [])
 
-  // Load accepted URL from query parameters
-  useEffect(() => {
-    const url = searchParams.get('acceptedUrl')
-    const title = searchParams.get('acceptedTitle')
-    if (url) {
-      setAcceptedUrl(url)
-      setAcceptedTitle(title)
-      // Auto-open create modal with pre-filled URL
-      setFormData(prev => ({ ...prev, location: url }))
-      createModal.open()
-    }
-  }, [searchParams])
-  
   const createModal = useModal<undefined>()
   const editModal = useModal<WebPublication>()
-  const viewModal = useModal<WebPublication>()
   const deleteModal = useModal<WebPublication>()
+
+  const resetForm = () => setFormData({ name: '', website: '', location: '', reach: '', isActive: true })
 
   const handleCreate = async () => {
     try {
-      const payload = { name: formData.name, website: '', location: formData.location, reach: formData.reach ? parseInt(formData.reach) : undefined, isActive: formData.isActive }
-      const res = await fetch('/api/web-publications', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
-      if (!res.ok) throw new Error('Failed to create publication')
+      const res = await fetch('/api/web-publications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      })
+      if (!res.ok) throw new Error('Failed to create')
       const created = await res.json()
       setPublications(prev => [...prev, created])
-      setFormData({ name: '', location: '', reach: '', isActive: true })
-      setAcceptedUrl(null)
-      setAcceptedTitle(null)
+      resetForm()
       createModal.close()
     } catch (err) {
-      console.error('Create publication error:', err)
       alert(err instanceof Error ? err.message : 'Failed to create publication')
     }
   }
@@ -93,14 +74,16 @@ export default function WebPublicationsPage() {
   const handleEdit = async () => {
     if (!editModal.data) return
     try {
-      const payload = { name: formData.name, website: '', location: formData.location, reach: formData.reach ? parseInt(formData.reach) : undefined, isActive: formData.isActive }
-      const res = await fetch(`/api/web-publications/${editModal.data.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
-      if (!res.ok) throw new Error('Failed to update publication')
+      const res = await fetch(`/api/web-publications/${editModal.data.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      })
+      if (!res.ok) throw new Error('Failed to update')
       const updated = await res.json()
-      setPublications(publications.map(p => p.id === updated.id ? updated : p))
+      setPublications(prev => prev.map(p => p.id === updated.id ? updated : p))
       editModal.close()
     } catch (err) {
-      console.error('Update publication error:', err)
       alert(err instanceof Error ? err.message : 'Failed to update publication')
     }
   }
@@ -109,11 +92,10 @@ export default function WebPublicationsPage() {
     if (!deleteModal.data) return
     try {
       const res = await fetch(`/api/web-publications/${deleteModal.data.id}`, { method: 'DELETE' })
-      if (!res.ok) throw new Error('Failed to delete publication')
-      setPublications(publications.filter(p => p.id !== deleteModal.data!.id))
+      if (!res.ok) throw new Error('Failed to delete')
+      setPublications(prev => prev.filter(p => p.id !== deleteModal.data!.id))
       deleteModal.close()
     } catch (err) {
-      console.error('Delete publication error:', err)
       alert(err instanceof Error ? err.message : 'Failed to delete publication')
     }
   }
@@ -124,13 +106,25 @@ export default function WebPublicationsPage() {
       header: ({ column }) => <DataTableColumnHeader column={column} title="Publication Name" />,
     },
     {
+      accessorKey: 'website',
+      header: ({ column }) => <DataTableColumnHeader column={column} title="URL" />,
+      cell: ({ row }) => {
+        const url = row.original.website
+        return url ? (
+          <a href={url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-sm truncate max-w-[200px] block">
+            {url.replace(/^https?:\/\//, '')}
+          </a>
+        ) : '-'
+      },
+    },
+    {
       accessorKey: 'location',
       header: ({ column }) => <DataTableColumnHeader column={column} title="Location" />,
       cell: ({ row }) => row.getValue('location') || '-',
     },
     {
       accessorKey: 'reach',
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Reach/Coverage" />,
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Reach" />,
       cell: ({ row }) => {
         const reach = row.getValue('reach') as number | undefined
         return reach ? <span className="text-blue-600 font-medium">{formatReach(reach)}</span> : '-'
@@ -147,13 +141,18 @@ export default function WebPublicationsPage() {
     },
     {
       id: 'actions',
-      header: 'Actions',
       cell: ({ row }) => (
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="sm" onClick={() => viewModal.open(row.original)} className="text-gray-500 hover:text-gray-700">
-            <Eye className="h-4 w-4" />
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => { setFormData({ name: row.original.name, location: row.original.location || '', reach: row.original.reach ? String(row.original.reach) : '', isActive: row.original.isActive }); editModal.open(row.original) }} className="text-gray-500 hover:text-gray-700">
+          <Button variant="ghost" size="sm" onClick={() => {
+            setFormData({
+              name: row.original.name,
+              website: row.original.website || '',
+              location: row.original.location || '',
+              reach: row.original.reach ? String(row.original.reach) : '',
+              isActive: row.original.isActive,
+            })
+            editModal.open(row.original)
+          }} className="text-gray-500 hover:text-gray-700">
             <Pencil className="h-4 w-4" />
           </Button>
           <Button variant="ghost" size="sm" onClick={() => deleteModal.open(row.original)} className="text-red-500 hover:text-red-700">
@@ -166,71 +165,27 @@ export default function WebPublicationsPage() {
 
   const renderFormContent = () => (
     <div className="space-y-4">
-      {acceptedUrl && (
-        <div className="bg-blue-50 border border-blue-200 rounded-md p-3 flex gap-2">
-          <AlertCircle className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
-          <div className="text-sm">
-            <p className="font-medium text-blue-900">From Daily Insights</p>
-            <p className="text-blue-700 text-xs mt-1">
-              {acceptedTitle && <span>Article: <strong>{acceptedTitle}</strong></span>}
-            </p>
-          </div>
-        </div>
-      )}
       <div>
         <Label className="text-gray-600 text-sm">Publication Name</Label>
-        <Input 
-          value={formData.name} 
-          onChange={(e) => setFormData({ ...formData, name: e.target.value })} 
-          placeholder="Publication name"
-          className="mt-1"
-        />
+        <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="e.g., TechCrunch" className="mt-1" />
       </div>
       <div>
-        <Label className="text-gray-600 text-sm">
-          {acceptedUrl ? 'Article URL (from Daily Insights)' : 'Location/URL'}
-        </Label>
-        <Input 
-          value={formData.location} 
-          onChange={(e) => setFormData({ ...formData, location: e.target.value })} 
-          placeholder={acceptedUrl ? acceptedUrl : 'Location'}
-          className="mt-1"
-          readOnly={acceptedUrl ? false : undefined}
-        />
-        {acceptedUrl && (
-          <p className="text-xs text-gray-500 mt-1">
-            Pre-filled from Daily Insights. You can modify if needed.
-          </p>
-        )}
+        <Label className="text-gray-600 text-sm">Website URL</Label>
+        <Input value={formData.website} onChange={(e) => setFormData({ ...formData, website: e.target.value })} placeholder="https://example.com" className="mt-1" />
+        <p className="text-xs text-gray-400 mt-1">Used as a source for the article scraper</p>
       </div>
       <div>
-        <Label className="text-gray-600 text-sm">Reach/Coverage</Label>
-        <Input 
-          type="number" 
-          value={formData.reach} 
-          onChange={(e) => setFormData({ ...formData, reach: e.target.value })} 
-          placeholder="e.g., 2500000"
-          className="mt-1"
-        />
+        <Label className="text-gray-600 text-sm">Location</Label>
+        <Input value={formData.location} onChange={(e) => setFormData({ ...formData, location: e.target.value })} placeholder="e.g., Accra, Ghana" className="mt-1" />
+      </div>
+      <div>
+        <Label className="text-gray-600 text-sm">Reach</Label>
+        <Input type="number" value={formData.reach} onChange={(e) => setFormData({ ...formData, reach: e.target.value })} placeholder="Monthly unique visitors" className="mt-1" />
       </div>
       <div className="flex items-center gap-2">
-        <input 
-          type="checkbox" 
-          id="isActive" 
-          checked={formData.isActive} 
-          onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })} 
-          className="rounded border-gray-300"
-        />
+        <input type="checkbox" id="isActive" checked={formData.isActive} onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })} className="rounded border-gray-300" />
         <Label htmlFor="isActive" className="text-gray-600 text-sm cursor-pointer">Active</Label>
       </div>
-    </div>
-  )
-
-  const ViewContent = () => (
-    <div className="space-y-3">
-      <p className="text-gray-500 text-sm">{viewModal.data?.location}</p>
-      <p className="text-blue-600 font-medium">{formatReach(viewModal.data?.reach)}</p>
-      <p className="text-gray-700">{viewModal.data?.isActive ? 'This publication is currently active.' : 'This publication is inactive.'}</p>
     </div>
   )
 
@@ -239,27 +194,23 @@ export default function WebPublicationsPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Web Publications</h1>
-          <p className="text-gray-500 mt-1">Manage online publications</p>
+          <p className="text-gray-500 mt-1">Manage online publications and scraper sources</p>
         </div>
-        <Button onClick={() => { setFormData({ name: '', location: '', reach: '', isActive: true }); createModal.open() }} className="bg-orange-500 hover:bg-orange-600">
+        <Button onClick={() => { resetForm(); createModal.open() }} className="bg-orange-500 hover:bg-orange-600">
           <Plus className="h-4 w-4 mr-2" />Add Publication
         </Button>
       </div>
 
       <DataTable columns={columns} data={publications} searchPlaceholder="Search publications..." searchColumn="name" />
 
-      <FormModal isOpen={createModal.isOpen} onClose={createModal.close} title={acceptedUrl ? 'Create Web Publication from Daily Insights' : 'Add Web Publication'} icon={<Globe className="h-6 w-6" />} onSubmit={handleCreate} isSubmitting={false}>
+      <FormModal isOpen={createModal.isOpen} onClose={createModal.close} title="Add Web Publication" icon={<Globe className="h-6 w-6" />} onSubmit={handleCreate} isSubmitting={false}>
         {renderFormContent()}
       </FormModal>
-      
+
       <FormModal isOpen={editModal.isOpen} onClose={editModal.close} title="Edit Web Publication" icon={<Pencil className="h-6 w-6" />} onSubmit={handleEdit} isSubmitting={false} submitLabel="Save">
         {renderFormContent()}
       </FormModal>
 
-      <FormModal isOpen={viewModal.isOpen} onClose={viewModal.close} title={viewModal.data?.name || 'Publication Details'} icon={<Globe className="h-6 w-6" />} onSubmit={async () => viewModal.close()} isSubmitting={false} submitLabel="Close" cancelLabel="">
-        <ViewContent />
-      </FormModal>
-      
       <ConfirmDialog isOpen={deleteModal.isOpen} onClose={deleteModal.close} onConfirm={handleDelete} title="Delete Publication" description={`Are you sure you want to delete "${deleteModal.data?.name}"?`} confirmLabel="Delete" variant="destructive" />
     </div>
   )
