@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { verifyPassword } from '@/lib/password'
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,9 +20,8 @@ export async function POST(request: NextRequest) {
 
     // If user exists in DB and is active, verify password
     if (user && user.isActive) {
-      // For now, do simple string comparison - in production use bcrypt
-      // TODO: Update password storage to use bcrypt hashing
-      if (password === user.password) {
+      const passwordValid = verifyPassword(password, user.password)
+      if (passwordValid) {
         authenticatedUser = {
           id: user.id,
           email: user.email,

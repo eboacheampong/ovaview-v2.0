@@ -29,8 +29,8 @@ export default function ClientUsersPage() {
   const editModal = useModal<User>()
   const deleteModal = useModal<User>()
   
-  const [formData, setFormData] = useState({ username: '', email: '' })
-  const [editFormData, setEditFormData] = useState({ username: '', email: '', isActive: true })
+  const [formData, setFormData] = useState({ username: '', email: '', password: '' })
+  const [editFormData, setEditFormData] = useState({ username: '', email: '', isActive: true, password: '' })
 
   useEffect(() => {
     fetchClients()
@@ -72,18 +72,21 @@ export default function ClientUsersPage() {
   const selectedClient = clients.find(c => c.id === selectedClientId)
 
   const handleCreate = async () => {
-    if (!formData.email || !selectedClientId) return
+    if (!formData.email || !formData.password || !selectedClientId) return
     setIsSubmitting(true)
     try {
       const res = await fetch('/api/client-users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: formData.username, email: formData.email, clientId: selectedClientId }),
+        body: JSON.stringify({ username: formData.username, email: formData.email, password: formData.password, clientId: selectedClientId }),
       })
       if (res.ok) {
         await fetchUsers()
-        setFormData({ username: '', email: '' })
+        setFormData({ username: '', email: '', password: '' })
         createModal.close()
+      } else {
+        const data = await res.json()
+        alert(data.error || 'Failed to create user')
       }
     } finally {
       setIsSubmitting(false)
@@ -94,10 +97,19 @@ export default function ClientUsersPage() {
     if (!editModal.data) return
     setIsSubmitting(true)
     try {
+      const payload: Record<string, unknown> = { 
+        username: editFormData.username, 
+        email: editFormData.email, 
+        isActive: editFormData.isActive 
+      }
+      // Only include password if user entered a new one
+      if (editFormData.password && editFormData.password.length >= 6) {
+        payload.password = editFormData.password
+      }
       const res = await fetch(`/api/client-users/${editModal.data.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: editFormData.username, email: editFormData.email, isActive: editFormData.isActive }),
+        body: JSON.stringify(payload),
       })
       if (res.ok) {
         await fetchUsers()
@@ -136,7 +148,7 @@ export default function ClientUsersPage() {
   }
 
   const handleEditClick = (user: User) => {
-    setEditFormData({ username: user.username, email: user.email, isActive: user.isActive })
+    setEditFormData({ username: user.username, email: user.email, isActive: user.isActive, password: '' })
     editModal.open(user)
   }
 
@@ -160,7 +172,7 @@ export default function ClientUsersPage() {
           <h1 className="text-2xl font-bold text-gray-800">Client User Management</h1>
           <p className="text-gray-500 mt-1">{selectedClient ? `Users for ${selectedClient.name}` : 'Select a client to view users'}</p>
         </div>
-        <Button onClick={() => { setFormData({ username: '', email: '' }); createModal.open() }} className="bg-orange-500 hover:bg-orange-600" disabled={!selectedClientId}>
+        <Button onClick={() => { setFormData({ username: '', email: '', password: '' }); createModal.open() }} className="bg-orange-500 hover:bg-orange-600" disabled={!selectedClientId}>
           <Plus className="h-4 w-4 mr-2" />Add Client User
         </Button>
       </div>
@@ -179,6 +191,7 @@ export default function ClientUsersPage() {
         <div className="space-y-4">
           <div className="space-y-2"><Label>Username</Label><Input value={formData.username} onChange={(e) => setFormData({ ...formData, username: e.target.value })} placeholder="Enter username" /></div>
           <div className="space-y-2"><Label>Email</Label><Input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} placeholder="Enter email" /></div>
+          <div className="space-y-2"><Label>Password</Label><Input type="password" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} placeholder="Enter password" /><p className="text-xs text-gray-400">Minimum 6 characters</p></div>
         </div>
       </FormModal>
 
@@ -186,6 +199,7 @@ export default function ClientUsersPage() {
         <div className="space-y-4">
           <div className="space-y-2"><Label>Username</Label><Input value={editFormData.username} onChange={(e) => setEditFormData({ ...editFormData, username: e.target.value })} /></div>
           <div className="space-y-2"><Label>Email</Label><Input type="email" value={editFormData.email} onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })} /></div>
+          <div className="space-y-2"><Label>New Password (optional)</Label><Input type="password" value={editFormData.password} onChange={(e) => setEditFormData({ ...editFormData, password: e.target.value })} placeholder="Leave blank to keep current" /><p className="text-xs text-gray-400">Minimum 6 characters. Leave blank to keep current password.</p></div>
           <div className="space-y-2"><Label>Status</Label>
             <div className="flex items-center gap-4 pt-1">
               <button type="button" onClick={() => setEditFormData({ ...editFormData, isActive: true })} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${editFormData.isActive ? 'bg-green-100 text-green-700 border-2 border-green-500' : 'bg-gray-100 text-gray-500 border-2 border-transparent hover:bg-gray-200'}`}>Active</button>

@@ -21,7 +21,7 @@ export default function UsersPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   
   const [formData, setFormData] = useState({
-    firstName: '', lastName: '', email: '', role: 'admin' as UserRole,
+    firstName: '', lastName: '', email: '', password: '', role: 'admin' as UserRole,
   })
 
   const [pendingAction, setPendingAction] = useState<{ type: 'create' | 'delete'; data?: User | typeof formData } | null>(null)
@@ -58,7 +58,7 @@ export default function UsersPage() {
   }
 
   const handleCreateSubmit = () => {
-    if (!formData.firstName || !formData.lastName || !formData.email) return
+    if (!formData.firstName || !formData.lastName || !formData.email || !formData.password) return
     setPendingAction({ type: 'create', data: formData })
     passwordModal.open()
   }
@@ -72,12 +72,15 @@ export default function UsersPage() {
         const res = await fetch('/api/users', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ firstName: data.firstName, lastName: data.lastName, email: data.email, role: data.role }),
+          body: JSON.stringify({ firstName: data.firstName, lastName: data.lastName, email: data.email, password: data.password, role: data.role }),
         })
         if (res.ok) {
           await fetchUsers()
-          setFormData({ firstName: '', lastName: '', email: '', role: 'admin' })
+          setFormData({ firstName: '', lastName: '', email: '', password: '', role: 'admin' })
           setActiveTab('list')
+        } else {
+          const errData = await res.json()
+          alert(errData.error || 'Failed to create user')
         }
       } else if (pendingAction?.type === 'delete') {
         const user = pendingAction.data as User
@@ -165,11 +168,12 @@ export default function UsersPage() {
                   <option value="admin">Admin</option><option value="data_entry">Data Entry</option><option value="client_user">Client User</option>
                 </select>
               </div>
-              <div className="space-y-2"><Label htmlFor="email" className="text-gray-700">New User&apos;s Email</Label><Input id="email" type="email" placeholder="newuser@email.com" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="h-11 rounded-xl" /><p className="text-xs text-gray-400">Enter the Email Address of the New User Account.</p></div>
+              <div className="space-y-2"><Label htmlFor="email" className="text-gray-700">Email</Label><Input id="email" type="email" placeholder="newuser@email.com" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="h-11 rounded-xl" /></div>
+              <div className="space-y-2"><Label htmlFor="password" className="text-gray-700">Password</Label><Input id="password" type="password" placeholder="Enter password" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} className="h-11 rounded-xl" /><p className="text-xs text-gray-400">Minimum 6 characters</p></div>
             </div>
             <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-              <p className="text-sm text-gray-500">Confirmation email will be sent to the email address provided.</p>
-              <Button onClick={handleCreateSubmit} disabled={!formData.firstName || !formData.lastName || !formData.email || isSubmitting} className="rounded-xl gradient-primary px-8">
+              <p className="text-sm text-gray-500">User will be able to login with their email and password.</p>
+              <Button onClick={handleCreateSubmit} disabled={!formData.firstName || !formData.lastName || !formData.email || !formData.password || isSubmitting} className="rounded-xl gradient-primary px-8">
                 {isSubmitting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Creating...</> : 'Create'}
               </Button>
             </div>

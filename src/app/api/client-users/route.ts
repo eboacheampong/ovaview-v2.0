@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { hashPassword } from '@/lib/password'
 
 export const dynamic = 'force-dynamic'
 
@@ -55,11 +56,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Email already exists' }, { status: 400 })
     }
 
+    // Hash the password
+    const hashedPassword = password ? hashPassword(password) : hashPassword('temp-' + Date.now())
+
     const user = await prisma.user.create({
       data: {
         name: username || email.split('@')[0],
         email,
-        password: password || 'temp-password-' + Date.now(),
+        password: hashedPassword,
         role: 'CLIENT_USER',
         clientId,
         isActive: true,

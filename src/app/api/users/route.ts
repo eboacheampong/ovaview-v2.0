@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { hashPassword } from '@/lib/password'
 
 export const dynamic = 'force-dynamic'
 
@@ -61,11 +62,14 @@ export async function POST(request: NextRequest) {
     const name = `${firstName || ''} ${lastName || ''}`.trim()
     const roleUpper = (role || 'USER').toUpperCase().replace('_', '_')
 
+    // Hash the password
+    const hashedPassword = password ? hashPassword(password) : hashPassword('temp-' + Date.now())
+
     const user = await prisma.user.create({
       data: {
         name,
         email,
-        password: password || 'temp-password-' + Date.now(), // Temporary password
+        password: hashedPassword,
         role: roleUpper as 'ADMIN' | 'USER' | 'CLIENT_USER',
         clientId: clientId || null,
         isActive: true,

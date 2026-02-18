@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { hashPassword } from '@/lib/password'
 
 export const dynamic = 'force-dynamic'
 
@@ -46,7 +47,7 @@ export async function PUT(
   try {
     const { id } = await params
     const body = await request.json()
-    const { firstName, lastName, email, role, isActive, clientId } = body
+    const { firstName, lastName, email, role, isActive, clientId, password } = body
 
     const name = firstName && lastName 
       ? `${firstName} ${lastName}`.trim() 
@@ -58,6 +59,7 @@ export async function PUT(
     if (role) updateData.role = role.toUpperCase().replace('_', '_')
     if (typeof isActive === 'boolean') updateData.isActive = isActive
     if (clientId !== undefined) updateData.clientId = clientId || null
+    if (password && password.length >= 6) updateData.password = hashPassword(password)
 
     const user = await prisma.user.update({
       where: { id },
