@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
     const {
       name, email, phone, address, postalAddress, webAddress,
       contactPerson, logoUrl, expiryDate, isActive,
-      newsEmailAlerts, newsSmsAlerts, newsKeywords, newsIndustryIds,
+      newsEmailAlerts, newsSmsAlerts, newsKeywords, newsIndustryId, newsSubIndustryIds,
       tenderEmailAlerts, tenderSmsAlerts, tenderKeywords, tenderIndustryIds,
     } = body
 
@@ -58,16 +58,30 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Client name is required' }, { status: 400 })
     }
 
-    // Get parent industry IDs from sub-industry IDs
-    const allIndustryIds = [...(newsIndustryIds || []), ...(tenderIndustryIds || [])]
+    // Collect all industry IDs to link
+    const industryIdsToLink = new Set<string>()
+
+    // Add the main news industry if selected (even without sub-industries)
+    if (newsIndustryId) {
+      industryIdsToLink.add(newsIndustryId)
+    }
+
+    // Add parent industries from selected sub-industries
+    const allSubIndustryIds = [...(newsSubIndustryIds || []), ...(tenderIndustryIds || [])]
       .filter((id, i, arr) => arr.indexOf(id) === i)
 
-    const subIndustries = await prisma.subIndustry.findMany({
-      where: { id: { in: allIndustryIds } },
-      select: { industryId: true },
-    })
+    if (allSubIndustryIds.length > 0) {
+      const subIndustries = await prisma.subIndustry.findMany({
+        where: { id: { in: allSubIndustryIds } },
+        select: { industryId: true },
+      })
+      subIndustries.forEach(s => industryIdsToLink.add(s.industryId))
+    }
 
-    const parentIndustryIds = Array.from(new Set(subIndustries.map(s => s.industryId)))
+    // Add tender industries directly (they are main industry IDs)
+    if (tenderIndustryIds) {
+      tenderIndustryIds.forEach((id: string) => industryIdsToLink.add(id))
+    }
 
     const client = await prisma.client.create({
       data: {
@@ -88,7 +102,7 @@ export async function POST(request: NextRequest) {
         tenderSmsAlerts: tenderSmsAlerts ?? false,
         tenderKeywords,
         industries: {
-          create: parentIndustryIds.map((industryId: string) => ({ industryId })),
+          create: Array.from(industryIdsToLink).map((industryId: string) => ({ industryId })),
         },
       },
       include: {

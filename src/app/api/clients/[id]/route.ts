@@ -62,12 +62,37 @@ export async function PUT(
     const {
       name, email, phone, address, postalAddress, webAddress,
       contactPerson, logoUrl, expiryDate, isActive,
-      newsEmailAlerts, newsSmsAlerts, newsKeywords, newsIndustryIds,
+      newsEmailAlerts, newsSmsAlerts, newsKeywords, newsIndustryId, newsSubIndustryIds,
       tenderEmailAlerts, tenderSmsAlerts, tenderKeywords, tenderIndustryIds,
     } = body
 
     // Delete existing industry associations
     await prisma.clientIndustry.deleteMany({ where: { clientId: id } })
+
+    // Collect all industry IDs to link
+    const industryIdsToLink = new Set<string>()
+
+    // Add the main news industry if selected
+    if (newsIndustryId) {
+      industryIdsToLink.add(newsIndustryId)
+    }
+
+    // Add parent industries from selected sub-industries
+    const allSubIndustryIds = [...(newsSubIndustryIds || [])]
+      .filter((sid, i, arr) => arr.indexOf(sid) === i)
+
+    if (allSubIndustryIds.length > 0) {
+      const subIndustries = await prisma.subIndustry.findMany({
+        where: { id: { in: allSubIndustryIds } },
+        select: { industryId: true },
+      })
+      subIndustries.forEach(s => industryIdsToLink.add(s.industryId))
+    }
+
+    // Add tender industries directly (they are main industry IDs)
+    if (tenderIndustryIds) {
+      tenderIndustryIds.forEach((tid: string) => industryIdsToLink.add(tid))
+    }
 
     const client = await prisma.client.update({
       where: { id },
@@ -89,9 +114,7 @@ export async function PUT(
         tenderSmsAlerts: tenderSmsAlerts ?? false,
         tenderKeywords,
         industries: {
-          create: [...(newsIndustryIds || []), ...(tenderIndustryIds || [])]
-            .filter((industryId: string, i: number, arr: string[]) => arr.indexOf(industryId) === i)
-            .map((industryId: string) => ({ industryId })),
+          create: Array.from(industryIdsToLink).map((industryId: string) => ({ industryId })),
         },
       },
       include: {

@@ -40,7 +40,7 @@ export default function ClientsPage() {
 
   const [formData, setFormData] = useState({
     name: '', email: '', postalAddress: '', physicalAddress: '', webAddress: '',
-    phoneNumber: '', contactPerson: '', expiryDate: '', isActive: false,
+    phoneNumber: '', contactPerson: '', expiryDate: '', isActive: true,
   })
 
   // News config state
@@ -180,7 +180,8 @@ export default function ClientsPage() {
             webAddress: formData.webAddress, contactPerson: formData.contactPerson,
             expiryDate: formData.expiryDate || null, isActive: formData.isActive, logoUrl,
             newsEmailAlerts, newsSmsAlerts, newsKeywords: newsKeywords.join(', '),
-            newsIndustryIds: newsSelectedSubIndustries,
+            newsIndustryId: newsIndustryId || null,
+            newsSubIndustryIds: newsSelectedSubIndustries,
             tenderEmailAlerts: tendersEmailAlerts, tenderSmsAlerts: tendersSmsAlerts,
             tenderKeywords: tendersKeywords.join(', '), tenderIndustryIds: tendersSelectedIndustries,
           }),
@@ -210,7 +211,7 @@ export default function ClientsPage() {
   }
 
   const resetForm = () => {
-    setFormData({ name: '', email: '', postalAddress: '', physicalAddress: '', webAddress: '', phoneNumber: '', contactPerson: '', expiryDate: '', isActive: false })
+    setFormData({ name: '', email: '', postalAddress: '', physicalAddress: '', webAddress: '', phoneNumber: '', contactPerson: '', expiryDate: '', isActive: true })
     setNewsEmailAlerts(false); setNewsSmsAlerts(false); setNewsKeywords([]); setNewsIndustryId(''); setNewsSelectedSubIndustries([])
     setTendersEmailAlerts(false); setTendersSmsAlerts(false); setTendersKeywords([]); setTendersSelectedIndustries([])
     setLogoFile(null); setLogoPreview(null)
@@ -231,12 +232,15 @@ export default function ClientsPage() {
     setEditNewsEmailAlerts(client.newsEmailAlerts || false)
     setEditNewsSmsAlerts(client.newsSmsAlerts || false)
     setEditNewsKeywords(client.newsKeywords ? client.newsKeywords.split(',').map(k => k.trim()).filter(k => k) : [])
-    setEditNewsIndustryId('')
+    // Load the first industry as the news industry (if any)
+    const firstIndustry = client.industries?.[0]?.industryId || ''
+    setEditNewsIndustryId(firstIndustry)
     setEditNewsSelectedSubIndustries([])
     setEditTendersEmailAlerts(client.tenderEmailAlerts || false)
     setEditTendersSmsAlerts(client.tenderSmsAlerts || false)
     setEditTendersKeywords(client.tenderKeywords ? client.tenderKeywords.split(',').map(k => k.trim()).filter(k => k) : [])
-    setEditTendersSelectedIndustries([])
+    // Load all industries for tenders
+    setEditTendersSelectedIndustries(client.industries?.map(i => i.industryId) || [])
     setEditLogoPreview(client.logoUrl || null)
     setEditLogoFile(null)
     setEditConfigTab('news')
@@ -259,7 +263,8 @@ export default function ClientsPage() {
           webAddress: editFormData.webAddress, contactPerson: editFormData.contactPerson,
           expiryDate: editFormData.expiryDate || null, isActive: editFormData.isActive, logoUrl,
           newsEmailAlerts: editNewsEmailAlerts, newsSmsAlerts: editNewsSmsAlerts, newsKeywords: editNewsKeywords.join(', '),
-          newsIndustryIds: editNewsSelectedSubIndustries,
+          newsIndustryId: editNewsIndustryId || null,
+          newsSubIndustryIds: editNewsSelectedSubIndustries,
           tenderEmailAlerts: editTendersEmailAlerts, tenderSmsAlerts: editTendersSmsAlerts,
           tenderKeywords: editTendersKeywords.join(', '), tenderIndustryIds: editTendersSelectedIndustries,
         }),

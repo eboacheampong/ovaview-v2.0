@@ -4,6 +4,15 @@ export interface UpdateConfig {
   industries: string[]
 }
 
+export interface ClientIndustry {
+  id: string
+  industryId: string
+  industry: {
+    id: string
+    name: string
+  }
+}
+
 export interface Client {
   id: string
   name: string
@@ -27,6 +36,7 @@ export interface Client {
   createdAt: Date
   updatedAt: Date
   users?: { id: string }[]
+  industries?: ClientIndustry[]
 }
 
 export interface ClientFormData {
