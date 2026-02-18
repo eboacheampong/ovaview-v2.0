@@ -4,8 +4,16 @@ import { prisma } from '@/lib/prisma'
 export const dynamic = 'force-dynamic'
 
 // Helper to sync keywords from text to Keyword table
+// This REPLACES all existing keyword links with the new ones
 async function syncKeywords(keywordsText: string | null | undefined, clientId: string) {
-  if (!keywordsText) return
+  // First, delete ALL existing keyword links for this client
+  await prisma.clientKeyword.deleteMany({ where: { clientId } })
+
+  // If no keywords provided, we're done (but still clean up orphans)
+  if (!keywordsText) {
+    await cleanupOrphanedKeywords()
+    return
+  }
   
   const keywordNames = keywordsText.split(',').map(k => k.trim()).filter(k => k.length > 0)
   
@@ -18,12 +26,22 @@ async function syncKeywords(keywordsText: string | null | undefined, clientId: s
     })
     
     // Link keyword to client
-    await prisma.clientKeyword.upsert({
-      where: { clientId_keywordId: { clientId, keywordId: keyword.id } },
-      create: { clientId, keywordId: keyword.id },
-      update: {},
+    await prisma.clientKeyword.create({
+      data: { clientId, keywordId: keyword.id },
     })
   }
+
+  // Clean up any keywords that are no longer linked to any client
+  await cleanupOrphanedKeywords()
+}
+
+// Delete keywords that have no client links
+async function cleanupOrphanedKeywords() {
+  await prisma.keyword.deleteMany({
+    where: {
+      clients: { none: {} }
+    }
+  })
 }
 
 export async function GET(
@@ -124,9 +142,10 @@ export async function PUT(
       },
     })
 
-    // Sync keywords to the Keywords table
-    await syncKeywords(newsKeywords, id)
-    await syncKeywords(tenderKeywords, id)
+    // Sync keywords to the Keywords table (combines news + tender keywords)
+    // This replaces ALL existing keyword links with the current ones
+    const allKeywordsText = [newsKeywords, tenderKeywords].filter(Boolean).join(', ')
+    await syncKeywords(allKeywordsText, id)
 
     return NextResponse.json(client)
   } catch (error) {

@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 export const dynamic = 'force-dynamic'
 
 // Helper to sync keywords from text to Keyword table
+// For new clients, this just creates the keyword links
 async function syncKeywords(keywordsText: string | null | undefined, clientId: string) {
   if (!keywordsText) return
   
@@ -18,10 +19,8 @@ async function syncKeywords(keywordsText: string | null | undefined, clientId: s
     })
     
     // Link keyword to client
-    await prisma.clientKeyword.upsert({
-      where: { clientId_keywordId: { clientId, keywordId: keyword.id } },
-      create: { clientId, keywordId: keyword.id },
-      update: {},
+    await prisma.clientKeyword.create({
+      data: { clientId, keywordId: keyword.id },
     })
   }
 }

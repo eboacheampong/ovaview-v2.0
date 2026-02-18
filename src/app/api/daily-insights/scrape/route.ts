@@ -9,8 +9,9 @@ const SCRAPER_API = process.env.NEXT_PUBLIC_SCRAPER_API || 'http://localhost:500
  * Escape special regex characters
  */
 function escapeRegex(str: string): string {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return str.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`)
 }
+
 
 /**
  * Smart keyword matching against article text + URL.
