@@ -160,7 +160,7 @@ export default function DailyInsightsPage() {
 
       {/* Client Cards */}
       <div className="space-y-3">
-        {summary?.clients.filter(c => c.total > 0).map((client) => (
+        {summary?.clients.map((client) => (
           <Link key={client.id} href={`/daily-insights/${client.id}`}>
             <Card className="hover:shadow-md transition-shadow cursor-pointer group">
               <CardContent className="p-4 flex items-center justify-between">
@@ -185,6 +185,9 @@ export default function DailyInsightsPage() {
                       <CheckCircle className="h-3 w-3 mr-1" />
                       {client.accepted} accepted
                     </Badge>
+                  )}
+                  {client.total === 0 && (
+                    <span className="text-sm text-gray-400">No articles</span>
                   )}
                   <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-orange-500 transition-colors" />
                 </div>
@@ -227,8 +230,8 @@ export default function DailyInsightsPage() {
           </Link>
         )}
 
-        {/* Empty state */}
-        {summary && summary.clients.every(c => c.total === 0) && summary.unassigned.total === 0 && (
+        {/* Empty state - only if no clients exist */}
+        {summary && summary.clients.length === 0 && summary.unassigned.total === 0 && (
           <Card>
             <CardContent className="p-12 text-center">
               <Sparkles className="h-10 w-10 text-gray-300 mx-auto mb-3" />
