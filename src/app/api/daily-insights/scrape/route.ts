@@ -63,7 +63,7 @@ interface ClientKeywordEntry {
 
 /**
  * Fetch fresh client keyword data from DB.
- * Combines: client name + newsKeywords field + linked Keyword records.
+ * Uses ONLY the newsKeywords text field (source of truth edited by user).
  * If specificClientId is provided, only fetch keywords for that client.
  */
 async function getClientKeywords(specificClientId?: string | null): Promise<ClientKeywordEntry[]> {
@@ -79,29 +79,27 @@ async function getClientKeywords(specificClientId?: string | null): Promise<Clie
 
   const clients = await prisma.client.findMany({
     where: whereClause,
-    include: { keywords: { include: { keyword: true } } },
+    select: {
+      id: true,
+      name: true,
+      newsKeywords: true,
+    },
   })
 
   return clients.map(c => {
     const kwSet = new Set<string>()
 
-    // Client name itself
+    // Client name itself as a keyword
     const name = c.name.toLowerCase().trim()
     if (name) kwSet.add(name)
 
-    // newsKeywords (comma-separated text field)
+    // newsKeywords (comma-separated text field) - THIS IS THE SOURCE OF TRUTH
     if (c.newsKeywords) {
       c.newsKeywords.split(',').forEach(k => {
         const t = k.trim().toLowerCase()
         if (t) kwSet.add(t)
       })
     }
-
-    // Linked Keyword records (from Keywords page / synced)
-    c.keywords.forEach(ck => {
-      const kn = ck.keyword.name.toLowerCase().trim()
-      if (kn) kwSet.add(kn)
-    })
 
     return { clientId: c.id, clientName: c.name, keywords: Array.from(kwSet) }
   })
