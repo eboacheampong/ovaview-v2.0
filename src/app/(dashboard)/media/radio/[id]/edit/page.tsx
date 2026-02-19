@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { SentimentDisplay } from '@/components/ui/sentiment-display'
+import { KeywordInput } from '@/components/ui/keyword-input'
 import { ChevronRight, ChevronLeft, Loader2, ArrowLeft, Upload, X, Music, Play, Pause, Wand2 } from 'lucide-react'
 
 interface Station {
@@ -31,6 +32,11 @@ interface Industry {
   subIndustries: SubIndustry[]
 }
 
+interface Keyword {
+  id: string
+  name: string
+}
+
 export default function EditRadioStoryPage() {
   const router = useRouter()
   const params = useParams()
@@ -40,6 +46,7 @@ export default function EditRadioStoryPage() {
 
   const [stations, setStations] = useState<Station[]>([])
   const [industries, setIndustries] = useState<Industry[]>([])
+  const [availableKeywords, setAvailableKeywords] = useState<Keyword[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [formData, setFormData] = useState({
@@ -78,15 +85,17 @@ export default function EditRadioStoryPage() {
     const loadData = async () => {
       setIsLoading(true)
       try {
-        const [storyRes, stationRes, indRes] = await Promise.all([
+        const [storyRes, stationRes, indRes, keywordRes] = await Promise.all([
           fetch(`/api/radio-stories/${storyId}`),
           fetch('/api/radio-stations'),
           fetch('/api/industries'),
+          fetch('/api/keywords'),
         ])
         if (!storyRes.ok) throw new Error('Story not found')
         const story = await storyRes.json()
         if (stationRes.ok) setStations(await stationRes.json())
         if (indRes.ok) setIndustries(await indRes.json())
+        if (keywordRes.ok) setAvailableKeywords(await keywordRes.json())
         setFormData({
           title: story.title || '',
           stationId: story.stationId || '',
@@ -232,12 +241,19 @@ export default function EditRadioStoryPage() {
     setIsSubmitting(true)
     try {
       let audioUrl = existingAudioUrl
+      
+      // Upload new audio file to Vercel Blob if selected
       if (audioFile) {
-        const reader = new FileReader()
-        audioUrl = await new Promise<string>((resolve) => {
-          reader.onloadend = () => resolve(reader.result as string)
-          reader.readAsDataURL(audioFile)
-        })
+        const formDataUpload = new FormData()
+        formDataUpload.append('file', audioFile)
+        formDataUpload.append('folder', 'radio-audio')
+        const uploadRes = await fetch('/api/upload', { method: 'POST', body: formDataUpload })
+        if (uploadRes.ok) {
+          const { url } = await uploadRes.json()
+          audioUrl = url
+        } else {
+          throw new Error('Failed to upload audio file')
+        }
       }
 
       const response = await fetch(`/api/radio-stories/${storyId}`, {
@@ -399,8 +415,13 @@ export default function EditRadioStoryPage() {
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <Label>Keywords</Label>
-          <Input className="mt-1 h-11" value={formData.keywords} onChange={(e) => setFormData({ ...formData, keywords: e.target.value })} placeholder="Separate keywords with commas" />
+          <Label className="mb-2 block">Keywords</Label>
+          <KeywordInput
+            value={formData.keywords}
+            onChange={(value) => setFormData({ ...formData, keywords: value })}
+            availableKeywords={availableKeywords}
+            placeholder="Search keywords..."
+          />
         </div>
 
 

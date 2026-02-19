@@ -22,8 +22,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'File type not allowed' }, { status: 400 })
     }
 
-    // Max 50MB for videos, 10MB for others
-    const maxSize = file.type.startsWith('video/') ? 50 * 1024 * 1024 : 10 * 1024 * 1024
+    // Max 500MB for videos, 50MB for audio, 10MB for images
+    const maxSize = file.type.startsWith('video/') 
+      ? 500 * 1024 * 1024 
+      : file.type.startsWith('audio/') 
+        ? 50 * 1024 * 1024 
+        : 10 * 1024 * 1024
     if (file.size > maxSize) {
       return NextResponse.json({ error: `File too large. Max ${maxSize / 1024 / 1024}MB` }, { status: 400 })
     }

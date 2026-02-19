@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { RichTextEditor } from '@/components/ui/rich-text-editor'
 import { SentimentDisplay } from '@/components/ui/sentiment-display'
+import { KeywordInput } from '@/components/ui/keyword-input'
 import { Camera, ChevronRight, ChevronLeft, Loader2, FileText, User, BookOpen, ArrowLeft, Wand2 } from 'lucide-react'
 
 interface Publication {
@@ -31,6 +32,11 @@ interface Industry {
   subIndustries: SubIndustry[]
 }
 
+interface Keyword {
+  id: string
+  name: string
+}
+
 export default function EditPrintStoryPage() {
   const router = useRouter()
   const params = useParams()
@@ -38,6 +44,7 @@ export default function EditPrintStoryPage() {
 
   const [publications, setPublications] = useState<Publication[]>([])
   const [industries, setIndustries] = useState<Industry[]>([])
+  const [availableKeywords, setAvailableKeywords] = useState<Keyword[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [formData, setFormData] = useState({
@@ -72,15 +79,17 @@ export default function EditPrintStoryPage() {
     const loadData = async () => {
       setIsLoading(true)
       try {
-        const [storyRes, pubRes, indRes] = await Promise.all([
+        const [storyRes, pubRes, indRes, keywordRes] = await Promise.all([
           fetch(`/api/print-stories/${storyId}`),
           fetch('/api/print-publications'),
           fetch('/api/industries'),
+          fetch('/api/keywords'),
         ])
         if (!storyRes.ok) throw new Error('Story not found')
         const story = await storyRes.json()
         if (pubRes.ok) setPublications(await pubRes.json())
         if (indRes.ok) setIndustries(await indRes.json())
+        if (keywordRes.ok) setAvailableKeywords(await keywordRes.json())
         setFormData({
           title: story.title || '',
           author: story.author || '',
@@ -313,7 +322,12 @@ export default function EditPrintStoryPage() {
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
           <Label className="font-semibold text-gray-800 block mb-3">Keywords</Label>
-          <Input value={formData.keywords} onChange={(e) => setFormData({ ...formData, keywords: e.target.value })} className="h-11" />
+          <KeywordInput
+            value={formData.keywords}
+            onChange={(value) => setFormData({ ...formData, keywords: value })}
+            availableKeywords={availableKeywords}
+            placeholder="Search keywords..."
+          />
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">

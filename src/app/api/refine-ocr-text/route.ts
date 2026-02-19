@@ -97,17 +97,21 @@ PRESERVATION RULES:
 ANALYSIS TASKS:
 1. Generate a concise, descriptive title (max 100 characters) capturing the main topic
 2. Analyze sentiment of the corrected content
-3. Select ONLY keywords directly relevant to the main topic from this list (STRICT and CONSERVATIVE):
+3. Select keywords ONLY from this exact list - DO NOT suggest any keyword not in this list:
    Available keywords: ${keywordList || 'None available'}
 4. Select the most appropriate industry and sub-industries (STRICT and CONSERVATIVE):
    Available industries: ${industryList || 'None available'}
 
-KEYWORD SELECTION RULES:
-- ONLY keywords that are the CORE TOPIC or PRIMARY FOCUS
-- Be STRICT - when in doubt, exclude it
-- Do NOT select tangentially mentioned topics
-- Prefer 0-3 highly relevant keywords over many loose ones
-- Article must be PRIMARILY ABOUT the keyword
+CRITICAL KEYWORD SELECTION RULES - READ CAREFULLY:
+- You can ONLY select keywords from the "Available keywords" list above
+- If a keyword is not in that list, DO NOT suggest it under any circumstances
+- ONLY select keywords if the article is PRIMARILY and EXPLICITLY about that exact topic
+- The keyword must be a CENTRAL THEME of the article, not just mentioned once
+- If the article doesn't clearly match any keyword in the list, return an EMPTY array []
+- When in doubt, DO NOT include the keyword - prefer fewer keywords over wrong keywords
+- Maximum 3 keywords, but 0-1 is often correct
+- Do NOT select keywords based on vague associations or tangential mentions
+- The article must spend significant paragraphs discussing the keyword topic to qualify
 
 INDUSTRY SELECTION RULES:
 - ONLY select industry if the article is PRIMARILY ABOUT that industry's core business/activities

@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { RichTextEditor } from '@/components/ui/rich-text-editor'
 import { SentimentDisplay } from '@/components/ui/sentiment-display'
+import { KeywordInput } from '@/components/ui/keyword-input'
 import { ChevronRight, ChevronLeft, Loader2, Globe, Calendar, User, FileText, Image as ImageIcon, Trash2, Wand2, ArrowLeft, Camera } from 'lucide-react'
 
 interface Publication {
@@ -25,6 +26,11 @@ interface Industry {
   subIndustries: SubIndustry[]
 }
 
+interface Keyword {
+  id: string
+  name: string
+}
+
 export default function EditWebStoryPage() {
   const router = useRouter()
   const params = useParams()
@@ -32,6 +38,7 @@ export default function EditWebStoryPage() {
 
   const [publications, setPublications] = useState<Publication[]>([])
   const [industries, setIndustries] = useState<Industry[]>([])
+  const [availableKeywords, setAvailableKeywords] = useState<Keyword[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [formData, setFormData] = useState({
     title: '',
@@ -64,14 +71,16 @@ export default function EditWebStoryPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [pubRes, indRes, storyRes] = await Promise.all([
+        const [pubRes, indRes, keywordRes, storyRes] = await Promise.all([
           fetch('/api/web-publications'),
           fetch('/api/industries'),
+          fetch('/api/keywords'),
           fetch(`/api/web-stories/${storyId}`),
         ])
         
         if (pubRes.ok) setPublications(await pubRes.json())
         if (indRes.ok) setIndustries(await indRes.json())
+        if (keywordRes.ok) setAvailableKeywords(await keywordRes.json())
         
         if (storyRes.ok) {
           const story = await storyRes.json()
@@ -266,7 +275,12 @@ export default function EditWebStoryPage() {
             </div>
             <div className="md:col-span-2">
               <Label htmlFor="keywords" className="text-gray-600 mb-2 block">Keywords</Label>
-              <Input id="keywords" value={formData.keywords} onChange={(e) => setFormData({ ...formData, keywords: e.target.value })} placeholder="technology, news, africa..." className="h-11" />
+              <KeywordInput
+                value={formData.keywords}
+                onChange={(value) => setFormData({ ...formData, keywords: value })}
+                availableKeywords={availableKeywords}
+                placeholder="Search keywords..."
+              />
             </div>
           </div>
         </div>

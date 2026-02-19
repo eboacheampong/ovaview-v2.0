@@ -61,6 +61,15 @@ async function getStory(type: MediaType, slug: string) {
   }
 }
 
+function getVideoEmbedUrl(url: string | null): string | null {
+  if (!url) return null
+  const ytMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/)
+  if (ytMatch) return `https://www.youtube.com/embed/${ytMatch[1]}`
+  const vimeoMatch = url.match(/(?:vimeo\.com\/)(\d+)/)
+  if (vimeoMatch) return `https://player.vimeo.com/video/${vimeoMatch[1]}`
+  return null
+}
+
 function getMediaIcon(type: MediaType) {
   switch (type) {
     case 'web': return <Globe className="h-5 w-5" />
@@ -239,9 +248,24 @@ export default async function PublicMediaPage({ params }: PageProps) {
 
         {videoUrl && (
           <div className="px-4 sm:px-8 mb-6">
-            <div className="bg-gray-900 rounded-xl overflow-hidden">
-              <video controls className="w-full"><source src={videoUrl} type="video/mp4" /></video>
-            </div>
+            {(() => {
+              const embedUrl = getVideoEmbedUrl(videoUrl)
+              if (embedUrl) {
+                // YouTube or Vimeo embed
+                return (
+                  <div className="aspect-video rounded-xl overflow-hidden bg-black">
+                    <iframe src={embedUrl} className="w-full h-full" allowFullScreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" />
+                  </div>
+                )
+              } else {
+                // Direct video file
+                return (
+                  <div className="bg-gray-900 rounded-xl overflow-hidden">
+                    <video controls className="w-full"><source src={videoUrl} type="video/mp4" /></video>
+                  </div>
+                )
+              }
+            })()}
             {videoTitle && <p className="text-sm text-gray-500 mt-2 flex items-center gap-1"><Play className="h-4 w-4" />{videoTitle}</p>}
           </div>
         )}
