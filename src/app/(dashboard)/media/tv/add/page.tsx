@@ -138,9 +138,11 @@ export default function AddTVStoryPage() {
       setUploadError('')
       try {
         const result = await uploadFile(file, 'tv-video')
+        console.log('Upload result:', result) // Debug log
         if (result.error) {
           throw new Error(result.error)
         }
+        console.log('Setting uploadedVideoUrl to:', result.url) // Debug log
         setUploadedVideoUrl(result.url)
       } catch (error) {
         setUploadError(error instanceof Error ? error.message : 'Failed to upload video')
@@ -243,6 +245,8 @@ export default function AddTVStoryPage() {
     try {
       // Use already uploaded URL or the external URL
       const videoUrl = uploadedVideoUrl || formData.videoUrl
+      
+      console.log('Submitting with videoUrl:', videoUrl) // Debug log
 
       const response = await fetch('/api/tv-stories', {
         method: 'POST',

@@ -258,10 +258,13 @@ export default async function PublicMediaPage({ params }: PageProps) {
                   </div>
                 )
               } else {
-                // Direct video file
+                // Direct video file (Vercel Blob or other hosted video)
                 return (
                   <div className="bg-gray-900 rounded-xl overflow-hidden">
-                    <video controls className="w-full"><source src={videoUrl} type="video/mp4" /></video>
+                    <video controls className="w-full" playsInline>
+                      <source src={videoUrl} />
+                      Your browser does not support the video tag.
+                    </video>
                   </div>
                 )
               }
@@ -272,10 +275,21 @@ export default async function PublicMediaPage({ params }: PageProps) {
 
         {audioUrl && (
           <div className="px-4 sm:px-8 mb-6">
-            <div className="bg-gray-100 rounded-xl p-4">
-              <audio controls className="w-full"><source src={audioUrl} type="audio/mpeg" /></audio>
+            <div className="bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl p-4 border border-orange-100">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
+                  <Radio className="h-5 w-5 text-orange-600" />
+                </div>
+                <div>
+                  <p className="font-medium text-gray-900">{audioTitle || 'Audio Clip'}</p>
+                  <p className="text-xs text-gray-500">Click play to listen</p>
+                </div>
+              </div>
+              <audio controls className="w-full" preload="metadata">
+                <source src={audioUrl} />
+                Your browser does not support the audio element.
+              </audio>
             </div>
-            {audioTitle && <p className="text-sm text-gray-500 mt-2">{audioTitle}</p>}
           </div>
         )}
 

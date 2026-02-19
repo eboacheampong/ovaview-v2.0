@@ -128,9 +128,11 @@ export default function AddRadioStoryPage() {
       setUploadError('')
       try {
         const result = await uploadFile(file, 'radio-audio')
+        console.log('Upload result:', result) // Debug log
         if (result.error) {
           throw new Error(result.error)
         }
+        console.log('Setting uploadedAudioUrl to:', result.url) // Debug log
         setUploadedAudioUrl(result.url)
       } catch (error) {
         setUploadError(error instanceof Error ? error.message : 'Failed to upload audio')
@@ -233,6 +235,8 @@ export default function AddRadioStoryPage() {
     try {
       // Use already uploaded URL or the external URL
       const audioUrl = uploadedAudioUrl || formData.audioUrl
+      
+      console.log('Submitting with audioUrl:', audioUrl) // Debug log
 
       const response = await fetch('/api/radio-stories', {
         method: 'POST',
