@@ -9,6 +9,7 @@ import { RichTextEditor } from '@/components/ui/rich-text-editor'
 import { SentimentDisplay } from '@/components/ui/sentiment-display'
 import { KeywordInput } from '@/components/ui/keyword-input'
 import { useWhisperTranscription } from '@/hooks/use-whisper-transcription'
+import { uploadFile } from '@/lib/upload'
 import { ChevronRight, ChevronLeft, Play, Pause, Loader2, Upload, X, Music, Wand2, FileText, Mic, Radio, Calendar, User, Sparkles } from 'lucide-react'
 
 interface Station {
@@ -122,22 +123,17 @@ export default function AddRadioStoryPage() {
       setAudioPreviewUrl(URL.createObjectURL(file))
       if (!formData.audioTitle) setFormData(prev => ({ ...prev, audioTitle: file.name.replace(/\.[^/.]+$/, '') }))
       
-      // Upload immediately
+      // Upload immediately using client-side upload
       setIsUploadingAudio(true)
       setUploadError('')
       try {
-        const formDataUpload = new FormData()
-        formDataUpload.append('file', file)
-        formDataUpload.append('folder', 'radio-audio')
-        const uploadRes = await fetch('/api/upload', { method: 'POST', body: formDataUpload })
-        if (uploadRes.ok) {
-          const { url } = await uploadRes.json()
-          setUploadedAudioUrl(url)
-        } else {
-          throw new Error('Upload failed')
+        const result = await uploadFile(file, 'radio-audio')
+        if (result.error) {
+          throw new Error(result.error)
         }
+        setUploadedAudioUrl(result.url)
       } catch (error) {
-        setUploadError('Failed to upload audio. Please try again.')
+        setUploadError(error instanceof Error ? error.message : 'Failed to upload audio')
         console.error('Audio upload error:', error)
       } finally {
         setIsUploadingAudio(false)

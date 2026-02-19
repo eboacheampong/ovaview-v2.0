@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { SentimentDisplay } from '@/components/ui/sentiment-display'
 import { KeywordInput } from '@/components/ui/keyword-input'
+import { uploadFile } from '@/lib/upload'
 import { Video, ChevronRight, ChevronLeft, Loader2, ArrowLeft, Wand2, Upload, X, Play, Pause } from 'lucide-react'
 
 interface Station {
@@ -180,21 +181,16 @@ export default function EditTVStoryPage() {
         setFormData(prev => ({ ...prev, videoTitle: file.name.replace(/\.[^/.]+$/, '') }))
       }
       
-      // Upload immediately
+      // Upload immediately using client-side upload
       setIsUploadingVideo(true)
       try {
-        const formDataUpload = new FormData()
-        formDataUpload.append('file', file)
-        formDataUpload.append('folder', 'tv-video')
-        const uploadRes = await fetch('/api/upload', { method: 'POST', body: formDataUpload })
-        if (uploadRes.ok) {
-          const { url } = await uploadRes.json()
-          setUploadedVideoUrl(url)
-        } else {
-          throw new Error('Upload failed')
+        const result = await uploadFile(file, 'tv-video')
+        if (result.error) {
+          throw new Error(result.error)
         }
+        setUploadedVideoUrl(result.url)
       } catch (error) {
-        setUploadError('Failed to upload video. Please try again.')
+        setUploadError(error instanceof Error ? error.message : 'Failed to upload video')
         console.error('Video upload error:', error)
       } finally {
         setIsUploadingVideo(false)

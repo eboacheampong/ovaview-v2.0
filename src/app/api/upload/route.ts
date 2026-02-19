@@ -1,8 +1,39 @@
-import { put } from '@vercel/blob'
+import { put, handleUpload, type HandleUploadBody } from '@vercel/blob'
 import { NextRequest, NextResponse } from 'next/server'
 
+// Client-side upload handler for large files (videos/audio)
 export async function POST(request: NextRequest) {
   try {
+    const contentType = request.headers.get('content-type') || ''
+    
+    // Handle client upload callback from @vercel/blob
+    if (contentType.includes('application/json')) {
+      const body = await request.json() as HandleUploadBody
+      
+      const jsonResponse = await handleUpload({
+        body,
+        request,
+        onBeforeGenerateToken: async (pathname) => {
+          // Validate the upload
+          return {
+            allowedContentTypes: [
+              'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+              'audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/mp4', 'audio/x-m4a',
+              'video/mp4', 'video/webm', 'video/ogg', 'video/quicktime'
+            ],
+            maximumSizeInBytes: 500 * 1024 * 1024, // 500MB max
+          }
+        },
+        onUploadCompleted: async ({ blob }) => {
+          // Could log or process completed uploads here
+          console.log('Upload completed:', blob.url)
+        },
+      })
+      
+      return NextResponse.json(jsonResponse)
+    }
+    
+    // Handle traditional form data upload (for smaller files)
     const formData = await request.formData()
     const file = formData.get('file') as File | null
     const folder = formData.get('folder') as string || 'uploads'
@@ -14,12 +45,12 @@ export async function POST(request: NextRequest) {
     // Validate file type
     const allowedTypes = [
       'image/jpeg', 'image/png', 'image/gif', 'image/webp',
-      'audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/mp4',
+      'audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/mp4', 'audio/x-m4a',
       'video/mp4', 'video/webm', 'video/ogg', 'video/quicktime'
     ]
 
     if (!allowedTypes.includes(file.type)) {
-      return NextResponse.json({ error: 'File type not allowed' }, { status: 400 })
+      return NextResponse.json({ error: `File type not allowed: ${file.type}` }, { status: 400 })
     }
 
     // Max 500MB for videos, 50MB for audio, 10MB for images
@@ -44,7 +75,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ url: blob.url })
   } catch (error) {
     console.error('Upload error:', error)
-    return NextResponse.json({ error: 'Upload failed' }, { status: 500 })
+    const message = error instanceof Error ? error.message : 'Upload failed'
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }
 

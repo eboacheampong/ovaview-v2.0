@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { SentimentDisplay } from '@/components/ui/sentiment-display'
 import { KeywordInput } from '@/components/ui/keyword-input'
+import { uploadFile } from '@/lib/upload'
 import { ChevronRight, ChevronLeft, Loader2, ArrowLeft, Upload, X, Music, Play, Pause, Wand2 } from 'lucide-react'
 
 interface Station {
@@ -171,21 +172,16 @@ export default function EditRadioStoryPage() {
         setFormData(prev => ({ ...prev, audioTitle: nameWithoutExt }))
       }
       
-      // Upload immediately
+      // Upload immediately using client-side upload
       setIsUploadingAudio(true)
       try {
-        const formDataUpload = new FormData()
-        formDataUpload.append('file', file)
-        formDataUpload.append('folder', 'radio-audio')
-        const uploadRes = await fetch('/api/upload', { method: 'POST', body: formDataUpload })
-        if (uploadRes.ok) {
-          const { url } = await uploadRes.json()
-          setUploadedAudioUrl(url)
-        } else {
-          throw new Error('Upload failed')
+        const result = await uploadFile(file, 'radio-audio')
+        if (result.error) {
+          throw new Error(result.error)
         }
+        setUploadedAudioUrl(result.url)
       } catch (error) {
-        setUploadError('Failed to upload audio. Please try again.')
+        setUploadError(error instanceof Error ? error.message : 'Failed to upload audio')
         console.error('Audio upload error:', error)
       } finally {
         setIsUploadingAudio(false)
