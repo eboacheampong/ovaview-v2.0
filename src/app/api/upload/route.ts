@@ -1,4 +1,5 @@
-import { put, handleUpload } from '@vercel/blob'
+import { put } from '@vercel/blob'
+import { handleUpload, type HandleUploadBody } from '@vercel/blob/client'
 import { NextRequest, NextResponse } from 'next/server'
 
 // Increase timeout for large uploads
@@ -10,7 +11,7 @@ export async function POST(request: NextRequest) {
     
     // Handle client-upload token request (JSON body)
     if (contentType.includes('application/json')) {
-      const body = await request.json()
+      const body = await request.json() as HandleUploadBody
       
       try {
         const jsonResponse = await handleUpload({
