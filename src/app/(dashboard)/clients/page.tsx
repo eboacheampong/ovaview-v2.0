@@ -189,6 +189,7 @@ export default function ClientsPage() {
         if (res.ok) {
           await fetchClients()
           resetForm()
+          passwordModal.close()
           setActiveTab('list')
         }
       } else if (pendingAction?.type === 'delete') {
