@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -37,6 +37,14 @@ export default function AdvancedReportsPage() {
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null)
   const [competitorData, setCompetitorData] = useState<CompetitorData | null>(null)
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
+
+  // Chart refs for capturing
+  const coverageTrendRef = useRef<HTMLDivElement>(null)
+  const sentimentChartRef = useRef<HTMLDivElement>(null)
+  const mediaDistributionRef = useRef<HTMLDivElement>(null)
+  const radarChartRef = useRef<HTMLDivElement>(null)
+  const hourlyEngagementRef = useRef<HTMLDivElement>(null)
+  const shareOfVoiceRef = useRef<HTMLDivElement>(null)
 
   // Fetch clients on mount
   useEffect(() => {
@@ -83,6 +91,23 @@ export default function AdvancedReportsPage() {
     fetchData()
   }, [fetchData])
 
+  // Capture chart as image
+  const captureChart = async (ref: React.RefObject<HTMLDivElement | null>): Promise<string | null> => {
+    if (!ref.current) return null
+    try {
+      const html2canvas = (await import('html2canvas')).default
+      const canvas = await html2canvas(ref.current, { 
+        backgroundColor: '#ffffff',
+        scale: 2,
+        logging: false,
+      })
+      return canvas.toDataURL('image/png')
+    } catch (error) {
+      console.error('Failed to capture chart:', error)
+      return null
+    }
+  }
+
   // Export functions
   const handleExport = async (format: 'pdf' | 'excel' | 'csv' | 'pptx') => {
     if (!analyticsData) return
@@ -96,7 +121,7 @@ export default function AdvancedReportsPage() {
       const fileName = `Ovaview_Analytics_${clientName.replace(/\s+/g, '_')}_${dateRangeLabel}`
 
       if (format === 'csv') {
-        // CSV Export
+        // CSV Export - Tables only
         const rows = [
           ['Ovaview Media Analytics Report'],
           [`Generated: ${new Date().toLocaleString()}`],
@@ -183,103 +208,218 @@ export default function AdvancedReportsPage() {
         
         XLSX.writeFile(wb, `${fileName}.xlsx`)
       } else if (format === 'pdf') {
-        // PDF Export using jspdf
+        // PDF Export with charts using jspdf
         const { default: jsPDF } = await import('jspdf')
         const { default: autoTable } = await import('jspdf-autotable')
         
+        // Capture charts first
+        const [coverageTrendImg, sentimentImg, mediaDistImg, radarImg, hourlyImg] = await Promise.all([
+          captureChart(coverageTrendRef),
+          captureChart(sentimentChartRef),
+          captureChart(mediaDistributionRef),
+          captureChart(radarChartRef),
+          captureChart(hourlyEngagementRef),
+        ])
+        
         const doc = new jsPDF()
         
-        // Title
-        doc.setFontSize(20)
-        doc.setTextColor(249, 115, 22) // Orange
-        doc.text('Ovaview Media Analytics', 14, 20)
-        
-        doc.setFontSize(10)
+        // Title Page
+        doc.setFontSize(28)
+        doc.setTextColor(249, 115, 22)
+        doc.text('Media Analytics Report', 105, 60, { align: 'center' })
+        doc.setFontSize(18)
         doc.setTextColor(100)
-        doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 28)
-        doc.text(`Client: ${clientName} | Period: ${dateRangeLabel} | Media: ${mediaFilter}`, 14, 34)
+        doc.text(clientName, 105, 75, { align: 'center' })
+        doc.setFontSize(12)
+        doc.text(`Period: ${dateRangeLabel} | Media: ${mediaFilter}`, 105, 90, { align: 'center' })
+        doc.text(`Generated: ${new Date().toLocaleString()}`, 105, 100, { align: 'center' })
         
-        // KPI Summary
-        doc.setFontSize(14)
-        doc.setTextColor(0)
-        doc.text('KPI Summary', 14, 46)
+        // Page 2: KPI Summary
+        doc.addPage()
+        doc.setFontSize(18)
+        doc.setTextColor(249, 115, 22)
+        doc.text('Key Performance Indicators', 14, 20)
         
         autoTable(doc, {
-          startY: 50,
+          startY: 30,
           head: [['Metric', 'Value', 'Change']],
           body: [
-            ['Total Coverage', analyticsData.kpiData.totalCoverage.toLocaleString(), `${analyticsData.kpiData.coverageChange}%`],
-            ['Media Reach', analyticsData.kpiData.totalReach, `${analyticsData.kpiData.reachChange}%`],
-            ['Avg Sentiment', `${analyticsData.kpiData.avgSentiment}%`, `${analyticsData.kpiData.sentimentChange}%`],
+            ['Total Coverage', analyticsData.kpiData.totalCoverage.toLocaleString(), `${analyticsData.kpiData.coverageChange > 0 ? '+' : ''}${analyticsData.kpiData.coverageChange}%`],
+            ['Media Reach', analyticsData.kpiData.totalReach, `${analyticsData.kpiData.reachChange > 0 ? '+' : ''}${analyticsData.kpiData.reachChange}%`],
+            ['Avg Sentiment', `${analyticsData.kpiData.avgSentiment}%`, `${analyticsData.kpiData.sentimentChange > 0 ? '+' : ''}${analyticsData.kpiData.sentimentChange}%`],
             ['Active Clients', analyticsData.kpiData.activeClients.toString(), '-'],
             ['Today Entries', analyticsData.kpiData.todayEntries.toString(), '-'],
+            ['Web Stories', analyticsData.kpiData.webCount.toString(), '-'],
+            ['TV Stories', analyticsData.kpiData.tvCount.toString(), '-'],
+            ['Radio Stories', analyticsData.kpiData.radioCount.toString(), '-'],
+            ['Print Stories', analyticsData.kpiData.printCount.toString(), '-'],
           ],
           theme: 'striped',
           headStyles: { fillColor: [249, 115, 22] },
+          styles: { fontSize: 11 },
         })
         
-        // Media Distribution
-        const y1 = (doc as any).lastAutoTable.finalY + 10
-        doc.text('Media Distribution', 14, y1)
+        // Page 3: Coverage Trend Chart
+        doc.addPage()
+        doc.setFontSize(18)
+        doc.setTextColor(249, 115, 22)
+        doc.text('Coverage Trend', 14, 20)
         
+        if (coverageTrendImg) {
+          doc.addImage(coverageTrendImg, 'PNG', 10, 30, 190, 80)
+        }
+        
+        // Coverage Trend Table
         autoTable(doc, {
-          startY: y1 + 4,
-          head: [['Type', 'Percentage']],
-          body: analyticsData.mediaDistributionData.map(m => [m.name, `${m.value}%`]),
+          startY: 120,
+          head: [['Month', 'Web', 'Print', 'Radio', 'TV', 'Total']],
+          body: analyticsData.coverageTrendData.map(t => [t.month, t.web, t.print, t.radio, t.tv, t.total]),
           theme: 'striped',
           headStyles: { fillColor: [249, 115, 22] },
         })
         
-        // Sentiment
-        const y2 = (doc as any).lastAutoTable.finalY + 10
-        doc.text('Sentiment Analysis', 14, y2)
+        // Page 4: Sentiment & Media Distribution
+        doc.addPage()
+        doc.setFontSize(18)
+        doc.setTextColor(249, 115, 22)
+        doc.text('Sentiment Analysis', 14, 20)
         
+        if (sentimentImg) {
+          doc.addImage(sentimentImg, 'PNG', 10, 30, 90, 60)
+        }
+        
+        doc.text('Media Distribution', 110, 20)
+        if (mediaDistImg) {
+          doc.addImage(mediaDistImg, 'PNG', 105, 30, 90, 60)
+        }
+        
+        // Tables side by side
         autoTable(doc, {
-          startY: y2 + 4,
-          head: [['Sentiment', 'Percentage']],
+          startY: 100,
+          head: [['Sentiment', '%']],
           body: analyticsData.sentimentData.map(s => [s.name, `${s.value}%`]),
           theme: 'striped',
           headStyles: { fillColor: [249, 115, 22] },
+          margin: { right: 110 },
         })
         
-        // New page for more data
-        doc.addPage()
+        autoTable(doc, {
+          startY: 100,
+          head: [['Media Type', '%']],
+          body: analyticsData.mediaDistributionData.map(m => [m.name, `${m.value}%`]),
+          theme: 'striped',
+          headStyles: { fillColor: [249, 115, 22] },
+          margin: { left: 110 },
+        })
         
-        // Top Keywords
-        doc.setFontSize(14)
-        doc.text('Top Keywords', 14, 20)
+        // Page 5: Industry Performance Radar
+        doc.addPage()
+        doc.setFontSize(18)
+        doc.setTextColor(249, 115, 22)
+        doc.text('Industry Performance', 14, 20)
+        
+        if (radarImg) {
+          doc.addImage(radarImg, 'PNG', 30, 30, 150, 100)
+        }
         
         autoTable(doc, {
-          startY: 24,
-          head: [['Keyword', 'Mentions', 'Trend']],
-          body: analyticsData.topKeywordsData.map(k => [k.keyword, k.count.toString(), k.trend]),
+          startY: 140,
+          head: [['Industry', 'Coverage', 'Sentiment', 'Reach']],
+          body: analyticsData.industryPerformanceData.map(i => [i.industry, `${i.coverage}%`, `${i.sentiment}%`, `${i.reach}%`]),
           theme: 'striped',
           headStyles: { fillColor: [249, 115, 22] },
         })
         
-        // Top Publications
-        const y3 = (doc as any).lastAutoTable.finalY + 10
+        // Page 6: Hourly Engagement
+        doc.addPage()
+        doc.setFontSize(18)
+        doc.setTextColor(249, 115, 22)
+        doc.text('Engagement by Hour', 14, 20)
+        
+        if (hourlyImg) {
+          doc.addImage(hourlyImg, 'PNG', 10, 30, 190, 80)
+        }
+        
+        // Page 7: Top Keywords & Publications
+        doc.addPage()
+        doc.setFontSize(18)
+        doc.setTextColor(249, 115, 22)
+        doc.text('Top Keywords', 14, 20)
+        
+        autoTable(doc, {
+          startY: 28,
+          head: [['Keyword', 'Mentions', 'Trend']],
+          body: analyticsData.topKeywordsData.map(k => [k.keyword, k.count.toString(), k.trend === 'up' ? '↑' : k.trend === 'down' ? '↓' : '→']),
+          theme: 'striped',
+          headStyles: { fillColor: [249, 115, 22] },
+        })
+        
+        const y3 = (doc as any).lastAutoTable.finalY + 15
         doc.text('Top Publications', 14, y3)
         
         autoTable(doc, {
-          startY: y3 + 4,
-          head: [['Name', 'Type', 'Stories', 'Reach']],
+          startY: y3 + 8,
+          head: [['Publication', 'Type', 'Stories', 'Reach']],
           body: analyticsData.topPublicationsData.map(p => [p.name, p.type, p.stories.toString(), p.reach]),
+          theme: 'striped',
+          headStyles: { fillColor: [249, 115, 22] },
+        })
+        
+        // Page 8: Top Clients & Journalists
+        doc.addPage()
+        doc.setFontSize(18)
+        doc.setTextColor(249, 115, 22)
+        doc.text('Top Performing Clients', 14, 20)
+        
+        autoTable(doc, {
+          startY: 28,
+          head: [['Client', 'Mentions', 'Sentiment', 'Reach']],
+          body: analyticsData.topClientsData.map(c => [c.name, c.mentions.toString(), `${c.sentiment}%`, c.reach]),
+          theme: 'striped',
+          headStyles: { fillColor: [249, 115, 22] },
+        })
+        
+        const y4 = (doc as any).lastAutoTable.finalY + 15
+        doc.text('Key Journalists', 14, y4)
+        
+        autoTable(doc, {
+          startY: y4 + 8,
+          head: [['Journalist', 'Outlet', 'Articles', 'Sentiment']],
+          body: analyticsData.journalistData.map(j => [j.name, j.outlet, j.articles.toString(), `${j.sentiment}%`]),
           theme: 'striped',
           headStyles: { fillColor: [249, 115, 22] },
         })
         
         doc.save(`${fileName}.pdf`)
       } else if (format === 'pptx') {
-        // PowerPoint Export via server API (pptxgenjs requires Node.js)
+        // PowerPoint Export with charts via server API
+        // Capture charts first
+        const [coverageTrendImg, sentimentImg, mediaDistImg, radarImg, hourlyImg, sovImg] = await Promise.all([
+          captureChart(coverageTrendRef),
+          captureChart(sentimentChartRef),
+          captureChart(mediaDistributionRef),
+          captureChart(radarChartRef),
+          captureChart(hourlyEngagementRef),
+          captureChart(shareOfVoiceRef),
+        ])
+        
         const response = await fetch('/api/reports/export-pptx', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             analyticsData,
+            competitorData,
             clientName,
             dateRangeLabel,
             mediaFilter,
+            charts: {
+              coverageTrend: coverageTrendImg,
+              sentiment: sentimentImg,
+              mediaDistribution: mediaDistImg,
+              radar: radarImg,
+              hourlyEngagement: hourlyImg,
+              shareOfVoice: sovImg,
+            },
           }),
         })
         
@@ -472,6 +612,7 @@ export default function AdvancedReportsPage() {
             </div>
           </CardHeader>
           <CardContent>
+            <div ref={coverageTrendRef}>
             {analyticsData?.coverageTrendData && analyticsData.coverageTrendData.length > 0 ? (
               <ResponsiveContainer width="100%" height={300}>
                 <AreaChart data={analyticsData.coverageTrendData}>
@@ -503,6 +644,7 @@ export default function AdvancedReportsPage() {
             ) : (
               <div className="h-[300px] flex items-center justify-center text-gray-400">No data available</div>
             )}
+            </div>
           </CardContent>
         </Card>
 
@@ -516,6 +658,7 @@ export default function AdvancedReportsPage() {
             <CardDescription>Overall sentiment distribution</CardDescription>
           </CardHeader>
           <CardContent>
+            <div ref={sentimentChartRef}>
             {analyticsData?.sentimentData && analyticsData.sentimentData.some(s => s.value > 0) ? (
               <>
                 <ResponsiveContainer width="100%" height={220}>
@@ -540,6 +683,7 @@ export default function AdvancedReportsPage() {
             ) : (
               <div className="h-[280px] flex items-center justify-center text-gray-400">No data available</div>
             )}
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -556,6 +700,7 @@ export default function AdvancedReportsPage() {
             <CardDescription>Brand visibility compared to competitors</CardDescription>
           </CardHeader>
           <CardContent>
+            <div ref={shareOfVoiceRef}>
             {competitorData?.shareOfVoiceData && competitorData.shareOfVoiceData.length > 0 ? (
               <div className="flex items-center gap-6">
                 <ResponsiveContainer width="50%" height={200}>
@@ -583,6 +728,7 @@ export default function AdvancedReportsPage() {
             ) : (
               <div className="h-[200px] flex items-center justify-center text-gray-400">No data available</div>
             )}
+            </div>
           </CardContent>
         </Card>
 
@@ -596,6 +742,7 @@ export default function AdvancedReportsPage() {
             <CardDescription>Coverage, sentiment & reach by industry</CardDescription>
           </CardHeader>
           <CardContent>
+            <div ref={radarChartRef}>
             {analyticsData?.industryPerformanceData && analyticsData.industryPerformanceData.length > 0 ? (
               <ResponsiveContainer width="100%" height={250}>
                 <RadarChart data={analyticsData.industryPerformanceData}>
@@ -612,6 +759,7 @@ export default function AdvancedReportsPage() {
             ) : (
               <div className="h-[250px] flex items-center justify-center text-gray-400">No data available</div>
             )}
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -627,6 +775,7 @@ export default function AdvancedReportsPage() {
             <CardDescription>Peak engagement times throughout the day</CardDescription>
           </CardHeader>
           <CardContent>
+            <div ref={hourlyEngagementRef}>
             {analyticsData?.hourlyEngagementData && analyticsData.hourlyEngagementData.some(h => h.engagement > 0) ? (
               <ResponsiveContainer width="100%" height={250}>
                 <BarChart data={analyticsData.hourlyEngagementData}>
@@ -640,6 +789,7 @@ export default function AdvancedReportsPage() {
             ) : (
               <div className="h-[250px] flex items-center justify-center text-gray-400">No data available</div>
             )}
+            </div>
           </CardContent>
         </Card>
 
@@ -652,6 +802,7 @@ export default function AdvancedReportsPage() {
             <CardDescription>Coverage by media type</CardDescription>
           </CardHeader>
           <CardContent>
+            <div ref={mediaDistributionRef}>
             {analyticsData?.mediaDistributionData && analyticsData.mediaDistributionData.some(m => m.value > 0) ? (
               <>
                 <ResponsiveContainer width="100%" height={200}>
@@ -677,6 +828,7 @@ export default function AdvancedReportsPage() {
             ) : (
               <div className="h-[250px] flex items-center justify-center text-gray-400">No data available</div>
             )}
+            </div>
           </CardContent>
         </Card>
       </div>
