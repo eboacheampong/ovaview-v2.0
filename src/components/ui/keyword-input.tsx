@@ -16,7 +16,7 @@ interface KeywordInputProps {
   className?: string
 }
 
-export function KeywordInput({ value, onChange, availableKeywords, placeholder = 'Type keywords...', className = '' }: KeywordInputProps) {
+export function KeywordInput({ value, onChange, availableKeywords, placeholder = 'Search keywords...', className = '' }: KeywordInputProps) {
   const [inputValue, setInputValue] = useState('')
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [selectedIndex, setSelectedIndex] = useState(-1)
@@ -26,13 +26,15 @@ export function KeywordInput({ value, onChange, availableKeywords, placeholder =
   // Parse current keywords from comma-separated string
   const currentKeywords = value ? value.split(',').map(k => k.trim()).filter(Boolean) : []
 
-  // Filter suggestions based on input
+  // Filter suggestions based on input - ONLY show keywords from database
   const suggestions = inputValue.trim()
     ? availableKeywords.filter(k => 
         k.name.toLowerCase().includes(inputValue.toLowerCase()) &&
         !currentKeywords.some(ck => ck.toLowerCase() === k.name.toLowerCase())
       ).slice(0, 8)
-    : []
+    : availableKeywords.filter(k => 
+        !currentKeywords.some(ck => ck.toLowerCase() === k.name.toLowerCase())
+      ).slice(0, 8)
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -47,6 +49,11 @@ export function KeywordInput({ value, onChange, availableKeywords, placeholder =
   const addKeyword = (keyword: string) => {
     const trimmed = keyword.trim()
     if (!trimmed) return
+    
+    // Only allow keywords that exist in the database
+    const exists = availableKeywords.some(k => k.name.toLowerCase() === trimmed.toLowerCase())
+    if (!exists) return
+    
     if (currentKeywords.some(k => k.toLowerCase() === trimmed.toLowerCase())) return
     
     const newKeywords = [...currentKeywords, trimmed]
@@ -54,14 +61,12 @@ export function KeywordInput({ value, onChange, availableKeywords, placeholder =
     setInputValue('')
     setShowSuggestions(false)
     setSelectedIndex(-1)
-    // keep focus on the input so typing can continue without interruption
     setTimeout(() => inputRef.current?.focus(), 0)
   }
 
   const removeKeyword = (index: number) => {
     const newKeywords = currentKeywords.filter((_, i) => i !== index)
     onChange(newKeywords.join(', '))
-    // keep focus on the input after removing a tag
     setTimeout(() => inputRef.current?.focus(), 0)
   }
 
@@ -74,19 +79,13 @@ export function KeywordInput({ value, onChange, availableKeywords, placeholder =
       setSelectedIndex(prev => Math.max(prev - 1, -1))
     } else if (e.key === 'Enter') {
       e.preventDefault()
+      // Only allow selecting from suggestions
       if (selectedIndex >= 0 && suggestions[selectedIndex]) {
         addKeyword(suggestions[selectedIndex].name)
-      } else if (inputValue.trim()) {
-        addKeyword(inputValue)
       }
     } else if (e.key === 'Escape') {
       setShowSuggestions(false)
       setSelectedIndex(-1)
-    } else if (e.key === ',' || e.key === 'Tab') {
-      if (inputValue.trim()) {
-        e.preventDefault()
-        addKeyword(inputValue)
-      }
     } else if (e.key === 'Backspace' && !inputValue && currentKeywords.length > 0) {
       removeKeyword(currentKeywords.length - 1)
     }
@@ -134,6 +133,13 @@ export function KeywordInput({ value, onChange, availableKeywords, placeholder =
               {suggestion.name}
             </button>
           ))}
+        </div>
+      )}
+      
+      {showSuggestions && suggestions.length === 0 && inputValue.trim() && (
+        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-3">
+          <p className="text-sm text-gray-500 text-center">No matching keywords found</p>
+          <p className="text-xs text-gray-400 text-center mt-1">Keywords must exist in the database</p>
         </div>
       )}
     </div>

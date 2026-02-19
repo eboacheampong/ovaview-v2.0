@@ -190,6 +190,14 @@ Use aggressive semantic knowledge to fix broken/non-existent words. Sentiment pe
       }
     }
 
+    // Filter suggested keywords to only include ones that exist in the database
+    const availableKeywordNames = keywords.map((k: { id: string; name: string }) => k.name.toLowerCase())
+    const filteredKeywords = (result.suggestedKeywords || []).filter((suggestedKeyword: string) =>
+      availableKeywordNames.some((existingKeyword: string) => 
+        existingKeyword === suggestedKeyword.toLowerCase()
+      )
+    )
+
     return NextResponse.json({
       text: result.text,
       title: result.title,
@@ -199,7 +207,7 @@ Use aggressive semantic knowledge to fix broken/non-existent words. Sentiment pe
         negative: Math.round(negative),
       },
       overallSentiment: result.overallSentiment,
-      suggestedKeywords: result.suggestedKeywords || [],
+      suggestedKeywords: filteredKeywords,
       suggestedIndustryId: industryId,
       suggestedSubIndustryIds: subIndustryIds,
     })

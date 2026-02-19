@@ -97,6 +97,15 @@ export async function POST(request: NextRequest) {
       overallSentiment,
     } = body
 
+    // Validate required fields
+    if (!title || !title.trim()) {
+      return NextResponse.json({ error: 'Title is required' }, { status: 400 })
+    }
+    
+    if (!date) {
+      return NextResponse.json({ error: 'Date is required' }, { status: 400 })
+    }
+
     // Validate sentiment fields
     const validation = validateSentimentFields({
       sentimentPositive,
@@ -110,10 +119,10 @@ export async function POST(request: NextRequest) {
 
     // Generate unique slug from title
     const baseSlug = generateSlug(title)
-    let slug = baseSlug
+    let slug = baseSlug || `print-story-${Date.now()}`
     let counter = 1
     while (await prisma.printStory.findUnique({ where: { slug } })) {
-      slug = `${baseSlug}-${counter}`
+      slug = `${baseSlug || 'print-story'}-${counter}`
       counter++
     }
 
@@ -145,13 +154,13 @@ export async function POST(request: NextRequest) {
 
     const story = await prisma.printStory.create({
       data: {
-        title,
+        title: title.trim(),
         slug,
-        content,
-        summary,
-        author,
-        pageNumbers,
-        keywords,
+        content: content || null,
+        summary: summary || null,
+        author: author || null,
+        pageNumbers: pageNumbers || null,
+        keywords: keywords || null,
         date: new Date(date),
         publicationId: publicationId || null,
         issueId,
@@ -164,7 +173,7 @@ export async function POST(request: NextRequest) {
           ? { create: subIndustryIds.map((id: string) => ({ subIndustryId: id })) }
           : undefined,
         images: images?.length
-          ? { create: images.map((img: { url: string; caption?: string }) => ({ url: img.url, caption: img.caption })) }
+          ? { create: images.map((img: { url: string; caption?: string }) => ({ url: img.url, caption: img.caption || null })) }
           : undefined,
       },
       include: {
@@ -179,6 +188,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(story, { status: 201 })
   } catch (error) {
     console.error('Error creating print story:', error)
-    return NextResponse.json({ error: 'Failed to create story' }, { status: 500 })
+    const errorMessage = error instanceof Error ? error.message : 'Failed to create story'
+    return NextResponse.json({ error: errorMessage }, { status: 500 })
   }
 }

@@ -76,6 +76,15 @@ export async function POST(request: NextRequest) {
       sentimentPositive, sentimentNeutral, sentimentNegative, overallSentiment
     } = body
 
+    // Validate required fields
+    if (!title || !title.trim()) {
+      return NextResponse.json({ error: 'Title is required' }, { status: 400 })
+    }
+    
+    if (!date) {
+      return NextResponse.json({ error: 'Date is required' }, { status: 400 })
+    }
+
     const validation = validateSentimentFields({ sentimentPositive, sentimentNeutral, sentimentNegative, overallSentiment })
     if (!validation.valid) {
       return NextResponse.json({ error: validation.error }, { status: 400 })
@@ -83,16 +92,23 @@ export async function POST(request: NextRequest) {
 
     // Generate unique slug from title
     const baseSlug = generateSlug(title)
-    let slug = baseSlug
+    let slug = baseSlug || `radio-story-${Date.now()}`
     let counter = 1
     while (await prisma.radioStory.findUnique({ where: { slug } })) {
-      slug = `${baseSlug}-${counter}`
+      slug = `${baseSlug || 'radio-story'}-${counter}`
       counter++
     }
 
     const story = await prisma.radioStory.create({
       data: {
-        title, slug, content, summary, presenters, keywords, audioUrl, audioTitle,
+        title: title.trim(),
+        slug,
+        content: content || null,
+        summary: summary || null,
+        presenters: presenters || null,
+        keywords: keywords || null,
+        audioUrl: audioUrl || null,
+        audioTitle: audioTitle || null,
         date: new Date(date),
         stationId: stationId || null,
         programId: programId || null,
@@ -109,6 +125,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(story, { status: 201 })
   } catch (error) {
     console.error('Error creating radio story:', error)
-    return NextResponse.json({ error: 'Failed to create story' }, { status: 500 })
+    const errorMessage = error instanceof Error ? error.message : 'Failed to create story'
+    return NextResponse.json({ error: errorMessage }, { status: 500 })
   }
 }
