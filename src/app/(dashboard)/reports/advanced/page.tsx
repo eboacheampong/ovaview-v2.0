@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import {
   BarChart3, TrendingUp, TrendingDown, Download, Calendar,
   Newspaper, Radio, Tv, Globe, Users, Eye, Mail, FileText, RefreshCw,
-  Search, ArrowUpRight, ArrowDownRight, Minus, PieChart,
+  Search, ArrowUpRight, ArrowDownRight, Minus, PieChart, Presentation,
   Activity, Target, Zap, Award, Clock, MapPin, Hash, Layers, Share2,
   ThumbsUp, ThumbsDown, AlertCircle, CheckCircle, XCircle, MoreHorizontal, Loader2
 } from 'lucide-react'
@@ -33,7 +33,7 @@ export default function AdvancedReportsPage() {
   const [clients, setClients] = useState<Client[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [isLoading, setIsLoading] = useState(true)
-  const [isExporting, setIsExporting] = useState(false)
+  const [isExporting, setIsExporting] = useState<string | null>(null)
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null)
   const [competitorData, setCompetitorData] = useState<CompetitorData | null>(null)
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
@@ -83,11 +83,285 @@ export default function AdvancedReportsPage() {
     fetchData()
   }, [fetchData])
 
-  const handleExport = async (format: 'pdf' | 'excel' | 'csv') => {
-    setIsExporting(true)
-    await new Promise(resolve => setTimeout(resolve, 1500))
-    setIsExporting(false)
-    alert(`Report exported as ${format.toUpperCase()}`)
+  // Export functions
+  const handleExport = async (format: 'pdf' | 'excel' | 'csv' | 'pptx') => {
+    if (!analyticsData) return
+    setIsExporting(format)
+    
+    try {
+      const clientName = clientFilter !== 'all' 
+        ? clients.find(c => c.id === clientFilter)?.name || 'Client'
+        : 'All Clients'
+      const dateRangeLabel = dateRange === '7d' ? '7 Days' : dateRange === '30d' ? '30 Days' : dateRange === '90d' ? '90 Days' : '12 Months'
+      const fileName = `Ovaview_Analytics_${clientName.replace(/\s+/g, '_')}_${dateRangeLabel}`
+
+      if (format === 'csv') {
+        // CSV Export
+        const rows = [
+          ['Ovaview Media Analytics Report'],
+          [`Generated: ${new Date().toLocaleString()}`],
+          [`Client: ${clientName}`, `Period: ${dateRangeLabel}`, `Media: ${mediaFilter}`],
+          [],
+          ['KPI Summary'],
+          ['Metric', 'Value', 'Change'],
+          ['Total Coverage', analyticsData.kpiData.totalCoverage.toString(), `${analyticsData.kpiData.coverageChange}%`],
+          ['Media Reach', analyticsData.kpiData.totalReach, `${analyticsData.kpiData.reachChange}%`],
+          ['Avg Sentiment', `${analyticsData.kpiData.avgSentiment}%`, `${analyticsData.kpiData.sentimentChange}%`],
+          ['Active Clients', analyticsData.kpiData.activeClients.toString(), ''],
+          ['Today Entries', analyticsData.kpiData.todayEntries.toString(), ''],
+          [],
+          ['Media Distribution'],
+          ['Type', 'Percentage'],
+          ...analyticsData.mediaDistributionData.map(m => [m.name, `${m.value}%`]),
+          [],
+          ['Sentiment Analysis'],
+          ['Sentiment', 'Percentage'],
+          ...analyticsData.sentimentData.map(s => [s.name, `${s.value}%`]),
+          [],
+          ['Top Keywords'],
+          ['Keyword', 'Mentions', 'Trend'],
+          ...analyticsData.topKeywordsData.map(k => [k.keyword, k.count.toString(), k.trend]),
+          [],
+          ['Top Publications'],
+          ['Name', 'Type', 'Stories', 'Reach'],
+          ...analyticsData.topPublicationsData.map(p => [p.name, p.type, p.stories.toString(), p.reach]),
+        ]
+        
+        const csvContent = rows.map(row => row.join(',')).join('\n')
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+        const link = document.createElement('a')
+        link.href = URL.createObjectURL(blob)
+        link.download = `${fileName}.csv`
+        link.click()
+      } else if (format === 'excel') {
+        // Excel Export using xlsx
+        const XLSX = (await import('xlsx')).default
+        
+        const wb = XLSX.utils.book_new()
+        
+        // Summary sheet
+        const summaryData = [
+          ['Ovaview Media Analytics Report'],
+          [`Generated: ${new Date().toLocaleString()}`],
+          [`Client: ${clientName}`, `Period: ${dateRangeLabel}`, `Media: ${mediaFilter}`],
+          [],
+          ['KPI Summary'],
+          ['Metric', 'Value', 'Change'],
+          ['Total Coverage', analyticsData.kpiData.totalCoverage, `${analyticsData.kpiData.coverageChange}%`],
+          ['Media Reach', analyticsData.kpiData.totalReach, `${analyticsData.kpiData.reachChange}%`],
+          ['Avg Sentiment', `${analyticsData.kpiData.avgSentiment}%`, `${analyticsData.kpiData.sentimentChange}%`],
+          ['Active Clients', analyticsData.kpiData.activeClients, ''],
+          ['Today Entries', analyticsData.kpiData.todayEntries, ''],
+        ]
+        const summarySheet = XLSX.utils.aoa_to_sheet(summaryData)
+        XLSX.utils.book_append_sheet(wb, summarySheet, 'Summary')
+        
+        // Media Distribution sheet
+        const mediaData = [['Type', 'Percentage'], ...analyticsData.mediaDistributionData.map(m => [m.name, m.value])]
+        const mediaSheet = XLSX.utils.aoa_to_sheet(mediaData)
+        XLSX.utils.book_append_sheet(wb, mediaSheet, 'Media Distribution')
+        
+        // Sentiment sheet
+        const sentimentSheetData = [['Sentiment', 'Percentage'], ...analyticsData.sentimentData.map(s => [s.name, s.value])]
+        const sentimentSheet = XLSX.utils.aoa_to_sheet(sentimentSheetData)
+        XLSX.utils.book_append_sheet(wb, sentimentSheet, 'Sentiment')
+        
+        // Keywords sheet
+        const keywordsData = [['Keyword', 'Mentions', 'Trend'], ...analyticsData.topKeywordsData.map(k => [k.keyword, k.count, k.trend])]
+        const keywordsSheet = XLSX.utils.aoa_to_sheet(keywordsData)
+        XLSX.utils.book_append_sheet(wb, keywordsSheet, 'Keywords')
+        
+        // Publications sheet
+        const pubsData = [['Name', 'Type', 'Stories', 'Reach'], ...analyticsData.topPublicationsData.map(p => [p.name, p.type, p.stories, p.reach])]
+        const pubsSheet = XLSX.utils.aoa_to_sheet(pubsData)
+        XLSX.utils.book_append_sheet(wb, pubsSheet, 'Publications')
+        
+        // Coverage Trend sheet
+        const trendData = [['Month', 'Web', 'Print', 'Radio', 'TV', 'Total'], ...analyticsData.coverageTrendData.map(t => [t.month, t.web, t.print, t.radio, t.tv, t.total])]
+        const trendSheet = XLSX.utils.aoa_to_sheet(trendData)
+        XLSX.utils.book_append_sheet(wb, trendSheet, 'Coverage Trend')
+        
+        XLSX.writeFile(wb, `${fileName}.xlsx`)
+      } else if (format === 'pdf') {
+        // PDF Export using jspdf
+        const { default: jsPDF } = await import('jspdf')
+        const { default: autoTable } = await import('jspdf-autotable')
+        
+        const doc = new jsPDF()
+        
+        // Title
+        doc.setFontSize(20)
+        doc.setTextColor(249, 115, 22) // Orange
+        doc.text('Ovaview Media Analytics', 14, 20)
+        
+        doc.setFontSize(10)
+        doc.setTextColor(100)
+        doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 28)
+        doc.text(`Client: ${clientName} | Period: ${dateRangeLabel} | Media: ${mediaFilter}`, 14, 34)
+        
+        // KPI Summary
+        doc.setFontSize(14)
+        doc.setTextColor(0)
+        doc.text('KPI Summary', 14, 46)
+        
+        autoTable(doc, {
+          startY: 50,
+          head: [['Metric', 'Value', 'Change']],
+          body: [
+            ['Total Coverage', analyticsData.kpiData.totalCoverage.toLocaleString(), `${analyticsData.kpiData.coverageChange}%`],
+            ['Media Reach', analyticsData.kpiData.totalReach, `${analyticsData.kpiData.reachChange}%`],
+            ['Avg Sentiment', `${analyticsData.kpiData.avgSentiment}%`, `${analyticsData.kpiData.sentimentChange}%`],
+            ['Active Clients', analyticsData.kpiData.activeClients.toString(), '-'],
+            ['Today Entries', analyticsData.kpiData.todayEntries.toString(), '-'],
+          ],
+          theme: 'striped',
+          headStyles: { fillColor: [249, 115, 22] },
+        })
+        
+        // Media Distribution
+        const y1 = (doc as any).lastAutoTable.finalY + 10
+        doc.text('Media Distribution', 14, y1)
+        
+        autoTable(doc, {
+          startY: y1 + 4,
+          head: [['Type', 'Percentage']],
+          body: analyticsData.mediaDistributionData.map(m => [m.name, `${m.value}%`]),
+          theme: 'striped',
+          headStyles: { fillColor: [249, 115, 22] },
+        })
+        
+        // Sentiment
+        const y2 = (doc as any).lastAutoTable.finalY + 10
+        doc.text('Sentiment Analysis', 14, y2)
+        
+        autoTable(doc, {
+          startY: y2 + 4,
+          head: [['Sentiment', 'Percentage']],
+          body: analyticsData.sentimentData.map(s => [s.name, `${s.value}%`]),
+          theme: 'striped',
+          headStyles: { fillColor: [249, 115, 22] },
+        })
+        
+        // New page for more data
+        doc.addPage()
+        
+        // Top Keywords
+        doc.setFontSize(14)
+        doc.text('Top Keywords', 14, 20)
+        
+        autoTable(doc, {
+          startY: 24,
+          head: [['Keyword', 'Mentions', 'Trend']],
+          body: analyticsData.topKeywordsData.map(k => [k.keyword, k.count.toString(), k.trend]),
+          theme: 'striped',
+          headStyles: { fillColor: [249, 115, 22] },
+        })
+        
+        // Top Publications
+        const y3 = (doc as any).lastAutoTable.finalY + 10
+        doc.text('Top Publications', 14, y3)
+        
+        autoTable(doc, {
+          startY: y3 + 4,
+          head: [['Name', 'Type', 'Stories', 'Reach']],
+          body: analyticsData.topPublicationsData.map(p => [p.name, p.type, p.stories.toString(), p.reach]),
+          theme: 'striped',
+          headStyles: { fillColor: [249, 115, 22] },
+        })
+        
+        doc.save(`${fileName}.pdf`)
+      } else if (format === 'pptx') {
+        // PowerPoint Export using pptxgenjs
+        const PptxGenJS = (await import('pptxgenjs')).default
+        const pptx = new PptxGenJS()
+        
+        pptx.author = 'Ovaview'
+        pptx.title = 'Media Analytics Report'
+        pptx.subject = `Analytics for ${clientName}`
+        
+        // Title Slide
+        const slide1 = pptx.addSlide()
+        slide1.addText('Media Analytics Report', { x: 0.5, y: 2, w: 9, h: 1, fontSize: 36, bold: true, color: 'F97316' })
+        slide1.addText(clientName, { x: 0.5, y: 3, w: 9, h: 0.5, fontSize: 24, color: '666666' })
+        slide1.addText(`Period: ${dateRangeLabel} | Generated: ${new Date().toLocaleDateString()}`, { x: 0.5, y: 3.6, w: 9, h: 0.4, fontSize: 14, color: '999999' })
+        
+        // KPI Slide
+        const slide2 = pptx.addSlide()
+        slide2.addText('Key Performance Indicators', { x: 0.5, y: 0.3, w: 9, h: 0.6, fontSize: 24, bold: true, color: 'F97316' })
+        
+        const kpiData = [
+          ['Total Coverage', analyticsData.kpiData.totalCoverage.toLocaleString(), `${analyticsData.kpiData.coverageChange > 0 ? '+' : ''}${analyticsData.kpiData.coverageChange}%`],
+          ['Media Reach', analyticsData.kpiData.totalReach, `${analyticsData.kpiData.reachChange > 0 ? '+' : ''}${analyticsData.kpiData.reachChange}%`],
+          ['Avg Sentiment', `${analyticsData.kpiData.avgSentiment}%`, `${analyticsData.kpiData.sentimentChange > 0 ? '+' : ''}${analyticsData.kpiData.sentimentChange}%`],
+          ['Active Clients', analyticsData.kpiData.activeClients.toString(), '-'],
+          ['Today Entries', analyticsData.kpiData.todayEntries.toString(), '-'],
+        ]
+        
+        slide2.addTable([['Metric', 'Value', 'Change'], ...kpiData], {
+          x: 0.5, y: 1.2, w: 9, h: 3,
+          colW: [3, 3, 3],
+          fill: { color: 'F5F5F5' },
+          border: { pt: 1, color: 'CCCCCC' },
+          fontFace: 'Arial',
+          fontSize: 12,
+        })
+        
+        // Media Distribution Slide
+        const slide3 = pptx.addSlide()
+        slide3.addText('Media Distribution', { x: 0.5, y: 0.3, w: 9, h: 0.6, fontSize: 24, bold: true, color: 'F97316' })
+        
+        const mediaTableData = analyticsData.mediaDistributionData.map(m => [m.name, `${m.value}%`])
+        slide3.addTable([['Media Type', 'Percentage'], ...mediaTableData], {
+          x: 0.5, y: 1.2, w: 4, h: 2.5,
+          colW: [2, 2],
+          fill: { color: 'F5F5F5' },
+          border: { pt: 1, color: 'CCCCCC' },
+        })
+        
+        // Sentiment Slide
+        const slide4 = pptx.addSlide()
+        slide4.addText('Sentiment Analysis', { x: 0.5, y: 0.3, w: 9, h: 0.6, fontSize: 24, bold: true, color: 'F97316' })
+        
+        const sentimentTableData = analyticsData.sentimentData.map(s => [s.name, `${s.value}%`])
+        slide4.addTable([['Sentiment', 'Percentage'], ...sentimentTableData], {
+          x: 0.5, y: 1.2, w: 4, h: 2,
+          colW: [2, 2],
+          fill: { color: 'F5F5F5' },
+          border: { pt: 1, color: 'CCCCCC' },
+        })
+        
+        // Keywords Slide
+        const slide5 = pptx.addSlide()
+        slide5.addText('Top Keywords', { x: 0.5, y: 0.3, w: 9, h: 0.6, fontSize: 24, bold: true, color: 'F97316' })
+        
+        const keywordsTableData = analyticsData.topKeywordsData.map(k => [k.keyword, k.count.toString(), k.trend])
+        slide5.addTable([['Keyword', 'Mentions', 'Trend'], ...keywordsTableData], {
+          x: 0.5, y: 1.2, w: 9, h: 3,
+          colW: [4, 2.5, 2.5],
+          fill: { color: 'F5F5F5' },
+          border: { pt: 1, color: 'CCCCCC' },
+        })
+        
+        // Publications Slide
+        const slide6 = pptx.addSlide()
+        slide6.addText('Top Publications', { x: 0.5, y: 0.3, w: 9, h: 0.6, fontSize: 24, bold: true, color: 'F97316' })
+        
+        const pubsTableData = analyticsData.topPublicationsData.map(p => [p.name, p.type, p.stories.toString(), p.reach])
+        slide6.addTable([['Publication', 'Type', 'Stories', 'Reach'], ...pubsTableData], {
+          x: 0.5, y: 1.2, w: 9, h: 3,
+          colW: [3, 2, 2, 2],
+          fill: { color: 'F5F5F5' },
+          border: { pt: 1, color: 'CCCCCC' },
+        })
+        
+        pptx.writeFile({ fileName: `${fileName}.pptx` })
+      }
+    } catch (error) {
+      console.error('Export error:', error)
+      alert('Export failed. Please try again.')
+    } finally {
+      setIsExporting(null)
+    }
   }
 
   const kpiCards = analyticsData ? [
@@ -155,14 +429,17 @@ export default function AdvancedReportsPage() {
             <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
-          <Button variant="outline" size="sm" onClick={() => handleExport('pdf')} disabled={isExporting} className="gap-2">
-            <Download className="h-4 w-4" /> PDF
+          <Button variant="outline" size="sm" onClick={() => handleExport('pdf')} disabled={!!isExporting} className="gap-2">
+            {isExporting === 'pdf' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} PDF
           </Button>
-          <Button variant="outline" size="sm" onClick={() => handleExport('excel')} disabled={isExporting} className="gap-2">
-            <Download className="h-4 w-4" /> Excel
+          <Button variant="outline" size="sm" onClick={() => handleExport('excel')} disabled={!!isExporting} className="gap-2">
+            {isExporting === 'excel' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} Excel
           </Button>
-          <Button variant="outline" size="sm" onClick={() => handleExport('csv')} disabled={isExporting} className="gap-2">
-            <Download className="h-4 w-4" /> CSV
+          <Button variant="outline" size="sm" onClick={() => handleExport('csv')} disabled={!!isExporting} className="gap-2">
+            {isExporting === 'csv' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} CSV
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => handleExport('pptx')} disabled={!!isExporting} className="gap-2">
+            {isExporting === 'pptx' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Presentation className="h-4 w-4" />} PPTX
           </Button>
         </div>
       </div>
