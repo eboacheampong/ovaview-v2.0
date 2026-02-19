@@ -1,36 +1,33 @@
+import { upload } from '@vercel/blob/client'
+
 export interface UploadResult {
   url: string
   error?: string
 }
 
 /**
- * Upload a file to Vercel Blob using streaming.
- * This bypasses serverless function body size limits by streaming
- * the file directly to Vercel Blob storage.
+ * Upload a file directly to Vercel Blob from the browser.
+ * This bypasses serverless function body size limits by uploading
+ * directly to Blob storage (only token generation goes through the API).
  */
 export async function uploadFile(
   file: File,
   folder: string = 'uploads'
 ): Promise<UploadResult> {
   try {
-    // Use streaming upload for large files (bypasses body size limit)
-    const response = await fetch('/api/upload', {
-      method: 'POST',
-      headers: {
-        'Content-Type': file.type,
-        'x-filename': file.name,
-        'x-folder': folder,
-      },
-      body: file, // Stream the file directly
+    // Generate a unique filename
+    const timestamp = Date.now()
+    const ext = file.name.split('.').pop() || 'bin'
+    const filename = `${folder}/${timestamp}-${Math.random().toString(36).substring(2, 8)}.${ext}`
+    
+    // Use Vercel Blob client upload - uploads directly to Blob storage
+    // Only the token request goes through our API (small JSON payload)
+    const blob = await upload(filename, file, {
+      access: 'public',
+      handleUploadUrl: '/api/upload',
     })
     
-    const data = await response.json()
-    
-    if (!response.ok) {
-      throw new Error(data.error || 'Upload failed')
-    }
-    
-    return { url: data.url }
+    return { url: blob.url }
   } catch (error) {
     console.error('Upload error:', error)
     const message = error instanceof Error ? error.message : 'Upload failed'

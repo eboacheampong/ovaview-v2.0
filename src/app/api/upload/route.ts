@@ -1,4 +1,4 @@
-import { put } from '@vercel/blob'
+import { put, handleUpload } from '@vercel/blob'
 import { NextRequest, NextResponse } from 'next/server'
 
 // Increase timeout for large uploads
@@ -6,42 +6,41 @@ export const maxDuration = 300 // 5 minutes
 
 export async function POST(request: NextRequest) {
   try {
-    // Get filename and content type from headers for streaming upload
-    const filename = request.headers.get('x-filename')
     const contentType = request.headers.get('content-type') || ''
-    const folder = request.headers.get('x-folder') || 'uploads'
     
-    // If streaming upload (has x-filename header)
-    if (filename && request.body) {
-      // Validate content type
-      const allowedTypes = [
-        'image/jpeg', 'image/png', 'image/gif', 'image/webp',
-        'audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/mp4', 'audio/x-m4a',
-        'video/mp4', 'video/webm', 'video/ogg', 'video/quicktime'
-      ]
+    // Handle client-upload token request (JSON body)
+    if (contentType.includes('application/json')) {
+      const body = await request.json()
       
-      if (!allowedTypes.includes(contentType)) {
-        return NextResponse.json({ error: `File type not allowed: ${contentType}` }, { status: 400 })
+      try {
+        const jsonResponse = await handleUpload({
+          body,
+          request,
+          onBeforeGenerateToken: async (pathname) => {
+            return {
+              allowedContentTypes: [
+                'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+                'audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/mp4', 'audio/x-m4a', 'audio/m4a',
+                'video/mp4', 'video/webm', 'video/ogg', 'video/quicktime'
+              ],
+              maximumSizeInBytes: 500 * 1024 * 1024, // 500MB
+            }
+          },
+          onUploadCompleted: async ({ blob }) => {
+            console.log('Upload completed:', blob.url)
+          },
+        })
+        return NextResponse.json(jsonResponse)
+      } catch (error) {
+        console.error('handleUpload error:', error)
+        return NextResponse.json({ error: 'Upload token generation failed' }, { status: 500 })
       }
-      
-      // Generate unique filename
-      const timestamp = Date.now()
-      const ext = filename.split('.').pop() || 'bin'
-      const blobFilename = `${folder}/${timestamp}-${Math.random().toString(36).substring(2, 8)}.${ext}`
-      
-      // Stream directly to Vercel Blob - bypasses body size limit
-      const blob = await put(blobFilename, request.body, {
-        access: 'public',
-        contentType,
-      })
-      
-      return NextResponse.json({ url: blob.url })
     }
     
-    // Fallback: Handle traditional form data upload (for smaller files)
+    // Handle traditional form data upload (for smaller files only)
     const formData = await request.formData()
     const file = formData.get('file') as File | null
-    const formFolder = formData.get('folder') as string || 'uploads'
+    const folder = formData.get('folder') as string || 'uploads'
 
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 })
@@ -50,7 +49,7 @@ export async function POST(request: NextRequest) {
     // Validate file type
     const allowedTypes = [
       'image/jpeg', 'image/png', 'image/gif', 'image/webp',
-      'audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/mp4', 'audio/x-m4a',
+      'audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/mp4', 'audio/x-m4a', 'audio/m4a',
       'video/mp4', 'video/webm', 'video/ogg', 'video/quicktime'
     ]
 
@@ -61,9 +60,9 @@ export async function POST(request: NextRequest) {
     // Generate unique filename
     const timestamp = Date.now()
     const ext = file.name.split('.').pop() || 'bin'
-    const blobFilename = `${formFolder}/${timestamp}-${Math.random().toString(36).substring(2, 8)}.${ext}`
+    const filename = `${folder}/${timestamp}-${Math.random().toString(36).substring(2, 8)}.${ext}`
 
-    const blob = await put(blobFilename, file, {
+    const blob = await put(filename, file, {
       access: 'public',
     })
 
