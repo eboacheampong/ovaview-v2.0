@@ -302,27 +302,60 @@ export async function POST(request: NextRequest) {
     console.log(`[Scraper] ${sources.length} sources, ${clientInfo}, ${allKeywords.size} keywords`)
     clientKeywordData.forEach(c => console.log(`  -> ${c.clientName}: [${c.keywords.join(', ')}]`))
 
-    // 4. Call remote scraper
-    let scraperResponse = await fetch(`${SCRAPER_API}/api/scrape`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sources }),
-    })
+    // 4. Call remote scraper with timeout
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 120000) // 2 minute timeout
+
+    let scraperResponse: Response
+    try {
+      scraperResponse = await fetch(`${SCRAPER_API}/api/scrape`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sources }),
+        signal: controller.signal,
+      })
+    } catch (fetchError) {
+      clearTimeout(timeout)
+      if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+        return NextResponse.json(
+          { success: false, error: 'Scraper timeout', message: 'The scraper took too long to respond. Try again or reduce the number of sources.' },
+          { status: 504 }
+        )
+      }
+      return NextResponse.json(
+        { success: false, error: 'Scraper unreachable', message: `Could not connect to scraper at ${SCRAPER_API}` },
+        { status: 502 }
+      )
+    }
+    clearTimeout(timeout)
 
     if (scraperResponse.status === 405) {
       scraperResponse = await fetch(`${SCRAPER_API}/api/scrape`)
     }
 
+    // Get response text first, then try to parse as JSON
+    const responseText = await scraperResponse.text()
+    
     if (!scraperResponse.ok) {
-      const errorText = await scraperResponse.text()
-      console.error(`Scraper error (${scraperResponse.status}):`, errorText)
+      console.error(`Scraper error (${scraperResponse.status}):`, responseText)
       return NextResponse.json(
-        { success: false, error: `Scraper returned ${scraperResponse.status}`, message: errorText },
+        { success: false, error: `Scraper returned ${scraperResponse.status}`, message: responseText.substring(0, 200) },
         { status: 502 }
       )
     }
 
-    const scraperData = await scraperResponse.json()
+    // Try to parse JSON safely
+    let scraperData: { success: boolean; articles?: unknown[]; error?: string }
+    try {
+      scraperData = JSON.parse(responseText)
+    } catch (parseError) {
+      console.error('Failed to parse scraper response:', responseText.substring(0, 500))
+      return NextResponse.json(
+        { success: false, error: 'Invalid scraper response', message: 'The scraper returned an invalid response. It may have crashed or timed out.' },
+        { status: 502 }
+      )
+    }
+
     if (!scraperData.success) {
       return NextResponse.json(
         { success: false, error: scraperData.error || 'Scraper failed' },

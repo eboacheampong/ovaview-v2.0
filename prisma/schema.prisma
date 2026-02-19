@@ -555,3 +555,12 @@ model DailyInsight {
   @@index([scrapedAt(sort: Desc)])
   @@index([industry])
 }
+
+// System Settings
+model SystemSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
