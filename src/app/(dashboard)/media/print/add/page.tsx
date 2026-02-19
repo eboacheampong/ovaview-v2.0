@@ -61,13 +61,15 @@ export default function AddPrintStoryPage() {
     author: '',
     pageNumbers: '',
     publicationId: '',
-    issueId: '',
+    issueName: '',
     publicationDate: '',
     summary: '',
     keywords: '',
     content: '',
     industryId: '',
   })
+  const [issueSearchResults, setIssueSearchResults] = useState<Issue[]>([])
+  const [showIssueSuggestions, setShowIssueSuggestions] = useState(false)
   const [sentimentData, setSentimentData] = useState<{
     positive: number | null
     neutral: number | null
@@ -111,6 +113,18 @@ export default function AddPrintStoryPage() {
   const selectedIndustry = industries.find(i => i.id === formData.industryId)
   const availableSubIndustries = selectedIndustry?.subIndustries.filter(s => !selectedSubIndustries.includes(s.id)) || []
   const selectedSubIndustryObjects = selectedIndustry?.subIndustries.filter(s => selectedSubIndustries.includes(s.id)) || []
+
+  // Filter issues based on typed name
+  useEffect(() => {
+    if (selectedPublication?.issues && formData.issueName) {
+      const filtered = selectedPublication.issues.filter(issue =>
+        issue.name.toLowerCase().includes(formData.issueName.toLowerCase())
+      )
+      setIssueSearchResults(filtered)
+    } else {
+      setIssueSearchResults(selectedPublication?.issues || [])
+    }
+  }, [formData.issueName, selectedPublication])
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
@@ -303,7 +317,7 @@ export default function AddPrintStoryPage() {
           keywords: formData.keywords,
           date: formData.publicationDate,
           publicationId: formData.publicationId || null,
-          issueId: formData.issueId || null,
+          issueName: formData.issueName || null,
           industryId: formData.industryId || null,
           subIndustryIds: selectedSubIndustries,
           images: uploadedUrls,
@@ -510,17 +524,46 @@ export default function AddPrintStoryPage() {
               <Label htmlFor="publication" className="text-gray-600 flex items-center gap-2 mb-2">
                 <BookOpen className="h-4 w-4" />Publication
               </Label>
-              <select id="publication" className="w-full h-11 rounded-lg border border-gray-200 px-3 bg-white focus:ring-2 focus:ring-orange-500" value={formData.publicationId} onChange={(e) => setFormData({ ...formData, publicationId: e.target.value, issueId: '' })}>
+              <select id="publication" className="w-full h-11 rounded-lg border border-gray-200 px-3 bg-white focus:ring-2 focus:ring-orange-500" value={formData.publicationId} onChange={(e) => setFormData({ ...formData, publicationId: e.target.value, issueName: '' })}>
                 <option value="">Select publication</option>
                 {publications.map(pub => (<option key={pub.id} value={pub.id}>{pub.name}</option>))}
               </select>
             </div>
-            <div>
-              <Label htmlFor="issue" className="text-gray-600 mb-2 block">Issue</Label>
-              <select id="issue" className="w-full h-11 rounded-lg border border-gray-200 px-3 bg-white focus:ring-2 focus:ring-orange-500" value={formData.issueId} onChange={(e) => setFormData({ ...formData, issueId: e.target.value })} disabled={!selectedPublication}>
-                <option value="">Select issue</option>
-                {selectedPublication?.issues?.map(issue => (<option key={issue.id} value={issue.id}>{issue.name}</option>))}
-              </select>
+            <div className="relative">
+              <Label htmlFor="issueName" className="text-gray-600 mb-2 block">Issue</Label>
+              <Input 
+                id="issueName" 
+                value={formData.issueName} 
+                onChange={(e) => {
+                  setFormData({ ...formData, issueName: e.target.value })
+                  setShowIssueSuggestions(true)
+                }}
+                onFocus={() => setShowIssueSuggestions(true)}
+                onBlur={() => setTimeout(() => setShowIssueSuggestions(false), 200)}
+                placeholder={selectedPublication ? "Type issue name (e.g., Vol. 12, Issue 3)" : "Select publication first"}
+                className="h-11"
+                disabled={!selectedPublication}
+                autoComplete="off"
+              />
+              {showIssueSuggestions && issueSearchResults.length > 0 && formData.publicationId && (
+                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                  {issueSearchResults.map(issue => (
+                    <div 
+                      key={issue.id} 
+                      className="px-4 py-2 hover:bg-orange-50 cursor-pointer text-sm"
+                      onMouseDown={() => {
+                        setFormData({ ...formData, issueName: issue.name })
+                        setShowIssueSuggestions(false)
+                      }}
+                    >
+                      {issue.name}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {formData.issueName && selectedPublication && !selectedPublication.issues?.some(i => i.name.toLowerCase() === formData.issueName.toLowerCase()) && (
+                <p className="text-xs text-green-600 mt-1">New issue will be created</p>
+              )}
             </div>
             <div>
               <Label htmlFor="author" className="text-gray-600 flex items-center gap-2 mb-2">

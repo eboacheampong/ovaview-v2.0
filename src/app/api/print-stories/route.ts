@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
       keywords,
       date,
       publicationId,
-      issueId,
+      issueName,
       industryId,
       subIndustryIds,
       images,
@@ -117,6 +117,32 @@ export async function POST(request: NextRequest) {
       counter++
     }
 
+    // Handle issue - find existing or create new
+    let issueId: string | null = null
+    if (issueName && publicationId) {
+      // Check if issue already exists for this publication
+      const existingIssue = await prisma.printIssue.findFirst({
+        where: {
+          publicationId,
+          name: { equals: issueName, mode: 'insensitive' },
+        },
+      })
+
+      if (existingIssue) {
+        issueId = existingIssue.id
+      } else {
+        // Create new issue
+        const newIssue = await prisma.printIssue.create({
+          data: {
+            name: issueName,
+            publicationId,
+            issueDate: date ? new Date(date) : null,
+          },
+        })
+        issueId = newIssue.id
+      }
+    }
+
     const story = await prisma.printStory.create({
       data: {
         title,
@@ -128,7 +154,7 @@ export async function POST(request: NextRequest) {
         keywords,
         date: new Date(date),
         publicationId: publicationId || null,
-        issueId: issueId || null,
+        issueId,
         industryId: industryId || null,
         sentimentPositive: sentimentPositive ?? null,
         sentimentNeutral: sentimentNeutral ?? null,
