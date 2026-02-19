@@ -73,6 +73,9 @@ export default function AddRadioStoryPage() {
   }>({ positive: null, neutral: null, negative: null, overallSentiment: null })
   const [audioFile, setAudioFile] = useState<File | null>(null)
   const [audioPreviewUrl, setAudioPreviewUrl] = useState<string | null>(null)
+  const [uploadedAudioUrl, setUploadedAudioUrl] = useState<string | null>(null)
+  const [isUploadingAudio, setIsUploadingAudio] = useState(false)
+  const [uploadError, setUploadError] = useState('')
   const [selectedSubIndustries, setSelectedSubIndustries] = useState<string[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)
@@ -109,7 +112,7 @@ export default function AddRadioStoryPage() {
   const availableSubIndustries = selectedIndustry?.subIndustries.filter(s => !selectedSubIndustries.includes(s.id)) || []
   const selectedSubIndustryObjects = selectedIndustry?.subIndustries.filter(s => selectedSubIndustries.includes(s.id)) || []
 
-  const handleAudioSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAudioSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
       if (!file.type.startsWith('audio/')) { alert('Please select an audio file'); return }
@@ -118,11 +121,34 @@ export default function AddRadioStoryPage() {
       if (audioPreviewUrl) URL.revokeObjectURL(audioPreviewUrl)
       setAudioPreviewUrl(URL.createObjectURL(file))
       if (!formData.audioTitle) setFormData(prev => ({ ...prev, audioTitle: file.name.replace(/\.[^/.]+$/, '') }))
+      
+      // Upload immediately
+      setIsUploadingAudio(true)
+      setUploadError('')
+      try {
+        const formDataUpload = new FormData()
+        formDataUpload.append('file', file)
+        formDataUpload.append('folder', 'radio-audio')
+        const uploadRes = await fetch('/api/upload', { method: 'POST', body: formDataUpload })
+        if (uploadRes.ok) {
+          const { url } = await uploadRes.json()
+          setUploadedAudioUrl(url)
+        } else {
+          throw new Error('Upload failed')
+        }
+      } catch (error) {
+        setUploadError('Failed to upload audio. Please try again.')
+        console.error('Audio upload error:', error)
+      } finally {
+        setIsUploadingAudio(false)
+      }
     }
   }
 
   const handleRemoveAudio = () => {
     setAudioFile(null)
+    setUploadedAudioUrl(null)
+    setUploadError('')
     if (audioPreviewUrl) { URL.revokeObjectURL(audioPreviewUrl); setAudioPreviewUrl(null) }
     if (fileInputRef.current) fileInputRef.current.value = ''
     setIsPlaying(false)
@@ -200,19 +226,17 @@ export default function AddRadioStoryPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Check if audio is still uploading
+    if (isUploadingAudio) {
+      alert('Please wait for audio upload to complete')
+      return
+    }
+    
     setIsSubmitting(true)
     try {
-      let uploadedAudioUrl = formData.audioUrl
-      if (audioFile) {
-        const formDataUpload = new FormData()
-        formDataUpload.append('file', audioFile)
-        formDataUpload.append('folder', 'radio-audio')
-        const uploadRes = await fetch('/api/upload', { method: 'POST', body: formDataUpload })
-        if (uploadRes.ok) {
-          const { url } = await uploadRes.json()
-          uploadedAudioUrl = url
-        }
-      }
+      // Use already uploaded URL or the external URL
+      const audioUrl = uploadedAudioUrl || formData.audioUrl
 
       const response = await fetch('/api/radio-stories', {
         method: 'POST',
@@ -223,7 +247,7 @@ export default function AddRadioStoryPage() {
           summary: formData.summary,
           presenters: formData.presenters,
           keywords: formData.keywords,
-          audioUrl: uploadedAudioUrl,
+          audioUrl: audioUrl,
           audioTitle: formData.audioTitle || null,
           date: formData.dateAired,
           stationId: formData.stationId || null,
@@ -281,14 +305,19 @@ export default function AddRadioStoryPage() {
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
-                      <Music className="h-5 w-5 text-purple-600" />
+                      {isUploadingAudio ? <Loader2 className="h-5 w-5 text-purple-600 animate-spin" /> : <Music className="h-5 w-5 text-purple-600" />}
                     </div>
                     <div>
                       <p className="font-medium text-gray-900 text-sm">{audioFile.name}</p>
-                      <p className="text-xs text-gray-500">{(audioFile.size / (1024 * 1024)).toFixed(2)} MB</p>
+                      <p className="text-xs text-gray-500">
+                        {(audioFile.size / (1024 * 1024)).toFixed(2)} MB
+                        {isUploadingAudio && <span className="ml-2 text-purple-600">• Uploading...</span>}
+                        {uploadedAudioUrl && <span className="ml-2 text-green-600">• Uploaded ✓</span>}
+                        {uploadError && <span className="ml-2 text-red-600">• {uploadError}</span>}
+                      </p>
                     </div>
                   </div>
-                  <button type="button" onClick={handleRemoveAudio} className="p-1.5 hover:bg-gray-200 rounded-full">
+                  <button type="button" onClick={handleRemoveAudio} disabled={isUploadingAudio} className="p-1.5 hover:bg-gray-200 rounded-full disabled:opacity-50">
                     <X className="h-4 w-4 text-gray-500" />
                   </button>
                 </div>

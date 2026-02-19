@@ -84,6 +84,9 @@ export default function EditTVStoryPage() {
   const [existingVideoUrl, setExistingVideoUrl] = useState<string | null>(null)
   const [videoFile, setVideoFile] = useState<File | null>(null)
   const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null)
+  const [uploadedVideoUrl, setUploadedVideoUrl] = useState<string | null>(null)
+  const [isUploadingVideo, setIsUploadingVideo] = useState(false)
+  const [uploadError, setUploadError] = useState('')
   const [isPlaying, setIsPlaying] = useState(false)
   const [selectedSubIndustries, setSelectedSubIndustries] = useState<string[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -153,7 +156,7 @@ export default function EditTVStoryPage() {
   const selectedSubIndustryObjects = selectedIndustry?.subIndustries.filter(s => selectedSubIndustries.includes(s.id)) || []
   const embedUrl = getVideoEmbedUrl(formData.videoUrl)
 
-  const handleVideoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleVideoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
       if (!file.type.startsWith('video/')) {
@@ -166,6 +169,8 @@ export default function EditTVStoryPage() {
       }
       setVideoFile(file)
       setExistingVideoUrl(null)
+      setUploadedVideoUrl(null)
+      setUploadError('')
       setFormData(prev => ({ ...prev, videoUrl: '' }))
       if (videoPreviewUrl) {
         URL.revokeObjectURL(videoPreviewUrl)
@@ -174,12 +179,34 @@ export default function EditTVStoryPage() {
       if (!formData.videoTitle) {
         setFormData(prev => ({ ...prev, videoTitle: file.name.replace(/\.[^/.]+$/, '') }))
       }
+      
+      // Upload immediately
+      setIsUploadingVideo(true)
+      try {
+        const formDataUpload = new FormData()
+        formDataUpload.append('file', file)
+        formDataUpload.append('folder', 'tv-video')
+        const uploadRes = await fetch('/api/upload', { method: 'POST', body: formDataUpload })
+        if (uploadRes.ok) {
+          const { url } = await uploadRes.json()
+          setUploadedVideoUrl(url)
+        } else {
+          throw new Error('Upload failed')
+        }
+      } catch (error) {
+        setUploadError('Failed to upload video. Please try again.')
+        console.error('Video upload error:', error)
+      } finally {
+        setIsUploadingVideo(false)
+      }
     }
   }
 
   const handleRemoveVideo = () => {
     setVideoFile(null)
     setExistingVideoUrl(null)
+    setUploadedVideoUrl(null)
+    setUploadError('')
     setFormData(prev => ({ ...prev, videoUrl: '' }))
     if (videoPreviewUrl) {
       URL.revokeObjectURL(videoPreviewUrl)
@@ -249,23 +276,17 @@ export default function EditTVStoryPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Check if video is still uploading
+    if (isUploadingVideo) {
+      alert('Please wait for video upload to complete')
+      return
+    }
+    
     setIsSubmitting(true)
     try {
-      let videoUrl = existingVideoUrl || formData.videoUrl
-      
-      // Upload new video file to Vercel Blob if selected
-      if (videoFile) {
-        const formDataUpload = new FormData()
-        formDataUpload.append('file', videoFile)
-        formDataUpload.append('folder', 'tv-video')
-        const uploadRes = await fetch('/api/upload', { method: 'POST', body: formDataUpload })
-        if (uploadRes.ok) {
-          const { url } = await uploadRes.json()
-          videoUrl = url
-        } else {
-          throw new Error('Failed to upload video file')
-        }
-      }
+      // Use already uploaded URL, existing URL, or external URL
+      const videoUrl = uploadedVideoUrl || existingVideoUrl || formData.videoUrl
 
       const response = await fetch(`/api/tv-stories/${storyId}`, {
         method: 'PUT',
@@ -442,16 +463,21 @@ export default function EditTVStoryPage() {
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
-                        <Video className="h-5 w-5 text-purple-600" />
+                        {isUploadingVideo ? <Loader2 className="h-5 w-5 text-purple-600 animate-spin" /> : <Video className="h-5 w-5 text-purple-600" />}
                       </div>
                       <div>
                         <p className="font-medium text-gray-900 text-sm">{videoFile?.name || formData.videoTitle || 'Video file'}</p>
-                        {videoFile && <p className="text-xs text-gray-500">{(videoFile.size / (1024 * 1024)).toFixed(2)} MB</p>}
+                        <p className="text-xs text-gray-500">
+                          {videoFile && `${(videoFile.size / (1024 * 1024)).toFixed(2)} MB`}
+                          {isUploadingVideo && <span className="ml-2 text-purple-600">• Uploading...</span>}
+                          {uploadedVideoUrl && <span className="ml-2 text-green-600">• Uploaded ✓</span>}
+                          {uploadError && <span className="ml-2 text-red-600">• {uploadError}</span>}
+                        </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <button type="button" onClick={() => videoInputRef.current?.click()} className="text-sm text-purple-600 hover:text-purple-700">Replace</button>
-                      <button type="button" onClick={handleRemoveVideo} className="p-1.5 hover:bg-gray-200 rounded-full">
+                      <button type="button" onClick={() => videoInputRef.current?.click()} disabled={isUploadingVideo} className="text-sm text-purple-600 hover:text-purple-700 disabled:opacity-50">Replace</button>
+                      <button type="button" onClick={handleRemoveVideo} disabled={isUploadingVideo} className="p-1.5 hover:bg-gray-200 rounded-full disabled:opacity-50">
                         <X className="h-4 w-4 text-gray-500" />
                       </button>
                     </div>
@@ -504,8 +530,8 @@ export default function EditTVStoryPage() {
 
         <div className="flex justify-end gap-3 pt-4">
           <Button type="button" variant="outline" onClick={() => router.push('/media/tv')}>Cancel</Button>
-          <Button type="submit" className="bg-orange-500 hover:bg-orange-600 text-white" disabled={isSubmitting}>
-            {isSubmitting ? (<><Loader2 className="h-4 w-4 mr-2 animate-spin" />Updating...</>) : 'Update Story'}
+          <Button type="submit" className="bg-orange-500 hover:bg-orange-600 text-white" disabled={isSubmitting || isUploadingVideo}>
+            {isSubmitting ? (<><Loader2 className="h-4 w-4 mr-2 animate-spin" />Updating...</>) : isUploadingVideo ? (<><Loader2 className="h-4 w-4 mr-2 animate-spin" />Uploading...</>) : 'Update Story'}
           </Button>
         </div>
       </form>
