@@ -2,13 +2,46 @@ import { put } from '@vercel/blob'
 import { NextRequest, NextResponse } from 'next/server'
 
 // Increase timeout for large uploads
-export const maxDuration = 60 // seconds
+export const maxDuration = 300 // 5 minutes
 
 export async function POST(request: NextRequest) {
   try {
+    // Get filename and content type from headers for streaming upload
+    const filename = request.headers.get('x-filename')
+    const contentType = request.headers.get('content-type') || ''
+    const folder = request.headers.get('x-folder') || 'uploads'
+    
+    // If streaming upload (has x-filename header)
+    if (filename && request.body) {
+      // Validate content type
+      const allowedTypes = [
+        'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+        'audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/mp4', 'audio/x-m4a',
+        'video/mp4', 'video/webm', 'video/ogg', 'video/quicktime'
+      ]
+      
+      if (!allowedTypes.includes(contentType)) {
+        return NextResponse.json({ error: `File type not allowed: ${contentType}` }, { status: 400 })
+      }
+      
+      // Generate unique filename
+      const timestamp = Date.now()
+      const ext = filename.split('.').pop() || 'bin'
+      const blobFilename = `${folder}/${timestamp}-${Math.random().toString(36).substring(2, 8)}.${ext}`
+      
+      // Stream directly to Vercel Blob - bypasses body size limit
+      const blob = await put(blobFilename, request.body, {
+        access: 'public',
+        contentType,
+      })
+      
+      return NextResponse.json({ url: blob.url })
+    }
+    
+    // Fallback: Handle traditional form data upload (for smaller files)
     const formData = await request.formData()
     const file = formData.get('file') as File | null
-    const folder = formData.get('folder') as string || 'uploads'
+    const formFolder = formData.get('folder') as string || 'uploads'
 
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 })
@@ -25,22 +58,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: `File type not allowed: ${file.type}` }, { status: 400 })
     }
 
-    // Max 500MB for videos, 50MB for audio, 10MB for images
-    const maxSize = file.type.startsWith('video/') 
-      ? 500 * 1024 * 1024 
-      : file.type.startsWith('audio/') 
-        ? 50 * 1024 * 1024 
-        : 10 * 1024 * 1024
-    if (file.size > maxSize) {
-      return NextResponse.json({ error: `File too large. Max ${maxSize / 1024 / 1024}MB` }, { status: 400 })
-    }
-
     // Generate unique filename
     const timestamp = Date.now()
     const ext = file.name.split('.').pop() || 'bin'
-    const filename = `${folder}/${timestamp}-${Math.random().toString(36).substring(2, 8)}.${ext}`
+    const blobFilename = `${formFolder}/${timestamp}-${Math.random().toString(36).substring(2, 8)}.${ext}`
 
-    const blob = await put(filename, file, {
+    const blob = await put(blobFilename, file, {
       access: 'public',
     })
 

@@ -4,21 +4,24 @@ export interface UploadResult {
 }
 
 /**
- * Upload a file to Vercel Blob via the API route.
- * For large files, this may fail due to serverless function limits.
+ * Upload a file to Vercel Blob using streaming.
+ * This bypasses serverless function body size limits by streaming
+ * the file directly to Vercel Blob storage.
  */
 export async function uploadFile(
   file: File,
   folder: string = 'uploads'
 ): Promise<UploadResult> {
   try {
-    const formData = new FormData()
-    formData.append('file', file)
-    formData.append('folder', folder)
-    
+    // Use streaming upload for large files (bypasses body size limit)
     const response = await fetch('/api/upload', {
       method: 'POST',
-      body: formData,
+      headers: {
+        'Content-Type': file.type,
+        'x-filename': file.name,
+        'x-folder': folder,
+      },
+      body: file, // Stream the file directly
     })
     
     const data = await response.json()
