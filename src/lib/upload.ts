@@ -1,31 +1,33 @@
-import { upload } from '@vercel/blob/client'
-
 export interface UploadResult {
   url: string
   error?: string
 }
 
 /**
- * Upload a file directly to Vercel Blob from the client.
- * This bypasses serverless function body size limits.
+ * Upload a file to Vercel Blob via the API route.
+ * For large files, this may fail due to serverless function limits.
  */
 export async function uploadFile(
   file: File,
-  folder: string = 'uploads',
-  onProgress?: (progress: number) => void
+  folder: string = 'uploads'
 ): Promise<UploadResult> {
   try {
-    // Generate a unique filename
-    const timestamp = Date.now()
-    const ext = file.name.split('.').pop() || 'bin'
-    const filename = `${folder}/${timestamp}-${Math.random().toString(36).substring(2, 8)}.${ext}`
-
-    const blob = await upload(filename, file, {
-      access: 'public',
-      handleUploadUrl: '/api/upload',
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('folder', folder)
+    
+    const response = await fetch('/api/upload', {
+      method: 'POST',
+      body: formData,
     })
-
-    return { url: blob.url }
+    
+    const data = await response.json()
+    
+    if (!response.ok) {
+      throw new Error(data.error || 'Upload failed')
+    }
+    
+    return { url: data.url }
   } catch (error) {
     console.error('Upload error:', error)
     const message = error instanceof Error ? error.message : 'Upload failed'
