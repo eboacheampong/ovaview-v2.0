@@ -271,90 +271,35 @@ export default function AdvancedReportsPage() {
         
         doc.save(`${fileName}.pdf`)
       } else if (format === 'pptx') {
-        // PowerPoint Export using pptxgenjs
-        const PptxGenJS = (await import('pptxgenjs')).default
-        const pptx = new PptxGenJS()
-        
-        pptx.author = 'Ovaview'
-        pptx.title = 'Media Analytics Report'
-        pptx.subject = `Analytics for ${clientName}`
-        
-        // Title Slide
-        const slide1 = pptx.addSlide()
-        slide1.addText('Media Analytics Report', { x: 0.5, y: 2, w: 9, h: 1, fontSize: 36, bold: true, color: 'F97316' })
-        slide1.addText(clientName, { x: 0.5, y: 3, w: 9, h: 0.5, fontSize: 24, color: '666666' })
-        slide1.addText(`Period: ${dateRangeLabel} | Generated: ${new Date().toLocaleDateString()}`, { x: 0.5, y: 3.6, w: 9, h: 0.4, fontSize: 14, color: '999999' })
-        
-        // KPI Slide
-        const slide2 = pptx.addSlide()
-        slide2.addText('Key Performance Indicators', { x: 0.5, y: 0.3, w: 9, h: 0.6, fontSize: 24, bold: true, color: 'F97316' })
-        
-        const kpiData = [
-          ['Total Coverage', analyticsData.kpiData.totalCoverage.toLocaleString(), `${analyticsData.kpiData.coverageChange > 0 ? '+' : ''}${analyticsData.kpiData.coverageChange}%`],
-          ['Media Reach', analyticsData.kpiData.totalReach, `${analyticsData.kpiData.reachChange > 0 ? '+' : ''}${analyticsData.kpiData.reachChange}%`],
-          ['Avg Sentiment', `${analyticsData.kpiData.avgSentiment}%`, `${analyticsData.kpiData.sentimentChange > 0 ? '+' : ''}${analyticsData.kpiData.sentimentChange}%`],
-          ['Active Clients', analyticsData.kpiData.activeClients.toString(), '-'],
-          ['Today Entries', analyticsData.kpiData.todayEntries.toString(), '-'],
-        ]
-        
-        slide2.addTable([['Metric', 'Value', 'Change'], ...kpiData], {
-          x: 0.5, y: 1.2, w: 9, h: 3,
-          colW: [3, 3, 3],
-          fill: { color: 'F5F5F5' },
-          border: { pt: 1, color: 'CCCCCC' },
-          fontFace: 'Arial',
-          fontSize: 12,
+        // PowerPoint Export via server API (pptxgenjs requires Node.js)
+        const response = await fetch('/api/reports/export-pptx', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            analyticsData,
+            clientName,
+            dateRangeLabel,
+            mediaFilter,
+          }),
         })
         
-        // Media Distribution Slide
-        const slide3 = pptx.addSlide()
-        slide3.addText('Media Distribution', { x: 0.5, y: 0.3, w: 9, h: 0.6, fontSize: 24, bold: true, color: 'F97316' })
+        if (!response.ok) throw new Error('PPTX generation failed')
         
-        const mediaTableData = analyticsData.mediaDistributionData.map(m => [m.name, `${m.value}%`])
-        slide3.addTable([['Media Type', 'Percentage'], ...mediaTableData], {
-          x: 0.5, y: 1.2, w: 4, h: 2.5,
-          colW: [2, 2],
-          fill: { color: 'F5F5F5' },
-          border: { pt: 1, color: 'CCCCCC' },
-        })
+        const { data, filename } = await response.json()
         
-        // Sentiment Slide
-        const slide4 = pptx.addSlide()
-        slide4.addText('Sentiment Analysis', { x: 0.5, y: 0.3, w: 9, h: 0.6, fontSize: 24, bold: true, color: 'F97316' })
+        // Convert base64 to blob and download
+        const byteCharacters = atob(data)
+        const byteNumbers = new Array(byteCharacters.length)
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i)
+        }
+        const byteArray = new Uint8Array(byteNumbers)
+        const blob = new Blob([byteArray], { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' })
         
-        const sentimentTableData = analyticsData.sentimentData.map(s => [s.name, `${s.value}%`])
-        slide4.addTable([['Sentiment', 'Percentage'], ...sentimentTableData], {
-          x: 0.5, y: 1.2, w: 4, h: 2,
-          colW: [2, 2],
-          fill: { color: 'F5F5F5' },
-          border: { pt: 1, color: 'CCCCCC' },
-        })
-        
-        // Keywords Slide
-        const slide5 = pptx.addSlide()
-        slide5.addText('Top Keywords', { x: 0.5, y: 0.3, w: 9, h: 0.6, fontSize: 24, bold: true, color: 'F97316' })
-        
-        const keywordsTableData = analyticsData.topKeywordsData.map(k => [k.keyword, k.count.toString(), k.trend])
-        slide5.addTable([['Keyword', 'Mentions', 'Trend'], ...keywordsTableData], {
-          x: 0.5, y: 1.2, w: 9, h: 3,
-          colW: [4, 2.5, 2.5],
-          fill: { color: 'F5F5F5' },
-          border: { pt: 1, color: 'CCCCCC' },
-        })
-        
-        // Publications Slide
-        const slide6 = pptx.addSlide()
-        slide6.addText('Top Publications', { x: 0.5, y: 0.3, w: 9, h: 0.6, fontSize: 24, bold: true, color: 'F97316' })
-        
-        const pubsTableData = analyticsData.topPublicationsData.map(p => [p.name, p.type, p.stories.toString(), p.reach])
-        slide6.addTable([['Publication', 'Type', 'Stories', 'Reach'], ...pubsTableData], {
-          x: 0.5, y: 1.2, w: 9, h: 3,
-          colW: [3, 2, 2, 2],
-          fill: { color: 'F5F5F5' },
-          border: { pt: 1, color: 'CCCCCC' },
-        })
-        
-        pptx.writeFile({ fileName: `${fileName}.pptx` })
+        const link = document.createElement('a')
+        link.href = URL.createObjectURL(blob)
+        link.download = filename
+        link.click()
       }
     } catch (error) {
       console.error('Export error:', error)
