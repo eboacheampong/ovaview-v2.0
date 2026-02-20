@@ -293,14 +293,14 @@ export async function POST(request: NextRequest) {
       leftStories.forEach((story: any, i: number) => {
         const y = 0.8 + i * 1.4
         slide13.addText(story.date, { x: 0.4, y, w: 4.5, h: 0.25, fontSize: 9, color: DARK_TEXT, fontFace: 'Arial', bold: true })
-        slide13.addText(story.title, { x: 0.4, y: y + 0.25, w: 4.5, h: 0.3, fontSize: 10, color: DARK_TEXT, fontFace: 'Arial', bold: true, underline: true })
+        slide13.addText(story.title, { x: 0.4, y: y + 0.25, w: 4.5, h: 0.3, fontSize: 10, color: DARK_TEXT, fontFace: 'Arial', bold: true, underline: { style: 'sng' } })
         slide13.addText(story.summary?.substring(0, 200) || '', { x: 0.4, y: y + 0.55, w: 4.5, h: 0.7, fontSize: 8, color: GRAY_TEXT, fontFace: 'Arial' })
       })
 
       rightStories.forEach((story: any, i: number) => {
         const y = 0.8 + i * 1.4
         slide13.addText(story.date, { x: 5.2, y, w: 4.5, h: 0.25, fontSize: 9, color: DARK_TEXT, fontFace: 'Arial', bold: true })
-        slide13.addText(story.title, { x: 5.2, y: y + 0.25, w: 4.5, h: 0.3, fontSize: 10, color: DARK_TEXT, fontFace: 'Arial', bold: true, underline: true })
+        slide13.addText(story.title, { x: 5.2, y: y + 0.25, w: 4.5, h: 0.3, fontSize: 10, color: DARK_TEXT, fontFace: 'Arial', bold: true, underline: { style: 'sng' } })
         slide13.addText(story.summary?.substring(0, 200) || '', { x: 5.2, y: y + 0.55, w: 4.5, h: 0.7, fontSize: 8, color: GRAY_TEXT, fontFace: 'Arial' })
       })
     }
@@ -353,14 +353,14 @@ export async function POST(request: NextRequest) {
           leftStories.forEach((story: any, i: number) => {
             const y = 0.8 + i * 1.4
             compSlide.addText(story.date, { x: 0.4, y, w: 4.5, h: 0.25, fontSize: 9, color: DARK_TEXT, fontFace: 'Arial', bold: true })
-            compSlide.addText(story.title, { x: 0.4, y: y + 0.25, w: 4.5, h: 0.3, fontSize: 10, color: DARK_TEXT, fontFace: 'Arial', bold: true, underline: true })
+            compSlide.addText(story.title, { x: 0.4, y: y + 0.25, w: 4.5, h: 0.3, fontSize: 10, color: DARK_TEXT, fontFace: 'Arial', bold: true, underline: { style: 'sng' } })
             compSlide.addText(story.summary?.substring(0, 200) || '', { x: 0.4, y: y + 0.55, w: 4.5, h: 0.7, fontSize: 8, color: GRAY_TEXT, fontFace: 'Arial' })
           })
 
           rightStories.forEach((story: any, i: number) => {
             const y = 0.8 + i * 1.4
             compSlide.addText(story.date, { x: 5.2, y, w: 4.5, h: 0.25, fontSize: 9, color: DARK_TEXT, fontFace: 'Arial', bold: true })
-            compSlide.addText(story.title, { x: 5.2, y: y + 0.25, w: 4.5, h: 0.3, fontSize: 10, color: DARK_TEXT, fontFace: 'Arial', bold: true, underline: true })
+            compSlide.addText(story.title, { x: 5.2, y: y + 0.25, w: 4.5, h: 0.3, fontSize: 10, color: DARK_TEXT, fontFace: 'Arial', bold: true, underline: { style: 'sng' } })
             compSlide.addText(story.summary?.substring(0, 200) || '', { x: 5.2, y: y + 0.55, w: 4.5, h: 0.7, fontSize: 8, color: GRAY_TEXT, fontFace: 'Arial' })
           })
         }
