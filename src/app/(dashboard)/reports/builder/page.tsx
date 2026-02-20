@@ -9,7 +9,7 @@ import {
   Download, FileText, Presentation, Plus, Trash2, MoveUp, MoveDown,
   Image, BarChart3, PieChart, Table, Type, Loader2, Eye, Edit3,
   ChevronLeft, ChevronRight, Settings, Palette, Layout, Save,
-  ArrowLeft, Maximize2, Minimize2, Copy, Layers, X
+  ArrowLeft, Maximize2, Minimize2, Copy, Layers, X, Undo2, Redo2
 } from 'lucide-react'
 import {
   AreaChart, Area, BarChart, Bar, PieChart as RechartsPie,
@@ -216,6 +216,38 @@ export default function ReportBuilderPage() {
   const [showExportPanel, setShowExportPanel] = useState(false)
   const slideRef = useRef<HTMLDivElement>(null)
 
+  // Undo/Redo history
+  const [history, setHistory] = useState<Slide[][]>([DEFAULT_SLIDES])
+  const [historyIndex, setHistoryIndex] = useState(0)
+  const maxHistory = 50
+
+  const pushHistory = useCallback((newSlides: Slide[]) => {
+    setHistory(prev => {
+      const newHistory = prev.slice(0, historyIndex + 1)
+      newHistory.push(JSON.parse(JSON.stringify(newSlides)))
+      if (newHistory.length > maxHistory) newHistory.shift()
+      return newHistory
+    })
+    setHistoryIndex(prev => Math.min(prev + 1, maxHistory - 1))
+  }, [historyIndex])
+
+  const undo = useCallback(() => {
+    if (historyIndex > 0) {
+      setHistoryIndex(prev => prev - 1)
+      setSlides(JSON.parse(JSON.stringify(history[historyIndex - 1])))
+    }
+  }, [historyIndex, history])
+
+  const redo = useCallback(() => {
+    if (historyIndex < history.length - 1) {
+      setHistoryIndex(prev => prev + 1)
+      setSlides(JSON.parse(JSON.stringify(history[historyIndex + 1])))
+    }
+  }, [historyIndex, history])
+
+  const canUndo = historyIndex > 0
+  const canRedo = historyIndex < history.length - 1
+
   // Fetch clients and analytics data
   useEffect(() => {
     const fetchData = async () => {
@@ -321,11 +353,15 @@ export default function ReportBuilderPage() {
       position: { x: 50, y: 100 },
       size: getDefaultSize(type)
     }
-    setSlides(prev => prev.map((slide, i) => 
-      i === currentSlideIndex 
-        ? { ...slide, elements: [...slide.elements, newElement] }
-        : slide
-    ))
+    setSlides(prev => {
+      const newSlides = prev.map((slide, i) => 
+        i === currentSlideIndex 
+          ? { ...slide, elements: [...slide.elements, newElement] }
+          : slide
+      )
+      pushHistory(newSlides)
+      return newSlides
+    })
     setSelectedElement(newElement.id)
   }
 
@@ -354,19 +390,27 @@ export default function ReportBuilderPage() {
   }
 
   const updateElement = (elementId: string, updates: Partial<SlideElement>) => {
-    setSlides(prev => prev.map((slide, i) => 
-      i === currentSlideIndex 
-        ? { ...slide, elements: slide.elements.map(el => el.id === elementId ? { ...el, ...updates } : el) }
-        : slide
-    ))
+    setSlides(prev => {
+      const newSlides = prev.map((slide, i) => 
+        i === currentSlideIndex 
+          ? { ...slide, elements: slide.elements.map(el => el.id === elementId ? { ...el, ...updates } : el) }
+          : slide
+      )
+      pushHistory(newSlides)
+      return newSlides
+    })
   }
 
   const deleteElement = (elementId: string) => {
-    setSlides(prev => prev.map((slide, i) => 
-      i === currentSlideIndex 
-        ? { ...slide, elements: slide.elements.filter(el => el.id !== elementId) }
-        : slide
-    ))
+    setSlides(prev => {
+      const newSlides = prev.map((slide, i) => 
+        i === currentSlideIndex 
+          ? { ...slide, elements: slide.elements.filter(el => el.id !== elementId) }
+          : slide
+      )
+      pushHistory(newSlides)
+      return newSlides
+    })
     setSelectedElement(null)
   }
 
@@ -681,6 +725,18 @@ export default function ReportBuilderPage() {
           </select>
           
           <div className="h-6 w-px bg-gray-200 mx-2" />
+
+          {/* Undo/Redo */}
+          <div className="flex gap-1">
+            <Button variant="ghost" size="sm" onClick={undo} disabled={!canUndo} title="Undo (Ctrl+Z)" className="h-8 w-8 p-0">
+              <Undo2 className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="sm" onClick={redo} disabled={!canRedo} title="Redo (Ctrl+Y)" className="h-8 w-8 p-0">
+              <Redo2 className="h-4 w-4" />
+            </Button>
+          </div>
+
+          <div className="h-6 w-px bg-gray-200 mx-1" />
           
           <Button variant="outline" size="sm" onClick={() => setIsPreviewMode(!isPreviewMode)}>
             {isPreviewMode ? <Edit3 className="h-4 w-4 mr-1" /> : <Eye className="h-4 w-4 mr-1" />}
@@ -696,7 +752,7 @@ export default function ReportBuilderPage() {
 
       {/* Export Panel Overlay */}
       {showExportPanel && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-start justify-center pt-24 p-4" onClick={() => setShowExportPanel(false)}>
+        <div className="fixed inset-0 backdrop-blur-md bg-white/30 z-[100] flex items-start justify-center pt-24 p-4" onClick={() => setShowExportPanel(false)}>
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between p-5 border-b border-gray-100">
               <div>
@@ -754,9 +810,9 @@ export default function ReportBuilderPage() {
       )}
 
       {/* Main Content */}
-      <div className="flex-1 flex min-h-0">
+      <div className="flex-1 flex overflow-hidden">
         {/* Left Sidebar - Slide List */}
-        <div className="w-52 bg-white border-r border-gray-200 flex flex-col min-h-0">
+        <div className="w-52 bg-white border-r border-gray-200 flex flex-col h-[calc(100vh-57px)] sticky top-[57px]">
           <div className="flex items-center justify-between p-3 pb-2 shrink-0">
             <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Slides</span>
             <Button variant="ghost" size="sm" onClick={addSlide} className="h-6 w-6 p-0">
@@ -764,7 +820,7 @@ export default function ReportBuilderPage() {
             </Button>
           </div>
           
-          <div className="flex-1 overflow-y-auto px-3 pb-3 space-y-2">
+          <div className="flex-1 overflow-y-auto px-3 pb-3 space-y-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
             {slides.map((slide, index) => (
               <div 
                 key={slide.id}
@@ -810,7 +866,7 @@ export default function ReportBuilderPage() {
 
         {/* Center - Slide Canvas */}
         <div className="flex-1 p-6 flex items-start justify-center overflow-auto">
-          <div className="relative w-full max-w-[800px]">
+          <div className="relative w-full max-w-[800px] sticky top-6">
             {/* Slide Canvas - 16:9 aspect ratio */}
             <div 
               ref={slideRef}
@@ -825,7 +881,7 @@ export default function ReportBuilderPage() {
             </div>
             
             {/* Slide Navigation */}
-            <div className="flex items-center justify-center gap-4 mt-4">
+            <div className="flex items-center justify-center gap-4 mt-4 bg-gray-100/80 backdrop-blur-sm py-2 rounded-lg">
               <Button 
                 variant="outline" 
                 size="sm" 
@@ -851,7 +907,7 @@ export default function ReportBuilderPage() {
 
         {/* Right Sidebar - Properties & Elements */}
         {!isPreviewMode && (
-          <div className="w-64 bg-white border-l border-gray-200 p-4 overflow-y-auto">
+          <div className="w-64 bg-white border-l border-gray-200 p-4 overflow-y-auto h-[calc(100vh-57px)] sticky top-[57px]">
             {/* Add Elements */}
             <div className="mb-6">
               <h3 className="text-xs font-medium text-gray-500 uppercase mb-3">Add Elements</h3>

@@ -76,6 +76,14 @@ export default function PRPreviewPage() {
     if (!prData) return
     setIsExporting(true)
     setShowExportOptions(false)
+    
+    // For PDF export, we need all slides rendered - temporarily switch to grid view
+    const wasSlideshow = viewMode === 'slideshow'
+    if (format === 'pdf' && wasSlideshow) {
+      setViewMode('grid')
+      await new Promise(resolve => setTimeout(resolve, 500)) // Wait for render
+    }
+    
     try {
       if (format === 'pptx') {
         const res = await fetch('/api/reports/export-pr-presence', {
@@ -110,6 +118,10 @@ export default function PRPreviewPage() {
       console.error('Export error:', e)
       alert('Export failed. Please try again.')
     } finally {
+      // Restore view mode if we changed it
+      if (format === 'pdf' && wasSlideshow) {
+        setViewMode('slideshow')
+      }
       setIsExporting(false)
     }
   }
