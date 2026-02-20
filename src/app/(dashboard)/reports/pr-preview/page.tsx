@@ -314,6 +314,7 @@ function buildSlides(data: PRData): React.ReactNode[] {
       key="media-src"
       sources={data.mediaSourcesIndustry}
       total={data.totalIndustryStories}
+      industryName={data.industryName}
     />
   )
 
@@ -455,27 +456,54 @@ function SectionDivider({ title, subtitle }: { title: string; subtitle: string }
 // --- Scope of Coverage ---
 function ScopeSlide({ data }: { data: any }) {
   const items = [
-    { label: 'News Website', count: data.newsWebsite.count, desc: data.newsWebsite.description, color: '#f97316' },
-    { label: 'Print Media', count: data.printMedia.count, desc: data.printMedia.description, color: '#1f2937' },
-    { label: 'Radio', count: data.radio.count, desc: data.radio.description, color: '#a78bfa' },
+    { label: 'News Website', count: data.newsWebsite.count, desc: data.newsWebsite.description, color: '#D4941A' },
+    { label: 'Print Media', count: data.printMedia.count, desc: data.printMedia.description, color: '#6b7280' },
+    { label: 'Radio', count: data.radio.count, desc: data.radio.description, color: '#D4941A' },
     { label: 'Television', count: data.television.count, desc: data.television.description, color: '#6b7280' },
   ]
+  const total = items.reduce((sum, item) => sum + item.count, 0)
+  
   return (
     <SlideWrapper>
       <SlideHeader title="Scope of Coverage - Overall" />
-      <div className="flex-1 grid grid-cols-4 gap-3 p-6 items-start">
-        {items.map((item, i) => (
-          <div key={i} className="flex flex-col items-center text-center">
-            <div
-              className="w-20 h-20 md:w-24 md:h-24 rounded-full border-4 flex items-center justify-center mb-3"
-              style={{ borderColor: item.color }}
-            >
-              <span className="text-xl md:text-2xl font-bold text-gray-800">{item.count}</span>
+      <div className="flex-1 grid grid-cols-4 gap-4 px-6 py-4 items-start">
+        {items.map((item, i) => {
+          const percentage = total > 0 ? (item.count / total) * 100 : 0
+          const circumference = 2 * Math.PI * 42 // radius = 42
+          const strokeDasharray = `${(percentage / 100) * circumference} ${circumference}`
+          
+          return (
+            <div key={i} className="flex flex-col items-center text-center">
+              {/* Donut Chart */}
+              <div className="relative w-24 h-24 md:w-28 md:h-28 mb-3">
+                <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                  {/* Background circle */}
+                  <circle
+                    cx="50" cy="50" r="42"
+                    fill="none"
+                    stroke="#e5e7eb"
+                    strokeWidth="8"
+                  />
+                  {/* Progress circle */}
+                  <circle
+                    cx="50" cy="50" r="42"
+                    fill="none"
+                    stroke={item.color}
+                    strokeWidth="8"
+                    strokeDasharray={strokeDasharray}
+                    strokeLinecap="round"
+                  />
+                </svg>
+                {/* Count in center */}
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="text-2xl md:text-3xl font-bold text-gray-800">{item.count}</span>
+                </div>
+              </div>
+              <p className="text-sm md:text-base font-semibold text-gray-800">{item.label}</p>
+              <p className="text-[10px] md:text-xs text-gray-500 mt-1.5 leading-snug line-clamp-4 px-1">{item.desc}</p>
             </div>
-            <p className="text-xs md:text-sm font-semibold text-gray-800">{item.label}</p>
-            <p className="text-[10px] md:text-xs text-gray-500 mt-1 leading-snug line-clamp-3 px-1">{item.desc}</p>
-          </div>
-        ))}
+          )
+        })}
       </div>
       <SlideFooter />
     </SlideWrapper>
@@ -483,13 +511,19 @@ function ScopeSlide({ data }: { data: any }) {
 }
 
 // --- Media Sources Industry (Pie) ---
-function MediaSourcesSlide({ sources, total }: { sources: any; total: number }) {
+function MediaSourcesSlide({ sources, total, industryName }: { sources: any; total: number; industryName?: string }) {
   const pieData = [
-    { name: 'News Website', value: sources.newsWebsite.count },
-    { name: 'Print Media', value: sources.printMedia.count },
-    { name: 'Radio', value: sources.radio.count },
-    { name: 'TV', value: sources.tv.count },
+    { name: 'News Website', value: sources.newsWebsite.count, percentage: sources.newsWebsite.percentage },
+    { name: 'Print Media', value: sources.printMedia.count, percentage: sources.printMedia.percentage },
+    { name: 'Radio', value: sources.radio.count, percentage: sources.radio.percentage },
+    { name: 'TV', value: sources.tv.count, percentage: sources.tv.percentage },
   ]
+  
+  // Sort by value to identify highest and lowest
+  const sortedSources = [...pieData].sort((a, b) => b.value - a.value)
+  const highest = sortedSources[0]
+  const lowest = sortedSources[sortedSources.length - 1]
+  
   return (
     <SlideWrapper>
       <SlideHeader title="Media Sources - Industry" />
@@ -505,15 +539,32 @@ function MediaSourcesSlide({ sources, total }: { sources: any; total: number }) 
             </RechartsPie>
           </ResponsiveContainer>
         </div>
-        <div className="flex-1 flex flex-col justify-center px-4 space-y-2">
+        <div className="flex-1 flex flex-col justify-center px-4 space-y-3">
           <p className="text-sm text-gray-700 leading-relaxed">
-            Total Coverage — <span className="font-bold">{total.toLocaleString()}</span> news stories from four media sources.
+            The {industryName || 'sector'} continued to receive substantial media publicity during the period under review.
           </p>
-          <ul className="space-y-1.5 text-sm text-gray-600">
-            <li className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-[#f97316]" /> News websites — {sources.newsWebsite.percentage}%</li>
-            <li className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-[#1f2937]" /> Print media — {sources.printMedia.percentage}%</li>
-            <li className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-[#a78bfa]" /> Radio — {sources.radio.percentage}%</li>
-            <li className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-[#6b7280]" /> TV — {sources.tv.percentage}%</li>
+          <p className="text-sm text-gray-700 leading-relaxed">
+            Total Coverage — <span className="font-bold">{total.toLocaleString()}</span> news stories from four media sources (print media, news website, radio and television).
+          </p>
+          <ul className="space-y-2 text-sm text-gray-600">
+            {sortedSources.map((source, i) => {
+              const isHighest = i === 0
+              const isLowest = i === sortedSources.length - 1
+              const colorMap: Record<string, string> = {
+                'News Website': '#f97316',
+                'Print Media': '#1f2937',
+                'Radio': '#a78bfa',
+                'TV': '#6b7280',
+              }
+              return (
+                <li key={source.name} className="flex items-center gap-2">
+                  <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: colorMap[source.name] }} />
+                  <span>
+                    {source.name} — {isHighest ? <span className="font-semibold">highest</span> : isLowest ? <span className="font-semibold">lowest</span> : null} ({source.percentage}%)
+                  </span>
+                </li>
+              )
+            })}
           </ul>
         </div>
       </div>

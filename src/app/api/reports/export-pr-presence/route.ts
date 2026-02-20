@@ -101,14 +101,48 @@ export async function POST(request: NextRequest) {
       { label: 'Radio', count: scopeOfCoverage.radio.count, desc: scopeOfCoverage.radio.description },
       { label: 'Television', count: scopeOfCoverage.television.count, desc: scopeOfCoverage.television.description },
     ]
+    
+    // Calculate total for percentage-based donut
+    const totalScope = scopeItems.reduce((sum, item) => sum + item.count, 0)
+    const scopeColors = [GOLD, GRAY_TEXT, GOLD, GRAY_TEXT]
 
     scopeItems.forEach((item, i) => {
-      const x = 0.3 + i * 2.4
-      // Donut circle representation
-      slide4.addShape(pptx.ShapeType.ellipse, { x: x + 0.4, y: 1.0, w: 1.2, h: 1.2, line: { color: GOLD, width: 4 } })
-      slide4.addText(item.count.toString(), { x: x + 0.4, y: 1.25, w: 1.2, h: 0.7, fontSize: 24, bold: true, color: DARK_TEXT, align: 'center', fontFace: 'Arial' })
-      slide4.addText(item.label, { x: x, y: 2.4, w: 2, h: 0.4, fontSize: 12, color: DARK_TEXT, align: 'center', fontFace: 'Arial', bold: true })
-      slide4.addText(item.desc, { x: x, y: 2.8, w: 2, h: 1, fontSize: 8, color: GRAY_TEXT, align: 'center', fontFace: 'Arial' })
+      const x = 0.4 + i * 2.35
+      const percentage = totalScope > 0 ? Math.round((item.count / totalScope) * 100) : 0
+      
+      // Use doughnut chart for each item to create donut effect
+      slide4.addChart(CHART_DOUGHNUT, [
+        {
+          name: item.label,
+          labels: [item.label, 'Other'],
+          values: [item.count, Math.max(0, totalScope - item.count)],
+        }
+      ], {
+        x: x, y: 0.9, w: 1.5, h: 1.5,
+        showLegend: false,
+        showValue: false,
+        showPercent: false,
+        holeSize: 65,
+        chartColors: [scopeColors[i], 'E5E7EB'],
+      })
+      
+      // Count in center of donut
+      slide4.addText(item.count.toString(), { 
+        x: x, y: 1.35, w: 1.5, h: 0.6, 
+        fontSize: 32, bold: true, color: DARK_TEXT, align: 'center', valign: 'middle', fontFace: 'Arial' 
+      })
+      
+      // Label below donut
+      slide4.addText(item.label, { 
+        x: x - 0.1, y: 2.5, w: 1.7, h: 0.35, 
+        fontSize: 13, color: DARK_TEXT, align: 'center', fontFace: 'Arial', bold: true 
+      })
+      
+      // Description text
+      slide4.addText(item.desc, { 
+        x: x - 0.2, y: 2.85, w: 1.9, h: 1.2, 
+        fontSize: 9, color: GRAY_TEXT, align: 'center', fontFace: 'Arial' 
+      })
     })
 
     // ===== SLIDE 5: MEDIA SOURCES - INDUSTRY (Pie chart) =====
@@ -130,9 +164,31 @@ export async function POST(request: NextRequest) {
       chartColors: [ORANGE, BLACK, 'C084FC', GRAY_TEXT],
     })
 
-    // Text summary on the right
-    const summaryText = `Total Coverage – ${totalIndustryStories.toLocaleString()} news stories from four media sources (print media, news website, radio and television).\n\n• News websites – ${mediaSourcesIndustry.newsWebsite.percentage}%\n• Print media – ${mediaSourcesIndustry.printMedia.percentage}%\n• Radio – ${mediaSourcesIndustry.radio.percentage}%\n• TV – ${mediaSourcesIndustry.tv.percentage}%`
-    slide5.addText(summaryText, { x: 5.2, y: 1.0, w: 4.5, h: 3, fontSize: 11, color: DARK_TEXT, fontFace: 'Arial', lineSpacingMultiple: 1.4 })
+    // Sort media sources by count to identify highest and lowest
+    const mediaSources = [
+      { name: 'News websites', count: mediaSourcesIndustry.newsWebsite.count, percentage: mediaSourcesIndustry.newsWebsite.percentage },
+      { name: 'Print media', count: mediaSourcesIndustry.printMedia.count, percentage: mediaSourcesIndustry.printMedia.percentage },
+      { name: 'Radio', count: mediaSourcesIndustry.radio.count, percentage: mediaSourcesIndustry.radio.percentage },
+      { name: 'TV', count: mediaSourcesIndustry.tv.count, percentage: mediaSourcesIndustry.tv.percentage },
+    ].sort((a, b) => b.count - a.count)
+    
+    const highest = mediaSources[0]
+    const lowest = mediaSources[mediaSources.length - 1]
+    
+    // Intelligent analysis text
+    const introText = `The ${industryName || 'sector'} continued to receive substantial media publicity during the period under review.`
+    const totalText = `Total Coverage – ${totalIndustryStories.toLocaleString()} news stories from four media sources (print media, news website, radio and television).`
+    
+    // Build bullet points from highest to lowest
+    const bulletPoints = mediaSources.map((source, i) => {
+      if (i === 0) return `${source.name} – highest (${source.percentage}%)`
+      if (i === mediaSources.length - 1) return `${source.name} – lowest (${source.percentage}%)`
+      return `${source.name} (${source.percentage}%)`
+    })
+    
+    slide5.addText(introText, { x: 5.2, y: 0.9, w: 4.5, h: 0.8, fontSize: 11, color: DARK_TEXT, fontFace: 'Arial', lineSpacingMultiple: 1.4 })
+    slide5.addText(totalText, { x: 5.2, y: 1.7, w: 4.5, h: 0.8, fontSize: 11, color: DARK_TEXT, fontFace: 'Arial', lineSpacingMultiple: 1.4 })
+    slide5.addText(bulletPoints.map(b => `•   ${b}`).join('\n'), { x: 5.2, y: 2.6, w: 4.5, h: 1.8, fontSize: 11, color: DARK_TEXT, fontFace: 'Arial', lineSpacingMultiple: 1.5 })
 
     // ===== SLIDE 6: MEDIA SOURCES - MONTHLY TREND =====
     const slide6 = pptx.addSlide()
@@ -165,23 +221,36 @@ export async function POST(request: NextRequest) {
     addSlideHeader(pptx, slide7, 'Thematic Areas of Coverage - Industry', clientName)
 
     if (thematicAreas && thematicAreas.length > 0) {
-      // Simulate word cloud with positioned text at varying sizes
+      // Create centered word cloud
       const cloudItems = thematicAreas.slice(0, 20)
-      const positions = [
-        { x: 2.5, y: 1.2 }, { x: 4.5, y: 1.5 }, { x: 1.5, y: 2.0 }, { x: 6.0, y: 1.8 },
-        { x: 3.0, y: 2.5 }, { x: 5.5, y: 2.3 }, { x: 1.0, y: 3.0 }, { x: 7.0, y: 2.8 },
-        { x: 2.0, y: 3.3 }, { x: 4.0, y: 3.0 }, { x: 6.5, y: 3.3 }, { x: 3.5, y: 3.6 },
-        { x: 1.5, y: 3.8 }, { x: 5.0, y: 3.8 }, { x: 7.5, y: 3.5 }, { x: 2.5, y: 4.0 },
-        { x: 4.5, y: 4.2 }, { x: 6.0, y: 4.0 }, { x: 3.0, y: 4.4 }, { x: 5.5, y: 4.4 },
-      ]
-
+      const maxWeight = Math.max(...cloudItems.map((item: any) => item.weight), 1)
+      
+      // Generate centered positions in a cloud pattern
+      // Slide content area: x: 0-10, y: 0.8-5 (after header)
+      const centerX = 5 // Center of slide
+      const centerY = 2.8 // Center of content area
+      
       cloudItems.forEach((item: any, i: number) => {
-        const fontSize = Math.max(8, Math.min(28, 8 + Math.round(item.weight * 0.2)))
-        const color = item.weight > 60 ? ORANGE : item.weight > 30 ? DARK_TEXT : GRAY_TEXT
-        const pos = positions[i] || { x: 3 + (i % 4) * 1.5, y: 1.5 + Math.floor(i / 4) * 0.8 }
+        const ratio = item.weight / maxWeight
+        const fontSize = Math.max(10, Math.min(32, 10 + Math.round(ratio * 22)))
+        const color = ratio > 0.6 ? ORANGE : ratio > 0.3 ? DARK_TEXT : GRAY_TEXT
+        
+        // Create spiral/cloud pattern centered on slide
+        const angle = (i / cloudItems.length) * Math.PI * 4
+        const radius = 0.5 + (i * 0.15)
+        const offsetX = Math.cos(angle + i * 0.5) * (radius * 1.8)
+        const offsetY = Math.sin(angle + i * 0.3) * (radius * 0.9)
+        
         slide7.addText(item.keyword, {
-          x: pos.x, y: pos.y, w: 2.5, h: 0.5,
-          fontSize, color, fontFace: 'Arial', bold: item.weight > 50,
+          x: centerX + offsetX - 1, 
+          y: centerY + offsetY - 0.2, 
+          w: 2,
+          h: 0.5,
+          fontSize, 
+          color, 
+          fontFace: 'Arial', 
+          bold: ratio > 0.5,
+          align: 'center',
         })
       })
     }

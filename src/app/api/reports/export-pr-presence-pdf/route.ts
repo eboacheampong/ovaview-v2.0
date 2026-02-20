@@ -19,6 +19,79 @@ const SLIDE_HEIGHT = 540
 
 type RGB = readonly [number, number, number]
 
+// Helper to draw a donut chart (ring with value in center)
+function drawDonutChart(
+  doc: jsPDF,
+  value: number,
+  total: number,
+  centerX: number,
+  centerY: number,
+  outerRadius: number,
+  innerRadius: number,
+  fillColor: RGB,
+  bgColor: RGB = [229, 231, 233] // Light gray background
+) {
+  const percentage = total > 0 ? value / total : 0
+  const startAngle = -Math.PI / 2 // Start from top
+  const endAngle = startAngle + (percentage * 2 * Math.PI)
+  
+  // Draw background ring (full circle)
+  const segments = 60
+  for (let j = 0; j < segments; j++) {
+    const a1 = (j / segments) * 2 * Math.PI - Math.PI / 2
+    const a2 = ((j + 1) / segments) * 2 * Math.PI - Math.PI / 2
+    
+    // Outer arc segment
+    doc.setFillColor(bgColor[0], bgColor[1], bgColor[2])
+    doc.triangle(
+      centerX + innerRadius * Math.cos(a1), centerY + innerRadius * Math.sin(a1),
+      centerX + outerRadius * Math.cos(a1), centerY + outerRadius * Math.sin(a1),
+      centerX + outerRadius * Math.cos(a2), centerY + outerRadius * Math.sin(a2),
+      'F'
+    )
+    doc.triangle(
+      centerX + innerRadius * Math.cos(a1), centerY + innerRadius * Math.sin(a1),
+      centerX + outerRadius * Math.cos(a2), centerY + outerRadius * Math.sin(a2),
+      centerX + innerRadius * Math.cos(a2), centerY + innerRadius * Math.sin(a2),
+      'F'
+    )
+  }
+  
+  // Draw filled portion
+  const filledSegments = Math.round(segments * percentage)
+  for (let j = 0; j < filledSegments; j++) {
+    const a1 = startAngle + (j / segments) * 2 * Math.PI
+    const a2 = startAngle + ((j + 1) / segments) * 2 * Math.PI
+    
+    doc.setFillColor(fillColor[0], fillColor[1], fillColor[2])
+    doc.triangle(
+      centerX + innerRadius * Math.cos(a1), centerY + innerRadius * Math.sin(a1),
+      centerX + outerRadius * Math.cos(a1), centerY + outerRadius * Math.sin(a1),
+      centerX + outerRadius * Math.cos(a2), centerY + outerRadius * Math.sin(a2),
+      'F'
+    )
+    doc.triangle(
+      centerX + innerRadius * Math.cos(a1), centerY + innerRadius * Math.sin(a1),
+      centerX + outerRadius * Math.cos(a2), centerY + outerRadius * Math.sin(a2),
+      centerX + innerRadius * Math.cos(a2), centerY + innerRadius * Math.sin(a2),
+      'F'
+    )
+  }
+  
+  // Draw white center to create donut effect
+  doc.setFillColor(255, 255, 255)
+  for (let j = 0; j < segments; j++) {
+    const a1 = (j / segments) * 2 * Math.PI
+    const a2 = ((j + 1) / segments) * 2 * Math.PI
+    doc.triangle(
+      centerX, centerY,
+      centerX + innerRadius * Math.cos(a1), centerY + innerRadius * Math.sin(a1),
+      centerX + innerRadius * Math.cos(a2), centerY + innerRadius * Math.sin(a2),
+      'F'
+    )
+  }
+}
+
 // Helper to draw a simple bar chart
 function drawBarChart(
   doc: jsPDF,
@@ -246,29 +319,42 @@ export async function POST(request: NextRequest) {
     addSlideHeader(doc, 'Scope of Coverage - Overall', clientName)
     
     const scopeItems = [
-      { label: 'News Website', count: scopeOfCoverage?.newsWebsite?.count || 0 },
-      { label: 'Print Media', count: scopeOfCoverage?.printMedia?.count || 0 },
-      { label: 'Radio', count: scopeOfCoverage?.radio?.count || 0 },
-      { label: 'Television', count: scopeOfCoverage?.television?.count || 0 },
+      { label: 'News Website', count: scopeOfCoverage?.newsWebsite?.count || 0, desc: scopeOfCoverage?.newsWebsite?.description || 'Monitoring covered major news websites locally and internationally' },
+      { label: 'Print Media', count: scopeOfCoverage?.printMedia?.count || 0, desc: scopeOfCoverage?.printMedia?.description || 'Covered all newspapers including major papers' },
+      { label: 'Radio', count: scopeOfCoverage?.radio?.count || 0, desc: scopeOfCoverage?.radio?.description || 'Radio stations covered include major FM stations' },
+      { label: 'Television', count: scopeOfCoverage?.television?.count || 0, desc: scopeOfCoverage?.television?.description || 'TV stations covered include major channels' },
     ]
     
+    // Calculate total for percentage
+    const totalScope = scopeItems.reduce((sum, item) => sum + item.count, 0)
+    
+    // Donut chart colors - alternating gold and dark gray
+    const donutColors: RGB[] = [GOLD, GRAY_TEXT, GOLD, GRAY_TEXT]
+    
     scopeItems.forEach((item, i) => {
-      const x = 80 + i * 220
-      const y = 180
+      const centerX = 130 + i * 220
+      const centerY = 200
+      const outerRadius = 70
+      const innerRadius = 50
       
-      // Circle
-      doc.setDrawColor(GOLD[0], GOLD[1], GOLD[2])
-      doc.setLineWidth(4)
-      doc.circle(x + 50, y + 50, 50)
+      // Draw donut chart
+      drawDonutChart(doc, item.count, totalScope, centerX, centerY, outerRadius, innerRadius, donutColors[i])
       
-      // Count
-      doc.setFontSize(28)
+      // Draw count in center
+      doc.setFontSize(36)
       doc.setTextColor(DARK_TEXT[0], DARK_TEXT[1], DARK_TEXT[2])
-      doc.text(item.count.toString(), x + 50, y + 60, { align: 'center' })
+      doc.text(item.count.toString(), centerX, centerY + 12, { align: 'center' })
       
-      // Label
-      doc.setFontSize(12)
-      doc.text(item.label, x + 50, y + 130, { align: 'center' })
+      // Draw label below donut
+      doc.setFontSize(14)
+      doc.setTextColor(DARK_TEXT[0], DARK_TEXT[1], DARK_TEXT[2])
+      doc.text(item.label, centerX, centerY + outerRadius + 35, { align: 'center' })
+      
+      // Draw description text (wrapped)
+      doc.setFontSize(10)
+      doc.setTextColor(GRAY_TEXT[0], GRAY_TEXT[1], GRAY_TEXT[2])
+      const descLines = doc.splitTextToSize(item.desc, 180)
+      doc.text(descLines.slice(0, 4), centerX, centerY + outerRadius + 60, { align: 'center' })
     })
 
     // ===== SLIDE 5: MEDIA SOURCES - INDUSTRY =====
@@ -276,28 +362,44 @@ export async function POST(request: NextRequest) {
     addSlideHeader(doc, 'Media Sources - Industry', clientName)
     
     const mediaPieData = [
-      { label: 'News Website', value: mediaSourcesIndustry?.newsWebsite?.count || 0 },
-      { label: 'Print Media', value: mediaSourcesIndustry?.printMedia?.count || 0 },
-      { label: 'Radio', value: mediaSourcesIndustry?.radio?.count || 0 },
-      { label: 'TV', value: mediaSourcesIndustry?.tv?.count || 0 },
+      { label: 'News Website', value: mediaSourcesIndustry?.newsWebsite?.count || 0, percentage: mediaSourcesIndustry?.newsWebsite?.percentage || 0 },
+      { label: 'Print Media', value: mediaSourcesIndustry?.printMedia?.count || 0, percentage: mediaSourcesIndustry?.printMedia?.percentage || 0 },
+      { label: 'Radio', value: mediaSourcesIndustry?.radio?.count || 0, percentage: mediaSourcesIndustry?.radio?.percentage || 0 },
+      { label: 'TV', value: mediaSourcesIndustry?.tv?.count || 0, percentage: mediaSourcesIndustry?.tv?.percentage || 0 },
     ]
     
     drawPieChart(doc, mediaPieData, 250, 280, 120, [ORANGE, DARK_TEXT, [192, 132, 252], GRAY_TEXT])
     
-    // Summary text
-    doc.setFontSize(12)
+    // Sort media sources by count to identify highest and lowest
+    const sortedSources = [...mediaPieData].sort((a, b) => b.value - a.value)
+    const industryLabel = data.industryName || 'sector'
+    
+    // Intelligent analysis text
+    doc.setFontSize(11)
     doc.setTextColor(DARK_TEXT[0], DARK_TEXT[1], DARK_TEXT[2])
-    const summaryLines = [
-      `Total Coverage – ${(totalIndustryStories || 0).toLocaleString()} news stories`,
-      `from four media sources.`,
-      ``,
-      `• News websites – ${mediaSourcesIndustry?.newsWebsite?.percentage || 0}%`,
-      `• Print media – ${mediaSourcesIndustry?.printMedia?.percentage || 0}%`,
-      `• Radio – ${mediaSourcesIndustry?.radio?.percentage || 0}%`,
-      `• TV – ${mediaSourcesIndustry?.tv?.percentage || 0}%`,
-    ]
-    summaryLines.forEach((line, i) => {
-      doc.text(line, 520, 150 + i * 25)
+    
+    // Intro paragraph
+    const introText = `The ${industryLabel} continued to receive substantial media publicity during the period under review.`
+    const introLines = doc.splitTextToSize(introText, 400)
+    doc.text(introLines, 520, 120)
+    
+    // Total coverage
+    const totalText = `Total Coverage – ${(totalIndustryStories || 0).toLocaleString()} news stories from four media sources (print media, news website, radio and television).`
+    const totalLines = doc.splitTextToSize(totalText, 400)
+    doc.text(totalLines, 520, 180)
+    
+    // Bullet points from highest to lowest
+    let bulletY = 260
+    sortedSources.forEach((source, i) => {
+      let bulletText = ''
+      if (i === 0) {
+        bulletText = `•   ${source.label} – highest (${source.percentage}%)`
+      } else if (i === sortedSources.length - 1) {
+        bulletText = `•   ${source.label} – lowest (${source.percentage}%)`
+      } else {
+        bulletText = `•   ${source.label} (${source.percentage}%)`
+      }
+      doc.text(bulletText, 520, bulletY + i * 30)
     })
 
     // ===== SLIDE 6: MONTHLY TREND =====
@@ -333,18 +435,31 @@ export async function POST(request: NextRequest) {
     
     if (thematicAreas && thematicAreas.length > 0) {
       const maxWeight = Math.max(...thematicAreas.map((a: any) => a.weight), 1)
-      const positions = [
-        { x: 200, y: 120 }, { x: 450, y: 140 }, { x: 150, y: 200 }, { x: 600, y: 180 },
-        { x: 300, y: 250 }, { x: 550, y: 230 }, { x: 100, y: 300 }, { x: 700, y: 280 },
-        { x: 200, y: 330 }, { x: 400, y: 300 }, { x: 650, y: 330 }, { x: 350, y: 360 },
-        { x: 150, y: 380 }, { x: 500, y: 380 }, { x: 750, y: 350 }, { x: 250, y: 400 },
-        { x: 450, y: 420 }, { x: 600, y: 400 }, { x: 300, y: 440 }, { x: 550, y: 440 },
-      ]
       
-      thematicAreas.slice(0, 20).forEach((item: any, i: number) => {
+      // Center the word cloud in the slide (below header, above footer)
+      const centerX = SLIDE_WIDTH / 2
+      const centerY = 280 // Vertical center of content area
+      
+      // Generate centered positions in a cloud pattern
+      const items = thematicAreas.slice(0, 20)
+      const positions: { x: number; y: number }[] = []
+      
+      // Create a spiral/cloud pattern centered on the slide
+      items.forEach((item: any, i: number) => {
+        const angle = (i / items.length) * Math.PI * 4 // Spiral
+        const radius = 50 + (i * 15) // Expanding radius
+        const offsetX = Math.cos(angle + i * 0.5) * (radius * 0.8)
+        const offsetY = Math.sin(angle + i * 0.3) * (radius * 0.5)
+        positions.push({
+          x: centerX + offsetX,
+          y: centerY + offsetY - 20
+        })
+      })
+      
+      items.forEach((item: any, i: number) => {
         const ratio = item.weight / maxWeight
-        const fontSize = Math.round(10 + ratio * 20)
-        const pos = positions[i] || { x: 300 + (i % 4) * 100, y: 150 + Math.floor(i / 4) * 60 }
+        const fontSize = Math.round(12 + ratio * 22)
+        const pos = positions[i]
         
         if (ratio > 0.6) {
           doc.setTextColor(ORANGE[0], ORANGE[1], ORANGE[2])
@@ -355,7 +470,7 @@ export async function POST(request: NextRequest) {
         }
         
         doc.setFontSize(fontSize)
-        doc.text(item.keyword, pos.x, pos.y)
+        doc.text(item.keyword, pos.x, pos.y, { align: 'center' })
       })
     }
 
