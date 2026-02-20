@@ -672,7 +672,7 @@ export default function ReportBuilderPage() {
           <select 
             value={dateRange} 
             onChange={(e) => setDateRange(e.target.value)}
-            className="h-8 text-sm rounded-lg border border-gray-200 px-2 bg-white"ed border border-gray-200 px-2"
+            className="h-8 text-sm rounded-lg border border-gray-200 px-2 bg-white"
           >
             <option value="7d">Last 7 Days</option>
             <option value="30d">Last 30 Days</option>
