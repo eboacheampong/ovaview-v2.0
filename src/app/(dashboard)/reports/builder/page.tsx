@@ -388,42 +388,13 @@ export default function ReportBuilderPage() {
     }
   }
 
-  const handlePRPresenceExport = async () => {
+  const handlePRPresenceExport = () => {
     if (selectedClient === 'all') {
       alert('Please select a specific client to generate a PR Presence Report.')
       return
     }
-    setIsExporting(true)
-    try {
-      const analyticsRes = await fetch(`/api/reports/pr-presence-analytics?clientId=${selectedClient}&dateRange=${dateRange}`)
-      if (!analyticsRes.ok) throw new Error('Failed to fetch PR presence data')
-      const prData = await analyticsRes.json()
-
-      const pptxRes = await fetch('/api/reports/export-pr-presence', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(prData),
-      })
-      if (!pptxRes.ok) throw new Error('PPTX generation failed')
-
-      const { data, filename } = await pptxRes.json()
-      const byteCharacters = atob(data)
-      const byteNumbers = new Array(byteCharacters.length)
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i)
-      }
-      const byteArray = new Uint8Array(byteNumbers)
-      const blob = new Blob([byteArray], { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' })
-      const link = document.createElement('a')
-      link.href = URL.createObjectURL(blob)
-      link.download = filename
-      link.click()
-    } catch (error) {
-      console.error('PR Presence export error:', error)
-      alert('PR Presence export failed. Please try again.')
-    } finally {
-      setIsExporting(false)
-    }
+    // Navigate to the full preview page
+    router.push(`/reports/pr-preview?clientId=${selectedClient}&dateRange=${dateRange}`)
   }
 
   const handleExport = async (format: 'pdf' | 'pptx') => {
@@ -508,12 +479,12 @@ export default function ReportBuilderPage() {
       case 'area':
         return (
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={data}>
+            <AreaChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis dataKey="month" stroke="#9ca3af" fontSize={10} />
-              <YAxis stroke="#9ca3af" fontSize={10} />
+              <XAxis dataKey="month" stroke="#9ca3af" fontSize={9} tick={{ fill: '#6b7280' }} />
+              <YAxis stroke="#9ca3af" fontSize={9} tick={{ fill: '#6b7280' }} />
               <Tooltip />
-              <Legend />
+              <Legend wrapperStyle={{ fontSize: 10 }} />
               <Area type="monotone" dataKey="web" stackId="1" stroke="#06b6d4" fill="#06b6d4" fillOpacity={0.6} name="Web" />
               <Area type="monotone" dataKey="print" stackId="1" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.6} name="Print" />
               <Area type="monotone" dataKey="radio" stackId="1" stroke="#10b981" fill="#10b981" fillOpacity={0.6} name="Radio" />
@@ -524,12 +495,12 @@ export default function ReportBuilderPage() {
       case 'bar':
         return (
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data}>
+            <BarChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis dataKey="name" stroke="#9ca3af" fontSize={10} />
-              <YAxis stroke="#9ca3af" fontSize={10} />
+              <XAxis dataKey="name" stroke="#9ca3af" fontSize={9} tick={{ fill: '#6b7280' }} interval={0} angle={-20} textAnchor="end" height={40} />
+              <YAxis stroke="#9ca3af" fontSize={9} tick={{ fill: '#6b7280' }} />
               <Tooltip />
-              <Bar dataKey="value" fill="#f97316" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="value" fill="#f97316" radius={[4, 4, 0, 0]} maxBarSize={40} />
             </BarChart>
           </ResponsiveContainer>
         )
@@ -537,26 +508,26 @@ export default function ReportBuilderPage() {
         return (
           <ResponsiveContainer width="100%" height="100%">
             <RechartsPie>
-              <Pie data={data} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
+              <Pie data={data} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius="65%" label={({ name, percent }) => `${(percent * 100).toFixed(0)}%`} labelLine fontSize={10}>
                 {data.map((_, index) => (
                   <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                 ))}
               </Pie>
               <Tooltip />
-              <Legend />
+              <Legend wrapperStyle={{ fontSize: 10 }} />
             </RechartsPie>
           </ResponsiveContainer>
         )
       case 'radar':
         return (
           <ResponsiveContainer width="100%" height="100%">
-            <RadarChart data={data}>
+            <RadarChart data={data} cx="50%" cy="50%" outerRadius="65%">
               <PolarGrid />
-              <PolarAngleAxis dataKey="industry" fontSize={10} />
-              <PolarRadiusAxis fontSize={10} />
-              <Radar name="Coverage" dataKey="coverage" stroke="#f97316" fill="#f97316" fillOpacity={0.5} />
-              <Radar name="Sentiment" dataKey="sentiment" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.5} />
-              <Legend />
+              <PolarAngleAxis dataKey="industry" fontSize={9} tick={{ fill: '#6b7280' }} />
+              <PolarRadiusAxis fontSize={9} tick={{ fill: '#9ca3af' }} />
+              <Radar name="Coverage" dataKey="coverage" stroke="#f97316" fill="#f97316" fillOpacity={0.4} />
+              <Radar name="Sentiment" dataKey="sentiment" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.4} />
+              <Legend wrapperStyle={{ fontSize: 10 }} />
             </RadarChart>
           </ResponsiveContainer>
         )
@@ -599,19 +570,19 @@ export default function ReportBuilderPage() {
         )
       case 'chart':
         return (
-          <div key={element.id} style={{ ...baseStyle, backgroundColor: '#fff', padding: '8px' }} onClick={() => !isPreviewMode && setSelectedElement(element.id)}>
+          <div key={element.id} style={{ ...baseStyle, backgroundColor: '#fff', padding: '6px', borderRadius: '8px' }} onClick={() => !isPreviewMode && setSelectedElement(element.id)}>
             {renderChart(element)}
           </div>
         )
       case 'kpi':
         return (
-          <div key={element.id} style={{ ...baseStyle, display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }} onClick={() => !isPreviewMode && setSelectedElement(element.id)}>
+          <div key={element.id} style={{ ...baseStyle, display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', padding: '4px' }} onClick={() => !isPreviewMode && setSelectedElement(element.id)}>
             {element.content.metrics?.map((metric: any, i: number) => (
-              <div key={i} className="bg-gray-50 rounded-lg p-3 border border-gray-100">
-                <p className="text-xs text-gray-500">{metric.label}</p>
-                <p className="text-xl font-bold text-gray-800">{metric.value}</p>
+              <div key={i} className="bg-gray-50 rounded-lg p-2.5 border border-gray-100">
+                <p className="text-[10px] text-gray-500 truncate">{metric.label}</p>
+                <p className="text-lg font-bold text-gray-800 leading-tight">{metric.value}</p>
                 {metric.change !== 0 && (
-                  <p className={`text-xs ${metric.change > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  <p className={`text-[10px] ${metric.change > 0 ? 'text-green-600' : 'text-red-600'}`}>
                     {metric.change > 0 ? '+' : ''}{metric.change}%
                   </p>
                 )}
@@ -675,24 +646,24 @@ export default function ReportBuilderPage() {
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" onClick={() => router.push('/reports/advanced')}>
-            <ArrowLeft className="h-4 w-4 mr-2" />Back
+      <div className="bg-white border-b border-gray-200 px-4 py-2.5 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3 min-w-0">
+          <Button variant="ghost" size="sm" onClick={() => router.push('/reports/advanced')} className="shrink-0">
+            <ArrowLeft className="h-4 w-4 mr-1.5" />Back
           </Button>
-          <div className="h-6 w-px bg-gray-200" />
+          <div className="h-5 w-px bg-gray-200 shrink-0" />
           <Input 
             value={reportTitle} 
             onChange={(e) => setReportTitle(e.target.value)}
-            className="w-64 h-8 text-sm font-medium"
+            className="w-48 lg:w-64 h-8 text-sm font-medium"
           />
         </div>
         
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <select 
             value={selectedClient} 
             onChange={(e) => setSelectedClient(e.target.value)}
-            className="h-8 text-sm rounded border border-gray-200 px-2"
+            className="h-8 text-sm rounded-lg border border-gray-200 px-2 bg-white max-w-[160px]"
           >
             <option value="all">All Clients</option>
             {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -701,7 +672,7 @@ export default function ReportBuilderPage() {
           <select 
             value={dateRange} 
             onChange={(e) => setDateRange(e.target.value)}
-            className="h-8 text-sm rounded border border-gray-200 px-2"
+            className="h-8 text-sm rounded-lg border border-gray-200 px-2 bg-white"ed border border-gray-200 px-2"
           >
             <option value="7d">Last 7 Days</option>
             <option value="30d">Last 30 Days</option>
@@ -725,8 +696,8 @@ export default function ReportBuilderPage() {
 
       {/* Export Panel Overlay */}
       {showExportPanel && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setShowExportPanel(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowExportPanel(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between p-5 border-b border-gray-100">
               <div>
                 <h2 className="text-lg font-semibold text-gray-800">Export Report</h2>
@@ -734,48 +705,48 @@ export default function ReportBuilderPage() {
                   {selectedClient !== 'all' ? clients.find(c => c.id === selectedClient)?.name : 'All Clients'}
                 </p>
               </div>
-              <button onClick={() => setShowExportPanel(false)} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
+              <button onClick={() => setShowExportPanel(false)} className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
                 <X className="h-5 w-5 text-gray-400" />
               </button>
             </div>
 
-            <div className="p-5 space-y-3">
-              <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">Slide Export</p>
+            <div className="p-5 space-y-4">
+              <p className="text-xs font-medium text-gray-400 uppercase tracking-wider">Slide Export</p>
               <div className="grid grid-cols-2 gap-3">
                 <button
                   onClick={() => { handleExport('pdf'); setShowExportPanel(false) }}
                   disabled={isExporting}
-                  className="flex flex-col items-center gap-2 p-4 rounded-xl border border-gray-200 hover:border-orange-300 hover:bg-orange-50 transition-all disabled:opacity-50"
+                  className="flex flex-col items-center gap-2.5 p-5 rounded-xl border-2 border-gray-100 hover:border-orange-300 hover:bg-orange-50/50 transition-all disabled:opacity-50"
                 >
-                  <FileText className="h-6 w-6 text-red-500" />
+                  <FileText className="h-7 w-7 text-red-500" />
                   <span className="text-sm font-medium text-gray-700">PDF</span>
                 </button>
                 <button
                   onClick={() => { handleExport('pptx'); setShowExportPanel(false) }}
                   disabled={isExporting}
-                  className="flex flex-col items-center gap-2 p-4 rounded-xl border border-gray-200 hover:border-orange-300 hover:bg-orange-50 transition-all disabled:opacity-50"
+                  className="flex flex-col items-center gap-2.5 p-5 rounded-xl border-2 border-gray-100 hover:border-orange-300 hover:bg-orange-50/50 transition-all disabled:opacity-50"
                 >
-                  <Presentation className="h-6 w-6 text-orange-500" />
+                  <Presentation className="h-7 w-7 text-orange-500" />
                   <span className="text-sm font-medium text-gray-700">PPTX</span>
                 </button>
               </div>
 
-              <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mt-4">PR Presence Report</p>
+              <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mt-4">PR Presence Report</p>
               <button
                 onClick={() => { handlePRPresenceExport(); setShowExportPanel(false) }}
-                disabled={isExporting || selectedClient === 'all'}
+                disabled={selectedClient === 'all'}
                 className="w-full flex items-center gap-3 p-3 rounded-xl border border-orange-200 bg-orange-50/50 hover:bg-orange-50 transition-all disabled:opacity-50 text-left"
               >
                 <div className="p-2 bg-orange-100 rounded-lg">
-                  <Presentation className="h-5 w-5 text-orange-600" />
+                  <Eye className="h-5 w-5 text-orange-600" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-700">PR Presence PPTX</p>
+                  <p className="text-sm font-medium text-gray-700">Preview & Download</p>
                   <p className="text-xs text-gray-400">
-                    {selectedClient === 'all' ? 'Select a client first' : '23-slide media presence analysis'}
+                    {selectedClient === 'all' ? 'Select a client first' : 'Full preview with export options'}
                   </p>
                 </div>
-                <Download className="h-4 w-4 text-gray-400" />
+                <Presentation className="h-4 w-4 text-gray-400" />
               </button>
             </div>
           </div>
@@ -785,9 +756,9 @@ export default function ReportBuilderPage() {
       {/* Main Content */}
       <div className="flex-1 flex">
         {/* Left Sidebar - Slide List */}
-        <div className="w-48 bg-white border-r border-gray-200 p-3 overflow-y-auto">
+        <div className="w-52 bg-white border-r border-gray-200 p-3 overflow-y-auto">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-medium text-gray-500 uppercase">Slides</span>
+            <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Slides</span>
             <Button variant="ghost" size="sm" onClick={addSlide} className="h-6 w-6 p-0">
               <Plus className="h-4 w-4" />
             </Button>
@@ -800,17 +771,22 @@ export default function ReportBuilderPage() {
                 onClick={() => setCurrentSlideIndex(index)}
                 className={`group relative p-2 rounded-lg cursor-pointer transition-all ${
                   index === currentSlideIndex 
-                    ? 'bg-orange-50 border-2 border-orange-500' 
-                    : 'bg-gray-50 border-2 border-transparent hover:border-gray-200'
+                    ? 'bg-orange-50 ring-2 ring-orange-500' 
+                    : 'bg-gray-50 ring-1 ring-transparent hover:ring-gray-200'
                 }`}
               >
-                <div className="aspect-[3/2] bg-white rounded border border-gray-200 mb-1 overflow-hidden">
-                  <div className="w-full h-full flex items-center justify-center text-gray-300">
-                    <Layers className="h-4 w-4" />
+                <div 
+                  className="aspect-[16/9] rounded border border-gray-200 mb-1.5 overflow-hidden"
+                  style={{ backgroundColor: slide.background || '#ffffff' }}
+                >
+                  <div className="w-full h-full flex items-center justify-center">
+                    <span className={`text-[8px] font-medium px-1 text-center leading-tight ${slide.background === '#D4941A' ? 'text-white/70' : 'text-gray-300'}`}>
+                      {slide.name}
+                    </span>
                   </div>
                 </div>
-                <p className="text-xs text-gray-600 truncate">{slide.name}</p>
-                <span className="absolute top-1 left-1 text-[10px] text-gray-400">{index + 1}</span>
+                <p className="text-[11px] text-gray-600 truncate font-medium">{slide.name}</p>
+                <span className="absolute top-1.5 left-1.5 text-[9px] font-medium text-gray-400 bg-white/80 rounded px-1">{index + 1}</span>
                 
                 {/* Slide actions */}
                 <div className="absolute top-1 right-1 hidden group-hover:flex gap-0.5">
@@ -834,14 +810,12 @@ export default function ReportBuilderPage() {
 
         {/* Center - Slide Canvas */}
         <div className="flex-1 p-6 flex items-center justify-center overflow-auto">
-          <div className="relative">
-            {/* Slide Canvas */}
+          <div className="relative w-full max-w-[800px]">
+            {/* Slide Canvas - 16:9 aspect ratio */}
             <div 
               ref={slideRef}
-              className="bg-white shadow-xl rounded-lg overflow-hidden"
+              className="bg-white shadow-xl rounded-lg overflow-hidden aspect-[16/9] w-full"
               style={{ 
-                width: 600, 
-                height: 400, 
                 backgroundColor: currentSlide?.background || '#ffffff',
                 position: 'relative'
               }}
