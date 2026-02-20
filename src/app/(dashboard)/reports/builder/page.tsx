@@ -754,17 +754,17 @@ export default function ReportBuilderPage() {
       )}
 
       {/* Main Content */}
-      <div className="flex-1 flex">
+      <div className="flex-1 flex min-h-0">
         {/* Left Sidebar - Slide List */}
-        <div className="w-52 bg-white border-r border-gray-200 p-3 overflow-y-auto">
-          <div className="flex items-center justify-between mb-3">
+        <div className="w-52 bg-white border-r border-gray-200 flex flex-col min-h-0">
+          <div className="flex items-center justify-between p-3 pb-2 shrink-0">
             <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Slides</span>
             <Button variant="ghost" size="sm" onClick={addSlide} className="h-6 w-6 p-0">
               <Plus className="h-4 w-4" />
             </Button>
           </div>
           
-          <div className="space-y-2">
+          <div className="flex-1 overflow-y-auto px-3 pb-3 space-y-2">
             {slides.map((slide, index) => (
               <div 
                 key={slide.id}
@@ -809,7 +809,7 @@ export default function ReportBuilderPage() {
         </div>
 
         {/* Center - Slide Canvas */}
-        <div className="flex-1 p-6 flex items-center justify-center overflow-auto">
+        <div className="flex-1 p-6 flex items-start justify-center overflow-auto">
           <div className="relative w-full max-w-[800px]">
             {/* Slide Canvas - 16:9 aspect ratio */}
             <div 
