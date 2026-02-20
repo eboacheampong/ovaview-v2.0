@@ -93,10 +93,10 @@ export async function GET(request: NextRequest) {
     const uniqueTvStations = new Set(allTvStories.map(s => s.stationId).filter(Boolean))
 
     // Get publication/station names for scope descriptions
-    const webPubNames = [...new Set(allWebStories.map(s => s.publication?.name).filter(Boolean))].slice(0, 6)
-    const printPubNames = [...new Set(allPrintStories.map(s => s.publication?.name).filter(Boolean))].slice(0, 6)
-    const radioStationNames = [...new Set(allRadioStories.map(s => s.station?.name).filter(Boolean))].slice(0, 6)
-    const tvStationNames = [...new Set(allTvStories.map(s => s.station?.name).filter(Boolean))].slice(0, 6)
+    const webPubNames = Array.from(new Set(allWebStories.map(s => s.publication?.name).filter(Boolean))).slice(0, 6)
+    const printPubNames = Array.from(new Set(allPrintStories.map(s => s.publication?.name).filter(Boolean))).slice(0, 6)
+    const radioStationNames = Array.from(new Set(allRadioStories.map(s => s.station?.name).filter(Boolean))).slice(0, 6)
+    const tvStationNames = Array.from(new Set(allTvStories.map(s => s.station?.name).filter(Boolean))).slice(0, 6)
 
     const scopeOfCoverage = {
       newsWebsite: { count: uniqueWebPublications.size, names: webPubNames, description: `Monitoring covered over ${uniqueWebPublications.size} major news websites locally and internationally` },

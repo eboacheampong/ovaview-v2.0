@@ -17,6 +17,16 @@ const nextConfig = {
         crypto: false,
       }
     }
+
+    // Fix canvg/core-js module resolution issue with jspdf
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      'core-js/modules/es.promise.js': false,
+      'core-js/modules/es.string.match.js': false,
+      'core-js/modules/es.string.replace.js': false,
+      'core-js/modules/es.string.starts-with.js': false,
+      'core-js/modules/es.array.iterator.js': false,
+    }
     
     // Exclude @xenova/transformers from server-side bundle
     if (isServer) {
