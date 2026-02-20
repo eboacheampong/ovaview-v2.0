@@ -531,22 +531,22 @@ function MediaSourcesSlide({ sources, total, industryName }: { sources: any; tot
         <div className="flex-1 min-h-0">
           <ResponsiveContainer width="100%" height="100%">
             <RechartsPie>
-              <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius="70%" label={({ name, percent }: any) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`} labelLine={true} fontSize={11}>
+              <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius="70%" stroke="#fff" strokeWidth={2} label={({ name, percent }: any) => `${((percent ?? 0) * 100).toFixed(0)}%`} labelLine={true} fontSize={14}>
                 {pieData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i]} />)}
               </Pie>
               <Tooltip />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
+              <Legend wrapperStyle={{ fontSize: 13 }} />
             </RechartsPie>
           </ResponsiveContainer>
         </div>
-        <div className="flex-1 flex flex-col justify-center px-4 space-y-3">
-          <p className="text-sm text-gray-700 leading-relaxed">
+        <div className="flex-1 flex flex-col justify-center px-4 space-y-4">
+          <p className="text-base md:text-lg text-gray-700 leading-relaxed">
             The {industryName || 'sector'} continued to receive substantial media publicity during the period under review.
           </p>
-          <p className="text-sm text-gray-700 leading-relaxed">
+          <p className="text-base md:text-lg text-gray-700 leading-relaxed">
             Total Coverage — <span className="font-bold">{total.toLocaleString()}</span> news stories from four media sources (print media, news website, radio and television).
           </p>
-          <ul className="space-y-2 text-sm text-gray-600">
+          <ul className="space-y-3">
             {sortedSources.map((source, i) => {
               const isHighest = i === 0
               const isLowest = i === sortedSources.length - 1
@@ -557,9 +557,9 @@ function MediaSourcesSlide({ sources, total, industryName }: { sources: any; tot
                 'TV': '#6b7280',
               }
               return (
-                <li key={source.name} className="flex items-center gap-2">
-                  <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: colorMap[source.name] }} />
-                  <span>
+                <li key={source.name} className="flex items-start gap-3 text-base md:text-lg text-gray-700">
+                  <span className="w-4 h-4 rounded-full shrink-0 mt-1" style={{ backgroundColor: colorMap[source.name] }} />
+                  <span className="leading-snug">
                     {source.name} — {isHighest ? <span className="font-semibold">highest</span> : isLowest ? <span className="font-semibold">lowest</span> : null} ({source.percentage}%)
                   </span>
                 </li>
@@ -587,10 +587,10 @@ function MonthlyTrendSlide({ data }: { data: any[] }) {
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data} barCategoryGap="20%">
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis dataKey="month" fontSize={10} tick={{ fill: '#6b7280' }} />
-              <YAxis fontSize={10} tick={{ fill: '#6b7280' }} />
+              <XAxis dataKey="month" fontSize={13} tick={{ fill: '#374151' }} />
+              <YAxis fontSize={13} tick={{ fill: '#374151' }} />
               <Tooltip />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
+              <Legend wrapperStyle={{ fontSize: 14 }} />
               <Bar dataKey="print" name="Print Media" fill="#1f2937" radius={[2, 2, 0, 0]} />
               <Bar dataKey="web" name="News Website" fill="#f97316" radius={[2, 2, 0, 0]} />
               <Bar dataKey="tv" name="TV" fill="#a78bfa" radius={[2, 2, 0, 0]} />
@@ -598,11 +598,11 @@ function MonthlyTrendSlide({ data }: { data: any[] }) {
             </BarChart>
           </ResponsiveContainer>
         </div>
-        <div className="flex-1 flex flex-col justify-center px-4 space-y-3">
-          <h3 className="text-sm font-semibold text-gray-800">Period Under Review</h3>
-          <div className="space-y-2 text-sm text-gray-600">
-            <p><span className="font-semibold text-green-600">{highest?.month}</span> — {highest?.total?.toLocaleString()} articles (Highest)</p>
-            <p><span className="font-semibold text-red-500">{lowest?.month}</span> — {lowest?.total?.toLocaleString()} articles (Lowest)</p>
+        <div className="flex-1 flex flex-col justify-center px-6 space-y-5">
+          <h3 className="text-lg md:text-xl font-semibold text-gray-800">Period Under Review</h3>
+          <div className="space-y-4">
+            <p className="text-base md:text-lg"><span className="font-semibold text-green-600">{highest?.month}</span> — {highest?.total?.toLocaleString()} articles (Highest)</p>
+            <p className="text-base md:text-lg"><span className="font-semibold text-red-500">{lowest?.month}</span> — {lowest?.total?.toLocaleString()} articles (Lowest)</p>
           </div>
         </div>
       </div>
@@ -616,42 +616,46 @@ function ThematicSlide({ areas }: { areas: any[] }) {
   if (!areas?.length) return <SlideWrapper><SlideHeader title="Thematic Areas" /><div className="flex-1 flex items-center justify-center text-gray-400">No data</div></SlideWrapper>
   const maxWeight = Math.max(...areas.map(a => a.weight), 1)
   
-  // Pre-defined scattered positions for word cloud effect (centered)
+  // Better distributed positions for word cloud - more centered and overlapping
   const positions = [
-    { x: 50, y: 15 }, { x: 35, y: 25 }, { x: 65, y: 20 }, { x: 20, y: 35 },
-    { x: 50, y: 40 }, { x: 75, y: 35 }, { x: 30, y: 50 }, { x: 55, y: 55 },
-    { x: 70, y: 50 }, { x: 40, y: 65 }, { x: 60, y: 70 }, { x: 25, y: 70 },
-    { x: 80, y: 65 }, { x: 45, y: 80 }, { x: 15, y: 55 }, { x: 85, y: 45 },
-    { x: 35, y: 85 }, { x: 65, y: 85 }, { x: 50, y: 30 }, { x: 75, y: 75 },
+    { x: 50, y: 25 }, { x: 30, y: 35 }, { x: 70, y: 30 }, { x: 45, y: 45 },
+    { x: 55, y: 55 }, { x: 25, y: 50 }, { x: 75, y: 45 }, { x: 40, y: 65 },
+    { x: 60, y: 40 }, { x: 35, y: 75 }, { x: 65, y: 65 }, { x: 50, y: 80 },
+    { x: 20, y: 65 }, { x: 80, y: 55 }, { x: 45, y: 35 }, { x: 55, y: 70 },
+    { x: 30, y: 55 }, { x: 70, y: 75 }, { x: 40, y: 50 }, { x: 60, y: 55 },
   ]
   
   return (
     <SlideWrapper>
       <SlideHeader title="Thematic Areas of Coverage - Industry" />
-      <div className="flex-1 relative p-4 overflow-hidden">
-        {areas.slice(0, 20).map((area, i) => {
-          const ratio = area.weight / maxWeight
-          const size = Math.round(12 + ratio * 28) // 12px to 40px
-          const fontWeight = ratio > 0.5 ? 700 : ratio > 0.25 ? 600 : 400
-          const color = ratio > 0.6 ? '#D4941A' : ratio > 0.3 ? '#1f2937' : '#9ca3af'
-          const pos = positions[i] || { x: 50, y: 50 }
-          
-          return (
-            <span
-              key={i}
-              className="absolute transform -translate-x-1/2 -translate-y-1/2 whitespace-nowrap"
-              style={{ 
-                left: `${pos.x}%`, 
-                top: `${pos.y}%`,
-                fontSize: size, 
-                fontWeight, 
-                color,
-              }}
-            >
-              {area.keyword}
-            </span>
-          )
-        })}
+      <div className="flex-1 relative p-6 overflow-hidden flex items-center justify-center">
+        <div className="relative w-full h-full max-w-[800px]">
+          {areas.slice(0, 20).map((area, i) => {
+            const ratio = area.weight / maxWeight
+            // Larger font sizes: 18px to 56px
+            const size = Math.round(18 + ratio * 38)
+            const fontWeight = ratio > 0.5 ? 700 : ratio > 0.25 ? 600 : 500
+            const color = ratio > 0.6 ? '#D4941A' : ratio > 0.3 ? '#1f2937' : '#6b7280'
+            const pos = positions[i] || { x: 50, y: 50 }
+            
+            return (
+              <span
+                key={i}
+                className="absolute transform -translate-x-1/2 -translate-y-1/2 transition-all duration-300 hover:scale-110"
+                style={{ 
+                  left: `${pos.x}%`, 
+                  top: `${pos.y}%`,
+                  fontSize: size, 
+                  fontWeight, 
+                  color,
+                  textShadow: ratio > 0.5 ? '0 1px 2px rgba(0,0,0,0.1)' : 'none',
+                }}
+              >
+                {area.keyword}
+              </span>
+            )
+          })}
+        </div>
       </div>
       <SlideFooter />
     </SlideWrapper>

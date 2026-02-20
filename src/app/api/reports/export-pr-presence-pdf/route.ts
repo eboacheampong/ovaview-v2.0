@@ -106,7 +106,7 @@ function drawBarChart(
   
   const maxValue = Math.max(...data.map(d => d.value), 1)
   const barWidth = (width - 20) / data.length - 10
-  const chartHeight = height - 40
+  const chartHeight = height - 50
   
   data.forEach((item, i) => {
     const barHeight = (item.value / maxValue) * chartHeight
@@ -118,20 +118,20 @@ function drawBarChart(
     doc.setFillColor(color[0], color[1], color[2])
     doc.rect(barX, barY, barWidth, barHeight, 'F')
     
-    // Draw value on top
-    doc.setFontSize(9)
+    // Draw value on top - LARGER FONT
+    doc.setFontSize(12)
     doc.setTextColor(DARK_TEXT[0], DARK_TEXT[1], DARK_TEXT[2])
-    doc.text(item.value.toString(), barX + barWidth / 2, barY - 5, { align: 'center' })
+    doc.text(item.value.toString(), barX + barWidth / 2, barY - 8, { align: 'center' })
     
-    // Draw label below
-    doc.setFontSize(8)
+    // Draw label below - LARGER FONT
+    doc.setFontSize(11)
     doc.setTextColor(GRAY_TEXT[0], GRAY_TEXT[1], GRAY_TEXT[2])
-    const labelLines = doc.splitTextToSize(item.label, barWidth + 5)
-    doc.text(labelLines, barX + barWidth / 2, y + chartHeight + 10, { align: 'center' })
+    const labelLines = doc.splitTextToSize(item.label, barWidth + 10)
+    doc.text(labelLines, barX + barWidth / 2, y + chartHeight + 15, { align: 'center' })
   })
 }
 
-// Helper to draw a simple pie chart
+// Helper to draw a simple pie chart with segment borders
 function drawPieChart(
   doc: jsPDF,
   data: { label: string; value: number }[],
@@ -146,81 +146,89 @@ function drawPieChart(
   if (total === 0) return
   
   let startAngle = -Math.PI / 2 // Start from top
+  const segments = 50
+  
+  // First pass: draw all filled segments
+  data.forEach((item, i) => {
+    const sliceAngle = (item.value / total) * 2 * Math.PI
+    const color = colors[i % colors.length]
+    
+    doc.setFillColor(color[0], color[1], color[2])
+    
+    // Fill the arc segments
+    for (let j = 0; j < segments; j++) {
+      const a1 = startAngle + (sliceAngle * j) / segments
+      const a2 = startAngle + (sliceAngle * (j + 1)) / segments
+      doc.triangle(
+        centerX, centerY,
+        centerX + radius * Math.cos(a1), centerY + radius * Math.sin(a1),
+        centerX + radius * Math.cos(a2), centerY + radius * Math.sin(a2),
+        'F'
+      )
+    }
+    
+    startAngle += sliceAngle
+  })
+  
+  // Second pass: draw white borders between segments for visibility
+  startAngle = -Math.PI / 2
+  doc.setDrawColor(255, 255, 255)
+  doc.setLineWidth(3)
   
   data.forEach((item, i) => {
     const sliceAngle = (item.value / total) * 2 * Math.PI
     const endAngle = startAngle + sliceAngle
-    const color = colors[i % colors.length]
     
-    // Draw pie slice using path
-    doc.setFillColor(color[0], color[1], color[2])
+    // Draw border line from center to edge at start of each segment
+    doc.line(centerX, centerY, centerX + radius * Math.cos(startAngle), centerY + radius * Math.sin(startAngle))
     
-    // Create arc path
-    const segments = 50
-    const points: [number, number][] = [[centerX, centerY]]
-    
-    for (let j = 0; j <= segments; j++) {
-      const angle = startAngle + (sliceAngle * j) / segments
-      points.push([
-        centerX + radius * Math.cos(angle),
-        centerY + radius * Math.sin(angle)
-      ])
-    }
-    
-    // Draw filled polygon
-    if (points.length > 2) {
-      doc.setFillColor(color[0], color[1], color[2])
-      const path = points.map((p, idx) => (idx === 0 ? `M ${p[0]} ${p[1]}` : `L ${p[0]} ${p[1]}`)).join(' ') + ' Z'
-      // Use lines approach for jsPDF
-      doc.triangle(
-        centerX, centerY,
-        centerX + radius * Math.cos(startAngle), centerY + radius * Math.sin(startAngle),
-        centerX + radius * Math.cos(endAngle), centerY + radius * Math.sin(endAngle),
-        'F'
-      )
-      
-      // Fill the arc segments
-      for (let j = 0; j < segments; j++) {
-        const a1 = startAngle + (sliceAngle * j) / segments
-        const a2 = startAngle + (sliceAngle * (j + 1)) / segments
-        doc.triangle(
-          centerX, centerY,
-          centerX + radius * Math.cos(a1), centerY + radius * Math.sin(a1),
-          centerX + radius * Math.cos(a2), centerY + radius * Math.sin(a2),
-          'F'
-        )
-      }
-    }
-    
-    // Draw percentage label
+    startAngle = endAngle
+  })
+  
+  // Draw outer circle border
+  doc.setDrawColor(255, 255, 255)
+  doc.setLineWidth(2)
+  for (let j = 0; j < 60; j++) {
+    const a1 = (j / 60) * 2 * Math.PI
+    const a2 = ((j + 1) / 60) * 2 * Math.PI
+    doc.line(
+      centerX + radius * Math.cos(a1), centerY + radius * Math.sin(a1),
+      centerX + radius * Math.cos(a2), centerY + radius * Math.sin(a2)
+    )
+  }
+  
+  // Third pass: draw percentage labels
+  startAngle = -Math.PI / 2
+  data.forEach((item, i) => {
+    const sliceAngle = (item.value / total) * 2 * Math.PI
     const midAngle = startAngle + sliceAngle / 2
-    const labelRadius = radius * 0.7
+    const labelRadius = radius * 0.65
     const labelX = centerX + labelRadius * Math.cos(midAngle)
     const labelY = centerY + labelRadius * Math.sin(midAngle)
     const percentage = Math.round((item.value / total) * 100)
     
     if (percentage > 5) {
-      doc.setFontSize(10)
+      doc.setFontSize(12)
       doc.setTextColor(WHITE[0], WHITE[1], WHITE[2])
-      doc.text(`${percentage}%`, labelX, labelY, { align: 'center' })
+      doc.text(`${percentage}%`, labelX, labelY + 4, { align: 'center' })
     }
     
-    startAngle = endAngle
+    startAngle += sliceAngle
   })
   
-  // Draw legend below
-  let legendY = centerY + radius + 20
+  // Draw legend below with larger text
+  let legendY = centerY + radius + 25
   data.forEach((item, i) => {
     const color = colors[i % colors.length]
-    const legendX = centerX - radius + (i % 2) * (radius + 20)
+    const legendX = centerX - radius + (i % 2) * (radius + 30)
     const row = Math.floor(i / 2)
-    const ly = legendY + row * 15
+    const ly = legendY + row * 20
     
     doc.setFillColor(color[0], color[1], color[2])
-    doc.rect(legendX, ly - 5, 10, 10, 'F')
-    doc.setFontSize(8)
+    doc.rect(legendX, ly - 6, 12, 12, 'F')
+    doc.setFontSize(10)
     doc.setTextColor(DARK_TEXT[0], DARK_TEXT[1], DARK_TEXT[2])
-    doc.text(item.label, legendX + 15, ly + 2)
+    doc.text(item.label, legendX + 18, ly + 3)
   })
 }
 
@@ -374,22 +382,24 @@ export async function POST(request: NextRequest) {
     const sortedSources = [...mediaPieData].sort((a, b) => b.value - a.value)
     const industryLabel = data.industryName || 'sector'
     
-    // Intelligent analysis text
-    doc.setFontSize(11)
+    // Intelligent analysis text - LARGER FONTS
+    doc.setFontSize(14)
     doc.setTextColor(DARK_TEXT[0], DARK_TEXT[1], DARK_TEXT[2])
     
     // Intro paragraph
     const introText = `The ${industryLabel} continued to receive substantial media publicity during the period under review.`
     const introLines = doc.splitTextToSize(introText, 400)
-    doc.text(introLines, 520, 120)
+    doc.text(introLines, 520, 100)
     
     // Total coverage
+    doc.setFontSize(14)
     const totalText = `Total Coverage – ${(totalIndustryStories || 0).toLocaleString()} news stories from four media sources (print media, news website, radio and television).`
     const totalLines = doc.splitTextToSize(totalText, 400)
-    doc.text(totalLines, 520, 180)
+    doc.text(totalLines, 520, 170)
     
-    // Bullet points from highest to lowest
-    let bulletY = 260
+    // Bullet points from highest to lowest - LARGER FONTS
+    doc.setFontSize(15)
+    let bulletY = 270
     sortedSources.forEach((source, i) => {
       let bulletText = ''
       if (i === 0) {
@@ -399,7 +409,7 @@ export async function POST(request: NextRequest) {
       } else {
         bulletText = `•   ${source.label} (${source.percentage}%)`
       }
-      doc.text(bulletText, 520, bulletY + i * 30)
+      doc.text(bulletText, 520, bulletY + i * 40)
     })
 
     // ===== SLIDE 6: MONTHLY TREND =====
@@ -413,20 +423,20 @@ export async function POST(request: NextRequest) {
       }))
       drawBarChart(doc, trendData, 50, 100, 500, 350, [ORANGE])
       
-      // Analysis text
+      // Analysis text - LARGER FONTS
       const highestMonth = monthlyTrend.reduce((max: any, m: any) => (m.total || 0) > (max.total || 0) ? m : max, monthlyTrend[0])
       const lowestMonth = monthlyTrend.reduce((min: any, m: any) => (m.total || 0) < (min.total || 0) ? m : min, monthlyTrend[0])
       
-      doc.setFontSize(14)
+      doc.setFontSize(20)
       doc.setTextColor(DARK_TEXT[0], DARK_TEXT[1], DARK_TEXT[2])
       doc.text('Period Under Review', 600, 150)
       
-      doc.setFontSize(11)
+      doc.setFontSize(16)
       doc.setTextColor(GREEN[0], GREEN[1], GREEN[2])
-      doc.text(`${highestMonth?.month} – ${(highestMonth?.total || 0).toLocaleString()} articles (Highest)`, 600, 200)
+      doc.text(`${highestMonth?.month} – ${(highestMonth?.total || 0).toLocaleString()} articles (Highest)`, 600, 210)
       
       doc.setTextColor(RED[0], RED[1], RED[2])
-      doc.text(`${lowestMonth?.month} – ${(lowestMonth?.total || 0).toLocaleString()} articles (Lowest)`, 600, 230)
+      doc.text(`${lowestMonth?.month} – ${(lowestMonth?.total || 0).toLocaleString()} articles (Lowest)`, 600, 260)
     }
 
     // ===== SLIDE 7: THEMATIC AREAS =====
@@ -436,18 +446,19 @@ export async function POST(request: NextRequest) {
     if (thematicAreas && thematicAreas.length > 0) {
       const maxWeight = Math.max(...thematicAreas.map((a: any) => a.weight), 1)
       
-      // Scattered positions for word cloud effect (percentages of content area)
+      // Better distributed positions for word cloud - more centered
       const positions = [
-        { x: 480, y: 120 }, { x: 300, y: 160 }, { x: 650, y: 140 }, { x: 150, y: 200 },
-        { x: 480, y: 220 }, { x: 750, y: 200 }, { x: 250, y: 270 }, { x: 520, y: 300 },
-        { x: 700, y: 270 }, { x: 350, y: 340 }, { x: 580, y: 360 }, { x: 200, y: 360 },
-        { x: 800, y: 340 }, { x: 420, y: 400 }, { x: 100, y: 290 }, { x: 850, y: 250 },
-        { x: 300, y: 430 }, { x: 630, y: 420 }, { x: 480, y: 180 }, { x: 750, y: 390 },
+        { x: 480, y: 140 }, { x: 280, y: 180 }, { x: 680, y: 160 }, { x: 380, y: 220 },
+        { x: 580, y: 240 }, { x: 200, y: 260 }, { x: 760, y: 220 }, { x: 320, y: 300 },
+        { x: 520, y: 320 }, { x: 420, y: 360 }, { x: 620, y: 380 }, { x: 180, y: 340 },
+        { x: 800, y: 300 }, { x: 480, y: 420 }, { x: 280, y: 400 }, { x: 700, y: 360 },
+        { x: 380, y: 460 }, { x: 580, y: 460 }, { x: 480, y: 200 }, { x: 150, y: 200 },
       ]
       
       thematicAreas.slice(0, 20).forEach((item: any, i: number) => {
         const ratio = item.weight / maxWeight
-        const fontSize = Math.round(12 + ratio * 28)
+        // Larger font sizes: 16px to 48px
+        const fontSize = Math.round(16 + ratio * 32)
         const pos = positions[i] || { x: 480, y: 280 }
         
         if (ratio > 0.6) {
