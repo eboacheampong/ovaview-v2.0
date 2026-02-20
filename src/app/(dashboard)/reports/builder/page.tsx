@@ -420,12 +420,16 @@ export default function ReportBuilderPage() {
     try {
       const html2canvas = (await import('html2canvas')).default
       const canvas = await html2canvas(slideRef.current, {
-        backgroundColor: '#ffffff',
-        scale: 2,
+        backgroundColor: currentSlide?.background || '#ffffff',
+        scale: 3, // Higher scale for better quality
         logging: false,
         useCORS: true,
+        allowTaint: true,
+        imageTimeout: 15000, // Wait longer for images to load
+        windowWidth: 800, // Fixed width for consistency
+        windowHeight: 450, // 16:9 aspect ratio
       })
-      return canvas.toDataURL('image/png')
+      return canvas.toDataURL('image/png', 1.0) // Max quality
     } catch (error) {
       console.error('Failed to capture slide:', error)
       return null
@@ -443,28 +447,35 @@ export default function ReportBuilderPage() {
 
   const handleExport = async (format: 'pdf' | 'pptx') => {
     setIsExporting(true)
+    const originalSlideIndex = currentSlideIndex
+    
     try {
       const clientName = selectedClient !== 'all' 
         ? clients.find(c => c.id === selectedClient)?.name || 'Client'
         : 'All Clients'
       const fileName = `${reportTitle.replace(/\s+/g, '_')}_${clientName}`
 
-      // Capture all slides
+      // Capture all slides with improved quality
       const slideImages: string[] = []
       for (let i = 0; i < slides.length; i++) {
         setCurrentSlideIndex(i)
-        await new Promise(resolve => setTimeout(resolve, 500)) // Wait for render
+        // Wait longer for charts to fully render (especially on slower devices)
+        await new Promise(resolve => setTimeout(resolve, 800))
         const img = await captureSlide()
         if (img) slideImages.push(img)
       }
+      
+      // Restore original slide
+      setCurrentSlideIndex(originalSlideIndex)
 
       if (format === 'pdf') {
         const { default: jsPDF } = await import('jspdf')
-        const doc = new jsPDF({ orientation: 'landscape', unit: 'px', format: [600, 400] })
+        // Use 16:9 aspect ratio matching the slide canvas
+        const doc = new jsPDF({ orientation: 'landscape', unit: 'px', format: [800, 450] })
         
         slideImages.forEach((img, index) => {
           if (index > 0) doc.addPage()
-          doc.addImage(img, 'PNG', 0, 0, 600, 400)
+          doc.addImage(img, 'PNG', 0, 0, 800, 450)
         })
         
         doc.save(`${fileName}.pdf`)
@@ -474,6 +485,7 @@ export default function ReportBuilderPage() {
         pptx.author = 'Ovaview'
         pptx.title = reportTitle
         pptx.subject = 'Media Analytics Report'
+        pptx.layout = 'LAYOUT_WIDE' // 16:9 widescreen
         
         slideImages.forEach((img) => {
           const slide = pptx.addSlide()
@@ -752,7 +764,7 @@ export default function ReportBuilderPage() {
 
       {/* Export Panel Overlay */}
       {showExportPanel && (
-        <div className="fixed inset-0 backdrop-blur-md bg-white/30 z-[100] flex items-start justify-center pt-24 p-4" onClick={() => setShowExportPanel(false)}>
+        <div className="fixed inset-0 backdrop-blur-md z-[100] flex items-start justify-center pt-24 p-4" onClick={() => setShowExportPanel(false)}>
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between p-5 border-b border-gray-100">
               <div>

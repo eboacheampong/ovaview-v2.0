@@ -77,51 +77,39 @@ export default function PRPreviewPage() {
     setIsExporting(true)
     setShowExportOptions(false)
     
-    // For PDF export, we need all slides rendered - temporarily switch to grid view
-    const wasSlideshow = viewMode === 'slideshow'
-    if (format === 'pdf' && wasSlideshow) {
-      setViewMode('grid')
-      await new Promise(resolve => setTimeout(resolve, 500)) // Wait for render
-    }
-    
     try {
-      if (format === 'pptx') {
-        const res = await fetch('/api/reports/export-pr-presence', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(prData),
-        })
-        if (!res.ok) throw new Error('Export failed')
-        const { data, filename } = await res.json()
-        const bytes = atob(data)
-        const arr = new Uint8Array(bytes.length)
-        for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i)
-        const blob = new Blob([arr], { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' })
-        const link = document.createElement('a')
-        link.href = URL.createObjectURL(blob)
-        link.download = filename
-        link.click()
-      } else {
-        // PDF export via html2canvas + jsPDF
-        const { default: jsPDF } = await import('jspdf')
-        const { default: html2canvas } = await import('html2canvas')
-        const doc = new jsPDF({ orientation: 'landscape', unit: 'px', format: [960, 540] })
-        const slideElements = document.querySelectorAll('[data-slide]')
-        for (let i = 0; i < slideElements.length; i++) {
-          if (i > 0) doc.addPage()
-          const canvas = await html2canvas(slideElements[i] as HTMLElement, { scale: 2, backgroundColor: null, logging: false })
-          doc.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, 960, 540)
-        }
-        doc.save(`${prData.clientName.replace(/\s+/g, '_')}_PR_Presence.pdf`)
-      }
+      // Both PPTX and PDF now use server-side generation for consistent quality
+      const endpoint = format === 'pptx' 
+        ? '/api/reports/export-pr-presence' 
+        : '/api/reports/export-pr-presence-pdf'
+      
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(prData),
+      })
+      
+      if (!res.ok) throw new Error('Export failed')
+      
+      const { data, filename } = await res.json()
+      const bytes = atob(data)
+      const arr = new Uint8Array(bytes.length)
+      for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i)
+      
+      const mimeType = format === 'pptx' 
+        ? 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+        : 'application/pdf'
+      
+      const blob = new Blob([arr], { type: mimeType })
+      const link = document.createElement('a')
+      link.href = URL.createObjectURL(blob)
+      link.download = filename
+      link.click()
+      URL.revokeObjectURL(link.href)
     } catch (e) {
       console.error('Export error:', e)
       alert('Export failed. Please try again.')
     } finally {
-      // Restore view mode if we changed it
-      if (format === 'pdf' && wasSlideshow) {
-        setViewMode('slideshow')
-      }
       setIsExporting(false)
     }
   }
