@@ -43,30 +43,159 @@ const DEFAULT_SLIDES: Slide[] = [
   {
     id: 'cover',
     name: 'Cover Page',
-    background: '#ffffff',
+    background: '#D4941A',
     elements: [
-      { id: 'logo', type: 'image', content: { src: '/Ovaview-Media-Monitoring-Logo.png', alt: 'Ovaview' }, position: { x: 50, y: 20 }, size: { width: 200, height: 60 } },
-      { id: 'title', type: 'title', content: { text: 'Media Analytics Report', fontSize: 36, color: '#f97316' }, position: { x: 50, y: 150 }, size: { width: 500, height: 60 } },
-      { id: 'subtitle', type: 'text', content: { text: 'Comprehensive Media Monitoring Insights', fontSize: 18, color: '#6b7280' }, position: { x: 50, y: 220 }, size: { width: 500, height: 30 } },
-      { id: 'date', type: 'text', content: { text: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }), fontSize: 14, color: '#9ca3af' }, position: { x: 50, y: 280 }, size: { width: 300, height: 24 } },
+      { id: 'title', type: 'title', content: { text: 'MEDIA PRESENCE\nANALYSIS REPORT', fontSize: 36, color: '#ffffff' }, position: { x: 50, y: 100 }, size: { width: 500, height: 100 } },
+      { id: 'date', type: 'text', content: { text: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long' }), fontSize: 16, color: '#ffffff' }, position: { x: 150, y: 220 }, size: { width: 300, height: 30 } },
     ]
   },
   {
-    id: 'kpis',
-    name: 'Key Metrics',
+    id: 'brief',
+    name: 'Brief',
     background: '#ffffff',
     elements: [
-      { id: 'kpi-title', type: 'title', content: { text: 'Key Performance Indicators', fontSize: 28, color: '#1f2937' }, position: { x: 30, y: 20 }, size: { width: 400, height: 40 } },
-      { id: 'kpi-grid', type: 'kpi', content: { metrics: [] }, position: { x: 30, y: 80 }, size: { width: 540, height: 200 } },
+      { id: 'brief-title', type: 'title', content: { text: 'Brief', fontSize: 28, color: '#f97316' }, position: { x: 30, y: 20 }, size: { width: 200, height: 40 } },
+      { id: 'brief-text', type: 'text', content: { text: 'This report is an analysis of the PR presence for\n[Client Name]\nThe data was captured from [Date Range].', fontSize: 16, color: '#6b7280' }, position: { x: 50, y: 100 }, size: { width: 450, height: 120 } },
     ]
   },
   {
-    id: 'coverage',
-    name: 'Coverage Trend',
+    id: 'section-industry',
+    name: 'Section: Industry',
+    background: '#D4941A',
+    elements: [
+      { id: 'section-title', type: 'title', content: { text: 'MEDIA PRESENCE ANALYSIS\nIndustry', fontSize: 32, color: '#ffffff' }, position: { x: 50, y: 130 }, size: { width: 500, height: 100 } },
+    ]
+  },
+  {
+    id: 'scope-coverage',
+    name: 'Scope of Coverage',
     background: '#ffffff',
     elements: [
-      { id: 'coverage-title', type: 'title', content: { text: 'Coverage Trend', fontSize: 28, color: '#1f2937' }, position: { x: 30, y: 20 }, size: { width: 300, height: 40 } },
-      { id: 'coverage-chart', type: 'chart', content: { chartType: 'area', dataKey: 'coverageTrend' }, position: { x: 30, y: 70 }, size: { width: 540, height: 280 } },
+      { id: 'scope-title', type: 'title', content: { text: 'Scope of Coverage - Overall', fontSize: 24, color: '#1f2937' }, position: { x: 30, y: 20 }, size: { width: 400, height: 40 } },
+      { id: 'scope-kpi', type: 'kpi', content: { metrics: [
+        { label: 'News Website', value: '0', change: 0 },
+        { label: 'Print Media', value: '0', change: 0 },
+        { label: 'Radio', value: '0', change: 0 },
+        { label: 'Television', value: '0', change: 0 },
+      ] }, position: { x: 30, y: 80 }, size: { width: 540, height: 200 } },
+    ]
+  },
+  {
+    id: 'media-sources',
+    name: 'Media Sources - Industry',
+    background: '#ffffff',
+    elements: [
+      { id: 'media-title', type: 'title', content: { text: 'Media Sources - Industry', fontSize: 24, color: '#1f2937' }, position: { x: 30, y: 20 }, size: { width: 400, height: 40 } },
+      { id: 'media-chart', type: 'chart', content: { chartType: 'pie', dataKey: 'mediaDistribution' }, position: { x: 20, y: 70 }, size: { width: 280, height: 250 } },
+      { id: 'media-text', type: 'text', content: { text: 'Total coverage from four media sources.', fontSize: 12, color: '#4b5563' }, position: { x: 320, y: 80 }, size: { width: 260, height: 200 } },
+    ]
+  },
+  {
+    id: 'monthly-trend',
+    name: 'Monthly Trend',
+    background: '#ffffff',
+    elements: [
+      { id: 'trend-title', type: 'title', content: { text: 'Media Sources – Monthly Trend (Industry)', fontSize: 22, color: '#1f2937' }, position: { x: 30, y: 20 }, size: { width: 500, height: 40 } },
+      { id: 'trend-chart', type: 'chart', content: { chartType: 'bar', dataKey: 'coverageTrend' }, position: { x: 20, y: 70 }, size: { width: 300, height: 260 } },
+      { id: 'trend-text', type: 'text', content: { text: 'Period Under Review', fontSize: 12, color: '#4b5563' }, position: { x: 340, y: 80 }, size: { width: 240, height: 200 } },
+    ]
+  },
+  {
+    id: 'thematic-areas',
+    name: 'Thematic Areas (Word Cloud)',
+    background: '#ffffff',
+    elements: [
+      { id: 'thematic-title', type: 'title', content: { text: 'Thematic Areas of Coverage - Industry', fontSize: 22, color: '#1f2937' }, position: { x: 30, y: 20 }, size: { width: 500, height: 40 } },
+      { id: 'thematic-text', type: 'text', content: { text: 'Word cloud generated from story keywords. Export to PPTX for full visualization.', fontSize: 12, color: '#9ca3af' }, position: { x: 100, y: 150 }, size: { width: 400, height: 60 } },
+    ]
+  },
+  {
+    id: 'key-personalities-industry',
+    name: 'Key Personalities (Industry)',
+    background: '#ffffff',
+    elements: [
+      { id: 'kp-ind-title', type: 'title', content: { text: 'Key Personalities (Industry) – Top 5', fontSize: 22, color: '#1f2937' }, position: { x: 30, y: 20 }, size: { width: 500, height: 40 } },
+      { id: 'kp-ind-text', type: 'text', content: { text: 'Populated from story mentions. Photos can be added manually.', fontSize: 11, color: '#9ca3af' }, position: { x: 50, y: 150 }, size: { width: 450, height: 40 } },
+    ]
+  },
+  {
+    id: 'key-personalities-client',
+    name: 'Key Personalities (Client)',
+    background: '#ffffff',
+    elements: [
+      { id: 'kp-client-title', type: 'title', content: { text: 'Key Personalities (Client) – Top 5', fontSize: 22, color: '#1f2937' }, position: { x: 30, y: 20 }, size: { width: 500, height: 40 } },
+      { id: 'kp-client-text', type: 'text', content: { text: 'Populated from story mentions. Photos can be added manually.', fontSize: 11, color: '#9ca3af' }, position: { x: 50, y: 150 }, size: { width: 450, height: 40 } },
+    ]
+  },
+  {
+    id: 'key-journalists',
+    name: 'Key Journalists - Top 5',
+    background: '#ffffff',
+    elements: [
+      { id: 'kj-title', type: 'title', content: { text: 'Key Journalists – Top 5', fontSize: 24, color: '#1f2937' }, position: { x: 30, y: 20 }, size: { width: 400, height: 40 } },
+      { id: 'kj-chart', type: 'chart', content: { chartType: 'bar', dataKey: 'journalists' }, position: { x: 30, y: 70 }, size: { width: 540, height: 280 } },
+    ]
+  },
+  {
+    id: 'section-client-visibility',
+    name: 'Section: Client Visibility',
+    background: '#D4941A',
+    elements: [
+      { id: 'vis-title', type: 'title', content: { text: 'Visibility of\n[Client Name]', fontSize: 32, color: '#ffffff' }, position: { x: 50, y: 130 }, size: { width: 500, height: 100 } },
+    ]
+  },
+  {
+    id: 'client-visibility',
+    name: 'Client Visibility',
+    background: '#ffffff',
+    elements: [
+      { id: 'cv-title', type: 'title', content: { text: 'Media Sources - Industry', fontSize: 24, color: '#1f2937' }, position: { x: 30, y: 20 }, size: { width: 400, height: 40 } },
+      { id: 'cv-chart', type: 'chart', content: { chartType: 'pie', dataKey: 'mediaDistribution' }, position: { x: 20, y: 70 }, size: { width: 260, height: 250 } },
+    ]
+  },
+  {
+    id: 'major-stories-client',
+    name: 'Major Stories - Client',
+    background: '#ffffff',
+    elements: [
+      { id: 'ms-title', type: 'title', content: { text: 'Major Stories – [Client Name]', fontSize: 22, color: '#1f2937' }, position: { x: 30, y: 20 }, size: { width: 500, height: 40 } },
+      { id: 'ms-text', type: 'text', content: { text: 'Major stories are populated from the database when exporting to PPTX.', fontSize: 11, color: '#9ca3af' }, position: { x: 50, y: 150 }, size: { width: 450, height: 40 } },
+    ]
+  },
+  {
+    id: 'section-competitors',
+    name: 'Section: Competitors',
+    background: '#D4941A',
+    elements: [
+      { id: 'comp-section-title', type: 'title', content: { text: 'Visibility of\nCompetitors', fontSize: 32, color: '#ffffff' }, position: { x: 50, y: 130 }, size: { width: 500, height: 100 } },
+    ]
+  },
+  {
+    id: 'competitor-presence',
+    name: 'Competitor Presence',
+    background: '#ffffff',
+    elements: [
+      { id: 'cp-title', type: 'title', content: { text: 'Competitor Presence – Top 5 Sector Players', fontSize: 20, color: '#1f2937' }, position: { x: 30, y: 20 }, size: { width: 540, height: 40 } },
+      { id: 'cp-chart', type: 'chart', content: { chartType: 'pie', dataKey: 'mediaDistribution' }, position: { x: 20, y: 70 }, size: { width: 280, height: 250 } },
+      { id: 'cp-text', type: 'text', content: { text: 'Competitor data populated from client competitor settings.', fontSize: 11, color: '#9ca3af' }, position: { x: 320, y: 100 }, size: { width: 260, height: 150 } },
+    ]
+  },
+  {
+    id: 'sentiments',
+    name: 'Story Orientation - Sentiments',
+    background: '#ffffff',
+    elements: [
+      { id: 'sent-title', type: 'title', content: { text: 'Story Orientation - Sentiments', fontSize: 22, color: '#1f2937' }, position: { x: 30, y: 20 }, size: { width: 500, height: 40 } },
+      { id: 'sent-chart', type: 'chart', content: { chartType: 'pie', dataKey: 'sentiment' }, position: { x: 20, y: 70 }, size: { width: 260, height: 250 } },
+    ]
+  },
+  {
+    id: 'conclusions',
+    name: 'Key Takeouts - Conclusions',
+    background: '#ffffff',
+    elements: [
+      { id: 'conc-title', type: 'title', content: { text: 'Key Takeouts - Conclusions', fontSize: 24, color: '#f97316' }, position: { x: 30, y: 20 }, size: { width: 500, height: 40 } },
+      { id: 'conc-text', type: 'text', content: { text: 'Conclusions are auto-generated from analytics data when exporting to PPTX.', fontSize: 12, color: '#9ca3af' }, position: { x: 50, y: 100 }, size: { width: 450, height: 200 } },
     ]
   },
 ]
@@ -258,6 +387,44 @@ export default function ReportBuilderPage() {
     }
   }
 
+  const handlePRPresenceExport = async () => {
+    if (selectedClient === 'all') {
+      alert('Please select a specific client to generate a PR Presence Report.')
+      return
+    }
+    setIsExporting(true)
+    try {
+      const analyticsRes = await fetch(`/api/reports/pr-presence-analytics?clientId=${selectedClient}&dateRange=${dateRange}`)
+      if (!analyticsRes.ok) throw new Error('Failed to fetch PR presence data')
+      const prData = await analyticsRes.json()
+
+      const pptxRes = await fetch('/api/reports/export-pr-presence', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(prData),
+      })
+      if (!pptxRes.ok) throw new Error('PPTX generation failed')
+
+      const { data, filename } = await pptxRes.json()
+      const byteCharacters = atob(data)
+      const byteNumbers = new Array(byteCharacters.length)
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i)
+      }
+      const byteArray = new Uint8Array(byteNumbers)
+      const blob = new Blob([byteArray], { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' })
+      const link = document.createElement('a')
+      link.href = URL.createObjectURL(blob)
+      link.download = filename
+      link.click()
+    } catch (error) {
+      console.error('PR Presence export error:', error)
+      alert('PR Presence export failed. Please try again.')
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
   const handleExport = async (format: 'pdf' | 'pptx') => {
     setIsExporting(true)
     try {
@@ -325,6 +492,9 @@ export default function ReportBuilderPage() {
           break
         case 'industryPerformance':
           data = analyticsData.industryPerformanceData || []
+          break
+        case 'journalists':
+          data = (analyticsData.journalistData || []).map((j: any) => ({ name: `${j.name}\n${j.outlet}`, value: j.articles }))
           break
       }
     }
@@ -553,6 +723,11 @@ export default function ReportBuilderPage() {
           <Button className="bg-orange-500 hover:bg-orange-600" size="sm" onClick={() => handleExport('pptx')} disabled={isExporting}>
             {isExporting ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Presentation className="h-4 w-4 mr-1" />}
             PPTX
+          </Button>
+          
+          <Button variant="outline" size="sm" className="border-orange-300 text-orange-600 hover:bg-orange-50" onClick={handlePRPresenceExport} disabled={isExporting || selectedClient === 'all'} title={selectedClient === 'all' ? 'Select a client first' : 'Export PR Presence Report'}>
+            {isExporting ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Presentation className="h-4 w-4 mr-1" />}
+            PR Presence
           </Button>
         </div>
       </div>
@@ -802,6 +977,7 @@ export default function ReportBuilderPage() {
                               <option value="mediaDistribution">Media Distribution</option>
                               <option value="sentiment">Sentiment</option>
                               <option value="industryPerformance">Industry Performance</option>
+                              <option value="journalists">Key Journalists</option>
                             </select>
                           </div>
                         </>

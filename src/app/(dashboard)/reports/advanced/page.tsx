@@ -449,6 +449,49 @@ export default function AdvancedReportsPage() {
     }
   }
 
+  // PR Presence Report Export
+  const handlePRPresenceExport = async () => {
+    if (clientFilter === 'all') {
+      alert('Please select a specific client to generate a PR Presence Report.')
+      return
+    }
+    setIsExporting('pr-presence')
+    try {
+      // Fetch PR presence analytics
+      const analyticsRes = await fetch(`/api/reports/pr-presence-analytics?clientId=${clientFilter}&dateRange=${dateRange}`)
+      if (!analyticsRes.ok) throw new Error('Failed to fetch PR presence data')
+      const prData = await analyticsRes.json()
+
+      // Generate PPTX
+      const pptxRes = await fetch('/api/reports/export-pr-presence', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(prData),
+      })
+      if (!pptxRes.ok) throw new Error('PPTX generation failed')
+
+      const { data, filename } = await pptxRes.json()
+
+      // Download
+      const byteCharacters = atob(data)
+      const byteNumbers = new Array(byteCharacters.length)
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i)
+      }
+      const byteArray = new Uint8Array(byteNumbers)
+      const blob = new Blob([byteArray], { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' })
+      const link = document.createElement('a')
+      link.href = URL.createObjectURL(blob)
+      link.download = filename
+      link.click()
+    } catch (error) {
+      console.error('PR Presence export error:', error)
+      alert('PR Presence export failed. Please try again.')
+    } finally {
+      setIsExporting(null)
+    }
+  }
+
   const kpiCards = analyticsData ? [
     { title: 'Total Coverage', value: analyticsData.kpiData.totalCoverage.toLocaleString(), change: analyticsData.kpiData.coverageChange, icon: Newspaper, color: 'blue' },
     { title: 'Media Reach', value: analyticsData.kpiData.totalReach, change: analyticsData.kpiData.reachChange, icon: Eye, color: 'emerald' },
@@ -525,6 +568,9 @@ export default function AdvancedReportsPage() {
           </Button>
           <Button variant="outline" size="sm" onClick={() => handleExport('pptx')} disabled={!!isExporting} className="gap-2">
             {isExporting === 'pptx' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Presentation className="h-4 w-4" />} PPTX
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => handlePRPresenceExport()} disabled={!!isExporting || clientFilter === 'all'} className="gap-2 border-orange-300 text-orange-600 hover:bg-orange-50" title={clientFilter === 'all' ? 'Select a client first' : 'Export PR Presence Report'}>
+            {isExporting === 'pr-presence' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Presentation className="h-4 w-4" />} PR Presence
           </Button>
           <Button className="bg-orange-500 hover:bg-orange-600 text-white" size="sm" onClick={() => window.location.href = '/reports/builder'}>
             <Layout className="h-4 w-4 mr-1" /> Report Builder
