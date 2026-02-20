@@ -248,6 +248,8 @@ export default async function PublicMediaPage({ params }: PageProps) {
 
         {videoUrl && (
           <div className="px-4 sm:px-8 mb-6">
+            {/* Debug: show video URL */}
+            <p className="text-xs text-gray-400 mb-2 break-all">Video URL: {videoUrl}</p>
             {(() => {
               const embedUrl = getVideoEmbedUrl(videoUrl)
               if (embedUrl) {
@@ -260,9 +262,16 @@ export default async function PublicMediaPage({ params }: PageProps) {
               } else {
                 // Direct video file (Vercel Blob or other hosted video)
                 return (
-                  <div className="bg-gray-900 rounded-xl overflow-hidden">
-                    <video controls className="w-full" playsInline>
-                      <source src={videoUrl} />
+                  <div className="aspect-video bg-gray-900 rounded-xl overflow-hidden">
+                    <video 
+                      controls 
+                      className="w-full h-full" 
+                      playsInline
+                      preload="metadata"
+                    >
+                      <source src={videoUrl} type="video/mp4" />
+                      <source src={videoUrl} type="video/webm" />
+                      <source src={videoUrl} type="video/quicktime" />
                       Your browser does not support the video tag.
                     </video>
                   </div>

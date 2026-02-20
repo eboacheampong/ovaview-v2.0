@@ -9,7 +9,7 @@ import {
   Newspaper, Radio, Tv, Globe, Users, Eye, Mail, FileText, RefreshCw,
   Search, ArrowUpRight, ArrowDownRight, Minus, PieChart, Presentation,
   Activity, Target, Zap, Award, Clock, MapPin, Hash, Layers, Share2,
-  ThumbsUp, ThumbsDown, AlertCircle, CheckCircle, XCircle, MoreHorizontal, Loader2
+  ThumbsUp, ThumbsDown, AlertCircle, CheckCircle, XCircle, MoreHorizontal, Loader2, Layout
 } from 'lucide-react'
 import {
   AreaChart, Area, BarChart, Bar, PieChart as RechartsPie,
@@ -525,6 +525,9 @@ export default function AdvancedReportsPage() {
           </Button>
           <Button variant="outline" size="sm" onClick={() => handleExport('pptx')} disabled={!!isExporting} className="gap-2">
             {isExporting === 'pptx' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Presentation className="h-4 w-4" />} PPTX
+          </Button>
+          <Button className="bg-orange-500 hover:bg-orange-600 text-white" size="sm" onClick={() => window.location.href = '/reports/builder'}>
+            <Layout className="h-4 w-4 mr-1" /> Report Builder
           </Button>
         </div>
       </div>
