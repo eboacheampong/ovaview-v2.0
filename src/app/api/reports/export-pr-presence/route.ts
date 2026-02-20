@@ -221,30 +221,28 @@ export async function POST(request: NextRequest) {
     addSlideHeader(pptx, slide7, 'Thematic Areas of Coverage - Industry', clientName)
 
     if (thematicAreas && thematicAreas.length > 0) {
-      // Create centered word cloud
       const cloudItems = thematicAreas.slice(0, 20)
       const maxWeight = Math.max(...cloudItems.map((item: any) => item.weight), 1)
       
-      // Generate centered positions in a cloud pattern
-      // Slide content area: x: 0-10, y: 0.8-5 (after header)
-      const centerX = 5 // Center of slide
-      const centerY = 2.8 // Center of content area
-      
+      // Scattered positions for word cloud effect (in inches, slide is ~10x5.5)
+      const positions = [
+        { x: 4.5, y: 1.2 }, { x: 3.0, y: 1.8 }, { x: 6.0, y: 1.5 }, { x: 1.5, y: 2.2 },
+        { x: 4.5, y: 2.5 }, { x: 7.0, y: 2.2 }, { x: 2.5, y: 3.0 }, { x: 5.0, y: 3.3 },
+        { x: 6.5, y: 3.0 }, { x: 3.5, y: 3.8 }, { x: 5.5, y: 4.0 }, { x: 2.0, y: 4.0 },
+        { x: 7.5, y: 3.8 }, { x: 4.0, y: 4.5 }, { x: 1.0, y: 3.2 }, { x: 8.0, y: 2.8 },
+        { x: 3.0, y: 4.8 }, { x: 6.0, y: 4.6 }, { x: 4.5, y: 2.0 }, { x: 7.0, y: 4.3 },
+      ]
+
       cloudItems.forEach((item: any, i: number) => {
         const ratio = item.weight / maxWeight
-        const fontSize = Math.max(10, Math.min(32, 10 + Math.round(ratio * 22)))
-        const color = ratio > 0.6 ? ORANGE : ratio > 0.3 ? DARK_TEXT : GRAY_TEXT
-        
-        // Create spiral/cloud pattern centered on slide
-        const angle = (i / cloudItems.length) * Math.PI * 4
-        const radius = 0.5 + (i * 0.15)
-        const offsetX = Math.cos(angle + i * 0.5) * (radius * 1.8)
-        const offsetY = Math.sin(angle + i * 0.3) * (radius * 0.9)
+        const fontSize = Math.max(10, Math.min(36, 10 + Math.round(ratio * 26)))
+        const color = ratio > 0.6 ? GOLD : ratio > 0.3 ? DARK_TEXT : GRAY_TEXT
+        const pos = positions[i] || { x: 4.5, y: 2.8 }
         
         slide7.addText(item.keyword, {
-          x: centerX + offsetX - 1, 
-          y: centerY + offsetY - 0.2, 
-          w: 2,
+          x: pos.x, 
+          y: pos.y, 
+          w: 3,
           h: 0.5,
           fontSize, 
           color, 
@@ -275,20 +273,34 @@ export async function POST(request: NextRequest) {
     addSlideHeader(pptx, slide10, 'Key Journalists – Top 5', clientName)
 
     if (topJournalists && topJournalists.length > 0) {
-      slide10.addChart(CHART_BAR, [
-        {
-          name: 'Articles',
-          labels: topJournalists.map((j: any) => `${j.name}\n${j.outlet}`),
-          values: topJournalists.map((j: any) => j.count),
-        }
-      ], {
-        x: 0.5, y: 0.9, w: 9, h: 3.8,
-        barDir: 'bar',
-        showValue: true, dataLabelFontSize: 10,
-        chartColors: [BLACK],
-        catAxisOrientation: 'minMax',
-        valAxisHidden: true,
-        catAxisLabelFontSize: 9,
+      const top5 = topJournalists.slice(0, 5)
+      const maxCount = Math.max(...top5.map((j: any) => j.count), 1)
+      
+      // Create vertical bar chart manually for better control
+      top5.forEach((j: any, i: number) => {
+        const barX = 1.0 + i * 1.8
+        const barWidth = 1.4
+        const maxBarHeight = 3.2
+        const barHeight = (j.count / maxCount) * maxBarHeight
+        const barY = 0.9 + (maxBarHeight - barHeight)
+        
+        // Count above bar
+        slide10.addText(j.count.toString(), {
+          x: barX, y: barY - 0.35, w: barWidth, h: 0.3,
+          fontSize: 12, color: DARK_TEXT, fontFace: 'Arial', align: 'center', bold: true,
+        })
+        
+        // Bar
+        slide10.addShape(pptx.ShapeType.rect, {
+          x: barX, y: barY, w: barWidth, h: barHeight,
+          fill: { color: BLACK },
+        })
+        
+        // Name and outlet below bar
+        slide10.addText(`${j.name},\n${j.outlet}`, {
+          x: barX - 0.1, y: 4.2, w: barWidth + 0.2, h: 0.9,
+          fontSize: 9, color: DARK_TEXT, fontFace: 'Arial', align: 'center',
+        })
       })
     }
 

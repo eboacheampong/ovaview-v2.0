@@ -436,33 +436,22 @@ export async function POST(request: NextRequest) {
     if (thematicAreas && thematicAreas.length > 0) {
       const maxWeight = Math.max(...thematicAreas.map((a: any) => a.weight), 1)
       
-      // Center the word cloud in the slide (below header, above footer)
-      const centerX = SLIDE_WIDTH / 2
-      const centerY = 280 // Vertical center of content area
+      // Scattered positions for word cloud effect (percentages of content area)
+      const positions = [
+        { x: 480, y: 120 }, { x: 300, y: 160 }, { x: 650, y: 140 }, { x: 150, y: 200 },
+        { x: 480, y: 220 }, { x: 750, y: 200 }, { x: 250, y: 270 }, { x: 520, y: 300 },
+        { x: 700, y: 270 }, { x: 350, y: 340 }, { x: 580, y: 360 }, { x: 200, y: 360 },
+        { x: 800, y: 340 }, { x: 420, y: 400 }, { x: 100, y: 290 }, { x: 850, y: 250 },
+        { x: 300, y: 430 }, { x: 630, y: 420 }, { x: 480, y: 180 }, { x: 750, y: 390 },
+      ]
       
-      // Generate centered positions in a cloud pattern
-      const items = thematicAreas.slice(0, 20)
-      const positions: { x: number; y: number }[] = []
-      
-      // Create a spiral/cloud pattern centered on the slide
-      items.forEach((item: any, i: number) => {
-        const angle = (i / items.length) * Math.PI * 4 // Spiral
-        const radius = 50 + (i * 15) // Expanding radius
-        const offsetX = Math.cos(angle + i * 0.5) * (radius * 0.8)
-        const offsetY = Math.sin(angle + i * 0.3) * (radius * 0.5)
-        positions.push({
-          x: centerX + offsetX,
-          y: centerY + offsetY - 20
-        })
-      })
-      
-      items.forEach((item: any, i: number) => {
+      thematicAreas.slice(0, 20).forEach((item: any, i: number) => {
         const ratio = item.weight / maxWeight
-        const fontSize = Math.round(12 + ratio * 22)
-        const pos = positions[i]
+        const fontSize = Math.round(12 + ratio * 28)
+        const pos = positions[i] || { x: 480, y: 280 }
         
         if (ratio > 0.6) {
-          doc.setTextColor(ORANGE[0], ORANGE[1], ORANGE[2])
+          doc.setTextColor(GOLD[0], GOLD[1], GOLD[2])
         } else if (ratio > 0.3) {
           doc.setTextColor(DARK_TEXT[0], DARK_TEXT[1], DARK_TEXT[2])
         } else {
@@ -479,11 +468,40 @@ export async function POST(request: NextRequest) {
     addSlideHeader(doc, 'Key Journalists – Top 5', clientName)
     
     if (topJournalists && topJournalists.length > 0) {
-      const journalistData = topJournalists.slice(0, 5).map((j: any) => ({
-        label: `${j.name}\n${j.outlet}`,
-        value: j.count
-      }))
-      drawBarChart(doc, journalistData, 100, 100, 750, 380, [DARK_TEXT])
+      const top5 = topJournalists.slice(0, 5)
+      const maxCount = Math.max(...top5.map((j: any) => j.count), 1)
+      
+      const barWidth = 120
+      const maxBarHeight = 280
+      const startX = 120
+      const barGap = 160
+      const baseY = 420 // Bottom of bars
+      
+      top5.forEach((j: any, i: number) => {
+        const barX = startX + i * barGap
+        const barHeight = (j.count / maxCount) * maxBarHeight
+        const barY = baseY - barHeight
+        
+        // Count above bar
+        doc.setFontSize(14)
+        doc.setTextColor(DARK_TEXT[0], DARK_TEXT[1], DARK_TEXT[2])
+        doc.text(j.count.toString(), barX + barWidth / 2, barY - 15, { align: 'center' })
+        
+        // Bar
+        doc.setFillColor(31, 41, 55) // Dark gray/black
+        doc.rect(barX, barY, barWidth, barHeight, 'F')
+        
+        // Name and outlet below bar
+        doc.setFontSize(10)
+        doc.setTextColor(DARK_TEXT[0], DARK_TEXT[1], DARK_TEXT[2])
+        const nameLines = doc.splitTextToSize(`${j.name},`, barWidth + 20)
+        doc.text(nameLines, barX + barWidth / 2, baseY + 20, { align: 'center' })
+        
+        doc.setFontSize(9)
+        doc.setTextColor(GRAY_TEXT[0], GRAY_TEXT[1], GRAY_TEXT[2])
+        const outletLines = doc.splitTextToSize(j.outlet, barWidth + 20)
+        doc.text(outletLines, barX + barWidth / 2, baseY + 45, { align: 'center' })
+      })
     }
 
     // ===== SLIDE 9: SECTION DIVIDER - Client Visibility =====

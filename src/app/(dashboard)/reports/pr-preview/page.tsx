@@ -615,20 +615,38 @@ function MonthlyTrendSlide({ data }: { data: any[] }) {
 function ThematicSlide({ areas }: { areas: any[] }) {
   if (!areas?.length) return <SlideWrapper><SlideHeader title="Thematic Areas" /><div className="flex-1 flex items-center justify-center text-gray-400">No data</div></SlideWrapper>
   const maxWeight = Math.max(...areas.map(a => a.weight), 1)
+  
+  // Pre-defined scattered positions for word cloud effect (centered)
+  const positions = [
+    { x: 50, y: 15 }, { x: 35, y: 25 }, { x: 65, y: 20 }, { x: 20, y: 35 },
+    { x: 50, y: 40 }, { x: 75, y: 35 }, { x: 30, y: 50 }, { x: 55, y: 55 },
+    { x: 70, y: 50 }, { x: 40, y: 65 }, { x: 60, y: 70 }, { x: 25, y: 70 },
+    { x: 80, y: 65 }, { x: 45, y: 80 }, { x: 15, y: 55 }, { x: 85, y: 45 },
+    { x: 35, y: 85 }, { x: 65, y: 85 }, { x: 50, y: 30 }, { x: 75, y: 75 },
+  ]
+  
   return (
     <SlideWrapper>
       <SlideHeader title="Thematic Areas of Coverage - Industry" />
-      <div className="flex-1 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 p-6 content-center">
+      <div className="flex-1 relative p-4 overflow-hidden">
         {areas.slice(0, 20).map((area, i) => {
           const ratio = area.weight / maxWeight
-          const size = Math.round(10 + ratio * 26)
+          const size = Math.round(12 + ratio * 28) // 12px to 40px
           const fontWeight = ratio > 0.5 ? 700 : ratio > 0.25 ? 600 : 400
-          const color = ratio > 0.6 ? '#f97316' : ratio > 0.3 ? '#1f2937' : '#9ca3af'
+          const color = ratio > 0.6 ? '#D4941A' : ratio > 0.3 ? '#1f2937' : '#9ca3af'
+          const pos = positions[i] || { x: 50, y: 50 }
+          
           return (
             <span
               key={i}
-              className="inline-block px-1 transition-transform hover:scale-110"
-              style={{ fontSize: size, fontWeight, color, lineHeight: 1.4 }}
+              className="absolute transform -translate-x-1/2 -translate-y-1/2 whitespace-nowrap"
+              style={{ 
+                left: `${pos.x}%`, 
+                top: `${pos.y}%`,
+                fontSize: size, 
+                fontWeight, 
+                color,
+              }}
             >
               {area.keyword}
             </span>
@@ -643,30 +661,32 @@ function ThematicSlide({ areas }: { areas: any[] }) {
 // --- Key Journalists ---
 function JournalistsSlide({ journalists }: { journalists: any[] }) {
   if (!journalists?.length) return <SlideWrapper><SlideHeader title="Key Journalists" /><div className="flex-1 flex items-center justify-center text-gray-400">No data</div></SlideWrapper>
-  const chartData = journalists.map(j => ({ name: j.name, outlet: j.outlet, value: j.count }))
+  
+  const maxCount = Math.max(...journalists.map(j => j.count), 1)
+  
   return (
     <SlideWrapper>
       <SlideHeader title="Key Journalists – Top 5" />
-      <div className="flex-1 p-4 min-h-0">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={chartData} layout="vertical" margin={{ left: 20, right: 30 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" horizontal={false} />
-            <XAxis type="number" fontSize={10} tick={{ fill: '#6b7280' }} />
-            <YAxis type="category" dataKey="name" fontSize={10} tick={{ fill: '#374151' }} width={120} />
-            <Tooltip content={({ active, payload }) => {
-              if (!active || !payload?.length) return null
-              const d = payload[0].payload
-              return (
-                <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-2 text-xs">
-                  <p className="font-semibold">{d.name}</p>
-                  <p className="text-gray-500">{d.outlet}</p>
-                  <p className="text-orange-600 font-bold">{d.value} articles</p>
-                </div>
-              )
-            }} />
-            <Bar dataKey="value" fill="#1f2937" radius={[0, 4, 4, 0]} barSize={20} label={{ position: 'right', fontSize: 11, fill: '#374151' }} />
-          </BarChart>
-        </ResponsiveContainer>
+      <div className="flex-1 flex items-end justify-center gap-6 px-8 pb-6 pt-4">
+        {journalists.slice(0, 5).map((j, i) => {
+          const heightPercent = (j.count / maxCount) * 100
+          return (
+            <div key={i} className="flex flex-col items-center flex-1 max-w-[140px]">
+              {/* Count above bar */}
+              <span className="text-sm font-semibold text-gray-700 mb-2">{j.count}</span>
+              {/* Bar */}
+              <div 
+                className="w-full bg-gray-900 rounded-t-sm"
+                style={{ height: `${Math.max(heightPercent * 2.5, 40)}px` }}
+              />
+              {/* Name and outlet below */}
+              <div className="mt-3 text-center">
+                <p className="text-xs font-medium text-gray-800 leading-tight">{j.name},</p>
+                <p className="text-[10px] text-gray-500 leading-tight mt-0.5">{j.outlet}</p>
+              </div>
+            </div>
+          )
+        })}
       </div>
       <SlideFooter />
     </SlideWrapper>
