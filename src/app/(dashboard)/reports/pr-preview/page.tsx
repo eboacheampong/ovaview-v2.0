@@ -497,7 +497,7 @@ function MediaSourcesSlide({ sources, total }: { sources: any; total: number }) 
         <div className="flex-1 min-h-0">
           <ResponsiveContainer width="100%" height="100%">
             <RechartsPie>
-              <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius="70%" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={true} fontSize={11}>
+              <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius="70%" label={({ name, percent }: any) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`} labelLine={true} fontSize={11}>
                 {pieData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i]} />)}
               </Pie>
               <Tooltip />
@@ -638,7 +638,7 @@ function ClientVisibilitySlide({ clientName, orgVisibility, clientSources, clien
         <div className="flex-1 min-h-0">
           <ResponsiveContainer width="100%" height="100%">
             <RechartsPie>
-              <Pie data={donutData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius="35%" outerRadius="65%" label={({ name, percent }) => `${(percent * 100).toFixed(0)}%`} fontSize={10}>
+              <Pie data={donutData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius="35%" outerRadius="65%" label={({ percent }: any) => `${((percent ?? 0) * 100).toFixed(0)}%`} fontSize={10}>
                 {donutData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
               </Pie>
               <Tooltip />
@@ -726,7 +726,7 @@ function CompetitorSlide({ competitors }: { competitors: any[] }) {
         <div className="flex-1 min-h-0">
           <ResponsiveContainer width="100%" height="100%">
             <RechartsPie>
-              <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius="70%" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} fontSize={10} labelLine>
+              <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius="70%" label={({ name, percent }: any) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`} fontSize={10} labelLine>
                 {pieData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
               </Pie>
               <Tooltip />
@@ -776,7 +776,7 @@ function SentimentSlide({ industry, client, clientName }: { industry: any; clien
           <p className="text-xs font-semibold text-gray-700 mb-1">Industry Sentiment</p>
           <ResponsiveContainer width="100%" height="85%">
             <RechartsPie>
-              <Pie data={industryPie} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius="65%" label={({ percent }) => `${(percent * 100).toFixed(0)}%`} fontSize={11}>
+              <Pie data={industryPie} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius="65%" label={({ percent }: any) => `${((percent ?? 0) * 100).toFixed(0)}%`} fontSize={11}>
                 <Cell fill="#10b981" />
                 <Cell fill="#1f2937" />
                 <Cell fill="#6b7280" />

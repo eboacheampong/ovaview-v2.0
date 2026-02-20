@@ -508,7 +508,7 @@ export default function ReportBuilderPage() {
         return (
           <ResponsiveContainer width="100%" height="100%">
             <RechartsPie>
-              <Pie data={data} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius="65%" label={({ name, percent }) => `${(percent * 100).toFixed(0)}%`} labelLine fontSize={10}>
+              <Pie data={data} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius="65%" label={({ name, percent }: any) => `${((percent ?? 0) * 100).toFixed(0)}%`} labelLine fontSize={10}>
                 {data.map((_, index) => (
                   <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                 ))}
