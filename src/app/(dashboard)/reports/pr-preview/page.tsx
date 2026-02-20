@@ -563,18 +563,21 @@ function MonthlyTrendSlide({ data }: { data: any[] }) {
 // --- Thematic Areas ---
 function ThematicSlide({ areas }: { areas: any[] }) {
   if (!areas?.length) return <SlideWrapper><SlideHeader title="Thematic Areas" /><div className="flex-1 flex items-center justify-center text-gray-400">No data</div></SlideWrapper>
+  const maxWeight = Math.max(...areas.map(a => a.weight), 1)
   return (
     <SlideWrapper>
       <SlideHeader title="Thematic Areas of Coverage - Industry" />
-      <div className="flex-1 flex flex-wrap items-center justify-center gap-2 p-6 content-center">
+      <div className="flex-1 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 p-6 content-center">
         {areas.slice(0, 20).map((area, i) => {
-          const size = Math.max(11, Math.min(28, 11 + Math.round(area.weight * 0.17)))
-          const opacity = 0.5 + (area.weight / 200)
+          const ratio = area.weight / maxWeight
+          const size = Math.round(10 + ratio * 26)
+          const fontWeight = ratio > 0.5 ? 700 : ratio > 0.25 ? 600 : 400
+          const color = ratio > 0.6 ? '#f97316' : ratio > 0.3 ? '#1f2937' : '#9ca3af'
           return (
             <span
               key={i}
-              className="inline-block px-2 py-0.5 transition-transform hover:scale-110"
-              style={{ fontSize: size, fontWeight: area.weight > 50 ? 700 : 400, color: area.weight > 60 ? '#f97316' : area.weight > 30 ? '#1f2937' : '#9ca3af', opacity }}
+              className="inline-block px-1 transition-transform hover:scale-110"
+              style={{ fontSize: size, fontWeight, color, lineHeight: 1.4 }}
             >
               {area.keyword}
             </span>

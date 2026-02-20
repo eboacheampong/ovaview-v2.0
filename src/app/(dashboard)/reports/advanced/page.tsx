@@ -70,7 +70,7 @@ export default function AdvancedReportsPage() {
   }
 
   return (
-    <div className="p-4 sm:p-6 space-y-6 animate-fadeIn">
+    <div className="space-y-6 animate-fadeIn">
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
@@ -116,7 +116,7 @@ export default function AdvancedReportsPage() {
 
       {/* Export Panel */}
       {showExportPanel && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowExportPanel(false)}>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-start justify-center pt-24 p-4" onClick={() => setShowExportPanel(false)}>
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between p-5 border-b border-gray-100">
               <h2 className="text-lg font-semibold text-gray-800">Export</h2>
@@ -308,13 +308,24 @@ export default function AdvancedReportsPage() {
                 <CardTitle className="text-sm font-semibold text-gray-700">Trending Keywords</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="flex flex-wrap gap-2">
-                  {(analyticsData?.topKeywordsData || []).map((kw, i) => (
-                    <span key={i} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm bg-gray-100 text-gray-700">
-                      {kw.keyword}
-                      <span className="text-xs font-bold text-orange-500">{kw.count}</span>
-                    </span>
-                  ))}
+                <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 min-h-[120px] py-2">
+                  {(analyticsData?.topKeywordsData || []).map((kw, i) => {
+                    const maxCount = analyticsData?.topKeywordsData?.[0]?.count || 1
+                    const ratio = kw.count / maxCount
+                    const fontSize = Math.round(12 + ratio * 20)
+                    const fontWeight = ratio > 0.6 ? 700 : ratio > 0.3 ? 600 : 400
+                    const color = ratio > 0.7 ? '#f97316' : ratio > 0.4 ? '#1f2937' : '#9ca3af'
+                    return (
+                      <span
+                        key={i}
+                        className="inline-block transition-transform hover:scale-110 cursor-default"
+                        style={{ fontSize, fontWeight, color, lineHeight: 1.3 }}
+                        title={`${kw.keyword}: ${kw.count} mentions`}
+                      >
+                        {kw.keyword}
+                      </span>
+                    )
+                  })}
                   {(!analyticsData?.topKeywordsData?.length) && (
                     <p className="text-sm text-gray-400">No keywords data</p>
                   )}
