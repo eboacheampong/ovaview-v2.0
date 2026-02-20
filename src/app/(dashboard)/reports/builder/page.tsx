@@ -9,7 +9,7 @@ import {
   Download, FileText, Presentation, Plus, Trash2, MoveUp, MoveDown,
   Image, BarChart3, PieChart, Table, Type, Loader2, Eye, Edit3,
   ChevronLeft, ChevronRight, Settings, Palette, Layout, Save,
-  ArrowLeft, Maximize2, Minimize2, Copy, Layers
+  ArrowLeft, Maximize2, Minimize2, Copy, Layers, X
 } from 'lucide-react'
 import {
   AreaChart, Area, BarChart, Bar, PieChart as RechartsPie,
@@ -213,6 +213,7 @@ export default function ReportBuilderPage() {
   const [analyticsData, setAnalyticsData] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [reportTitle, setReportTitle] = useState('Media Analytics Report')
+  const [showExportPanel, setShowExportPanel] = useState(false)
   const slideRef = useRef<HTMLDivElement>(null)
 
   // Fetch clients and analytics data
@@ -715,22 +716,71 @@ export default function ReportBuilderPage() {
             {isPreviewMode ? 'Edit' : 'Preview'}
           </Button>
           
-          <Button variant="outline" size="sm" onClick={() => handleExport('pdf')} disabled={isExporting}>
-            {isExporting ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <FileText className="h-4 w-4 mr-1" />}
-            PDF
-          </Button>
-          
-          <Button className="bg-orange-500 hover:bg-orange-600" size="sm" onClick={() => handleExport('pptx')} disabled={isExporting}>
-            {isExporting ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Presentation className="h-4 w-4 mr-1" />}
-            PPTX
-          </Button>
-          
-          <Button variant="outline" size="sm" className="border-orange-300 text-orange-600 hover:bg-orange-50" onClick={handlePRPresenceExport} disabled={isExporting || selectedClient === 'all'} title={selectedClient === 'all' ? 'Select a client first' : 'Export PR Presence Report'}>
-            {isExporting ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Presentation className="h-4 w-4 mr-1" />}
-            PR Presence
+          <Button className="bg-orange-500 hover:bg-orange-600" size="sm" onClick={() => setShowExportPanel(true)} disabled={isExporting}>
+            {isExporting ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Download className="h-4 w-4 mr-1" />}
+            Export
           </Button>
         </div>
       </div>
+
+      {/* Export Panel Overlay */}
+      {showExportPanel && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setShowExportPanel(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-5 border-b border-gray-100">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-800">Export Report</h2>
+                <p className="text-sm text-gray-500 mt-0.5">
+                  {selectedClient !== 'all' ? clients.find(c => c.id === selectedClient)?.name : 'All Clients'}
+                </p>
+              </div>
+              <button onClick={() => setShowExportPanel(false)} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
+                <X className="h-5 w-5 text-gray-400" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-3">
+              <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">Slide Export</p>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => { handleExport('pdf'); setShowExportPanel(false) }}
+                  disabled={isExporting}
+                  className="flex flex-col items-center gap-2 p-4 rounded-xl border border-gray-200 hover:border-orange-300 hover:bg-orange-50 transition-all disabled:opacity-50"
+                >
+                  <FileText className="h-6 w-6 text-red-500" />
+                  <span className="text-sm font-medium text-gray-700">PDF</span>
+                </button>
+                <button
+                  onClick={() => { handleExport('pptx'); setShowExportPanel(false) }}
+                  disabled={isExporting}
+                  className="flex flex-col items-center gap-2 p-4 rounded-xl border border-gray-200 hover:border-orange-300 hover:bg-orange-50 transition-all disabled:opacity-50"
+                >
+                  <Presentation className="h-6 w-6 text-orange-500" />
+                  <span className="text-sm font-medium text-gray-700">PPTX</span>
+                </button>
+              </div>
+
+              <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mt-4">PR Presence Report</p>
+              <button
+                onClick={() => { handlePRPresenceExport(); setShowExportPanel(false) }}
+                disabled={isExporting || selectedClient === 'all'}
+                className="w-full flex items-center gap-3 p-3 rounded-xl border border-orange-200 bg-orange-50/50 hover:bg-orange-50 transition-all disabled:opacity-50 text-left"
+              >
+                <div className="p-2 bg-orange-100 rounded-lg">
+                  <Presentation className="h-5 w-5 text-orange-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gray-700">PR Presence PPTX</p>
+                  <p className="text-xs text-gray-400">
+                    {selectedClient === 'all' ? 'Select a client first' : '23-slide media presence analysis'}
+                  </p>
+                </div>
+                <Download className="h-4 w-4 text-gray-400" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Content */}
       <div className="flex-1 flex">

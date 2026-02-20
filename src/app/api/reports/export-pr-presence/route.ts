@@ -217,7 +217,7 @@ export async function POST(request: NextRequest) {
         barDir: 'bar',
         showValue: true, dataLabelFontSize: 10,
         chartColors: [BLACK],
-        catAxisOrientation: 'maxMin',
+        catAxisOrientation: 'minMax',
         valAxisHidden: true,
         catAxisFontSize: 9,
       })

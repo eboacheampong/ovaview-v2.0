@@ -9,7 +9,8 @@ import {
   Newspaper, Radio, Tv, Globe, Users, Eye, Mail, FileText, RefreshCw,
   Search, ArrowUpRight, ArrowDownRight, Minus, PieChart, Presentation,
   Activity, Target, Zap, Award, Clock, MapPin, Hash, Layers, Share2,
-  ThumbsUp, ThumbsDown, AlertCircle, CheckCircle, XCircle, MoreHorizontal, Loader2, Layout
+  ThumbsUp, ThumbsDown, AlertCircle, CheckCircle, XCircle, MoreHorizontal, Loader2, Layout,
+  ChevronDown, Edit3, X, FileSpreadsheet
 } from 'lucide-react'
 import {
   AreaChart, Area, BarChart, Bar, PieChart as RechartsPie,
@@ -37,6 +38,7 @@ export default function AdvancedReportsPage() {
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null)
   const [competitorData, setCompetitorData] = useState<CompetitorData | null>(null)
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
+  const [showExportPanel, setShowExportPanel] = useState(false)
 
   // Chart refs for capturing
   const coverageTrendRef = useRef<HTMLDivElement>(null)
@@ -557,26 +559,115 @@ export default function AdvancedReportsPage() {
             <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
-          <Button variant="outline" size="sm" onClick={() => handleExport('pdf')} disabled={!!isExporting} className="gap-2">
-            {isExporting === 'pdf' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} PDF
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => handleExport('excel')} disabled={!!isExporting} className="gap-2">
-            {isExporting === 'excel' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} Excel
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => handleExport('csv')} disabled={!!isExporting} className="gap-2">
-            {isExporting === 'csv' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} CSV
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => handleExport('pptx')} disabled={!!isExporting} className="gap-2">
-            {isExporting === 'pptx' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Presentation className="h-4 w-4" />} PPTX
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => handlePRPresenceExport()} disabled={!!isExporting || clientFilter === 'all'} className="gap-2 border-orange-300 text-orange-600 hover:bg-orange-50" title={clientFilter === 'all' ? 'Select a client first' : 'Export PR Presence Report'}>
-            {isExporting === 'pr-presence' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Presentation className="h-4 w-4" />} PR Presence
-          </Button>
-          <Button className="bg-orange-500 hover:bg-orange-600 text-white" size="sm" onClick={() => window.location.href = '/reports/builder'}>
-            <Layout className="h-4 w-4 mr-1" /> Report Builder
+          <Button className="bg-orange-500 hover:bg-orange-600 text-white gap-2" size="sm" onClick={() => setShowExportPanel(true)} disabled={!!isExporting}>
+            {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+            Export
           </Button>
         </div>
       </div>
+
+      {/* Export Panel Overlay */}
+      {showExportPanel && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setShowExportPanel(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg animate-in fade-in zoom-in-95" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-5 border-b border-gray-100">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-800">Export Report</h2>
+                <p className="text-sm text-gray-500 mt-0.5">
+                  {clientFilter !== 'all' ? clients.find(c => c.id === clientFilter)?.name : 'All Clients'} · {dateRange === '7d' ? '7 Days' : dateRange === '30d' ? '30 Days' : dateRange === '90d' ? '90 Days' : '12 Months'}
+                </p>
+              </div>
+              <button onClick={() => setShowExportPanel(false)} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
+                <X className="h-5 w-5 text-gray-400" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-3">
+              {/* Data Exports */}
+              <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">Data Exports</p>
+              <div className="grid grid-cols-3 gap-3">
+                <button
+                  onClick={() => { handleExport('pdf'); setShowExportPanel(false) }}
+                  disabled={!!isExporting}
+                  className="flex flex-col items-center gap-2 p-4 rounded-xl border border-gray-200 hover:border-orange-300 hover:bg-orange-50 transition-all disabled:opacity-50"
+                >
+                  <FileText className="h-6 w-6 text-red-500" />
+                  <span className="text-sm font-medium text-gray-700">PDF</span>
+                </button>
+                <button
+                  onClick={() => { handleExport('excel'); setShowExportPanel(false) }}
+                  disabled={!!isExporting}
+                  className="flex flex-col items-center gap-2 p-4 rounded-xl border border-gray-200 hover:border-orange-300 hover:bg-orange-50 transition-all disabled:opacity-50"
+                >
+                  <FileSpreadsheet className="h-6 w-6 text-green-600" />
+                  <span className="text-sm font-medium text-gray-700">Excel</span>
+                </button>
+                <button
+                  onClick={() => { handleExport('csv'); setShowExportPanel(false) }}
+                  disabled={!!isExporting}
+                  className="flex flex-col items-center gap-2 p-4 rounded-xl border border-gray-200 hover:border-orange-300 hover:bg-orange-50 transition-all disabled:opacity-50"
+                >
+                  <FileText className="h-6 w-6 text-blue-500" />
+                  <span className="text-sm font-medium text-gray-700">CSV</span>
+                </button>
+              </div>
+
+              {/* Presentation Exports */}
+              <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mt-4">Presentations</p>
+              <div className="space-y-2">
+                <button
+                  onClick={() => { handleExport('pptx'); setShowExportPanel(false) }}
+                  disabled={!!isExporting}
+                  className="w-full flex items-center gap-3 p-3 rounded-xl border border-gray-200 hover:border-orange-300 hover:bg-orange-50 transition-all disabled:opacity-50 text-left"
+                >
+                  <div className="p-2 bg-orange-100 rounded-lg">
+                    <Presentation className="h-5 w-5 text-orange-600" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-700">Analytics PPTX</p>
+                    <p className="text-xs text-gray-400">Standard analytics presentation with charts</p>
+                  </div>
+                  <Download className="h-4 w-4 text-gray-400" />
+                </button>
+
+                <button
+                  onClick={() => { handlePRPresenceExport(); setShowExportPanel(false) }}
+                  disabled={!!isExporting || clientFilter === 'all'}
+                  className="w-full flex items-center gap-3 p-3 rounded-xl border border-orange-200 bg-orange-50/50 hover:bg-orange-50 transition-all disabled:opacity-50 text-left"
+                >
+                  <div className="p-2 bg-orange-100 rounded-lg">
+                    <Presentation className="h-5 w-5 text-orange-600" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-700">PR Presence Report</p>
+                    <p className="text-xs text-gray-400">
+                      {clientFilter === 'all' ? 'Select a client first to enable' : '23-slide client media presence analysis'}
+                    </p>
+                  </div>
+                  <Download className="h-4 w-4 text-gray-400" />
+                </button>
+              </div>
+
+              {/* Edit in Builder */}
+              <div className="pt-3 border-t border-gray-100">
+                <button
+                  onClick={() => { setShowExportPanel(false); window.location.href = '/reports/builder' }}
+                  className="w-full flex items-center gap-3 p-3 rounded-xl border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all text-left"
+                >
+                  <div className="p-2 bg-gray-100 rounded-lg">
+                    <Edit3 className="h-5 w-5 text-gray-600" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-700">Open Report Builder</p>
+                    <p className="text-xs text-gray-400">Customize slides before exporting</p>
+                  </div>
+                  <Layout className="h-4 w-4 text-gray-400" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Filters Section */}
       <Card className="glass-card mb-6">
@@ -1185,9 +1276,9 @@ export default function AdvancedReportsPage() {
                 <Share2 className="h-4 w-4" />
                 Share Dashboard
               </Button>
-              <Button className="bg-orange-500 hover:bg-orange-600 gap-2" size="sm" onClick={() => handleExport('pdf')}>
+              <Button className="bg-orange-500 hover:bg-orange-600 gap-2" size="sm" onClick={() => setShowExportPanel(true)}>
                 <Download className="h-4 w-4" />
-                Export Full Report
+                Export Report
               </Button>
             </div>
           </div>
