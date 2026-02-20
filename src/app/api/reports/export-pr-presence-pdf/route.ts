@@ -445,10 +445,10 @@ export async function POST(request: NextRequest) {
     addSlideHeader(doc, 'Competitor Presence – Top 5 Sector Players', clientName)
     
     if (competitorAnalysis && competitorAnalysis.length > 0) {
-      const compData = competitorAnalysis.slice(0, 5).map((c: any) => ({ label: c.name, value: c.mentions }))
+      const compData: { label: string; value: number }[] = competitorAnalysis.slice(0, 5).map((c: any) => ({ label: c.name, value: c.mentions }))
       drawPieChart(doc, compData, 250, 280, 120, [GRAY_TEXT, [59, 130, 246], ORANGE, DARK_TEXT, [192, 132, 252]])
       
-      const totalMentions = compData.reduce((sum: number, c: { label: string; value: number }) => sum + c.value, 0)
+      const totalMentions = compData.reduce((sum, c) => sum + c.value, 0)
       doc.setFontSize(12)
       doc.setTextColor(DARK_TEXT[0], DARK_TEXT[1], DARK_TEXT[2])
       doc.text(`Total mentions: ${totalMentions.toLocaleString()}`, 550, 200)
