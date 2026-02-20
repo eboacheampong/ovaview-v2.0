@@ -219,7 +219,7 @@ export async function POST(request: NextRequest) {
         chartColors: [BLACK],
         catAxisOrientation: 'minMax',
         valAxisHidden: true,
-        catAxisFontSize: 9,
+        catAxisLabelFontSize: 9,
       })
     }
 
@@ -260,7 +260,7 @@ export async function POST(request: NextRequest) {
         showValue: true, dataLabelFontSize: 9,
         chartColors: [ORANGE],
         valAxisHidden: true,
-        catAxisFontSize: 8,
+        catAxisLabelFontSize: 8,
       })
     }
 
@@ -278,7 +278,7 @@ export async function POST(request: NextRequest) {
         showValue: true, dataLabelFontSize: 9,
         chartColors: [RED],
         valAxisHidden: true,
-        catAxisFontSize: 8,
+        catAxisLabelFontSize: 8,
       })
     }
 
@@ -399,7 +399,7 @@ export async function POST(request: NextRequest) {
           showValue: true, dataLabelFontSize: 10,
           chartColors: [GREEN, RED, YELLOW],
           valAxisHidden: true,
-          catAxisFontSize: 10,
+          catAxisLabelFontSize: 10,
         })
       }
 
