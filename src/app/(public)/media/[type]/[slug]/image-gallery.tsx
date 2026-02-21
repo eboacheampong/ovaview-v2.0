@@ -18,7 +18,10 @@ export function ImageGallery({ images, title }: ImageGalleryProps) {
     setLightboxOpen(true)
   }
 
-  if (images.length === 0) return null
+  // Filter out any images with empty/invalid URLs
+  const validImages = images.filter(img => img.url && img.url.trim() !== '')
+
+  if (validImages.length === 0) return null
 
   return (
     <>
@@ -28,8 +31,8 @@ export function ImageGallery({ images, title }: ImageGalleryProps) {
         onClick={() => openLightbox(0)}
       >
         <img 
-          src={images[0].url} 
-          alt={images[0].caption || title} 
+          src={validImages[0].url} 
+          alt={validImages[0].caption || title} 
           className="w-full h-48 sm:h-64 md:h-80 object-cover rounded-xl transition-transform group-hover:scale-[1.01]" 
         />
         {/* Zoom overlay */}
@@ -38,20 +41,20 @@ export function ImageGallery({ images, title }: ImageGalleryProps) {
             <ZoomIn className="h-6 w-6 text-gray-700" />
           </div>
         </div>
-        {images[0].caption && (
-          <p className="text-sm text-gray-500 mt-2 text-center">{images[0].caption}</p>
+        {validImages[0].caption && (
+          <p className="text-sm text-gray-500 mt-2 text-center">{validImages[0].caption}</p>
         )}
-        {images.length > 1 && (
+        {validImages.length > 1 && (
           <div className="absolute bottom-3 right-3 bg-black/70 text-white text-xs px-2 py-1 rounded-full">
-            +{images.length - 1} more
+            +{validImages.length - 1} more
           </div>
         )}
       </div>
 
       {/* Thumbnail Strip for multiple images */}
-      {images.length > 1 && (
+      {validImages.length > 1 && (
         <div className="mt-3 flex gap-2 overflow-x-auto pb-2">
-          {images.map((img, index) => (
+          {validImages.map((img, index) => (
             <button
               key={index}
               onClick={() => openLightbox(index)}
@@ -71,7 +74,7 @@ export function ImageGallery({ images, title }: ImageGalleryProps) {
 
       {/* Lightbox */}
       <ImageLightbox
-        images={images}
+        images={validImages}
         initialIndex={selectedIndex}
         isOpen={lightboxOpen}
         onClose={() => setLightboxOpen(false)}
