@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Client not found' }, { status: 404 })
     }
 
-    // Build keyword list for filtering
+    // Build keyword list for filtering - include client name and all keywords
     const clientKeywords = [
       client.name.toLowerCase(),
       ...(client.newsKeywords?.split(',').map(k => k.trim().toLowerCase()).filter(Boolean) || []),
@@ -41,30 +41,64 @@ export async function GET(request: NextRequest) {
 
     const skip = (page - 1) * limit
 
-    // Build search filter
-    const searchFilter = search
-      ? {
-          OR: [
-            { title: { contains: search, mode: 'insensitive' as const } },
-            { summary: { contains: search, mode: 'insensitive' as const } },
-            { keywords: { contains: search, mode: 'insensitive' as const } },
+    // Build keyword search conditions for database query
+    // This searches for ANY of the client keywords in title, content, keywords, or summary
+    const keywordSearchConditions = clientKeywords.flatMap(kw => [
+      { title: { contains: kw, mode: 'insensitive' as const } },
+      { content: { contains: kw, mode: 'insensitive' as const } },
+      { keywords: { contains: kw, mode: 'insensitive' as const } },
+      { summary: { contains: kw, mode: 'insensitive' as const } },
+    ])
+
+    // Build user search filter (when user types in search box)
+    const userSearchConditions = search
+      ? [
+          { title: { contains: search, mode: 'insensitive' as const } },
+          { summary: { contains: search, mode: 'insensitive' as const } },
+          { keywords: { contains: search, mode: 'insensitive' as const } },
+        ]
+      : []
+
+    // Combined filter: must match client keywords AND (optionally) user search
+    const buildWhereClause = () => {
+      const keywordFilter = keywordSearchConditions.length > 0
+        ? { OR: keywordSearchConditions }
+        : {}
+      
+      const industryFilter = industryIds.length > 0
+        ? { industryId: { in: industryIds } }
+        : {}
+
+      // Stories must match EITHER keywords OR be in client's industries
+      const clientFilter = {
+        OR: [
+          keywordFilter,
+          industryFilter,
+        ].filter(f => Object.keys(f).length > 0)
+      }
+
+      if (userSearchConditions.length > 0) {
+        return {
+          AND: [
+            clientFilter,
+            { OR: userSearchConditions },
           ],
         }
-      : {}
+      }
 
-    // Industry filter - stories must be in client's industries
-    const industryFilter = industryIds.length > 0
-      ? { industryId: { in: industryIds } }
-      : {}
+      return clientFilter
+    }
 
     let stories: unknown[] = []
     let total = 0
 
+    const whereClause = buildWhereClause()
+
     switch (mediaType) {
       case 'web': {
-        const [webStories, webTotal] = await Promise.all([
+        const [webStories, count] = await Promise.all([
           prisma.webStory.findMany({
-            where: { ...searchFilter, ...industryFilter },
+            where: whereClause,
             include: {
               publication: true,
               industry: true,
@@ -72,24 +106,19 @@ export async function GET(request: NextRequest) {
             },
             orderBy: { date: 'desc' },
             skip,
-            take: limit * 2, // Fetch more to filter by keywords
+            take: limit,
           }),
-          prisma.webStory.count({ where: { ...searchFilter, ...industryFilter } }),
+          prisma.webStory.count({ where: whereClause }),
         ])
-
-        // Filter by client keywords
-        stories = webStories.filter(story => {
-          const content = `${story.title} ${story.content || ''} ${story.keywords || ''}`.toLowerCase()
-          return clientKeywords.some(kw => content.includes(kw))
-        }).slice(0, limit)
-        total = webTotal
+        stories = webStories
+        total = count
         break
       }
 
       case 'tv': {
-        const [tvStories, tvTotal] = await Promise.all([
+        const [tvStories, count] = await Promise.all([
           prisma.tVStory.findMany({
-            where: { ...searchFilter, ...industryFilter },
+            where: whereClause,
             include: {
               station: true,
               program: true,
@@ -97,23 +126,19 @@ export async function GET(request: NextRequest) {
             },
             orderBy: { date: 'desc' },
             skip,
-            take: limit * 2,
+            take: limit,
           }),
-          prisma.tVStory.count({ where: { ...searchFilter, ...industryFilter } }),
+          prisma.tVStory.count({ where: whereClause }),
         ])
-
-        stories = tvStories.filter(story => {
-          const content = `${story.title} ${story.content || ''} ${story.keywords || ''}`.toLowerCase()
-          return clientKeywords.some(kw => content.includes(kw))
-        }).slice(0, limit)
-        total = tvTotal
+        stories = tvStories
+        total = count
         break
       }
 
       case 'radio': {
-        const [radioStories, radioTotal] = await Promise.all([
+        const [radioStories, count] = await Promise.all([
           prisma.radioStory.findMany({
-            where: { ...searchFilter, ...industryFilter },
+            where: whereClause,
             include: {
               station: true,
               program: true,
@@ -121,23 +146,19 @@ export async function GET(request: NextRequest) {
             },
             orderBy: { date: 'desc' },
             skip,
-            take: limit * 2,
+            take: limit,
           }),
-          prisma.radioStory.count({ where: { ...searchFilter, ...industryFilter } }),
+          prisma.radioStory.count({ where: whereClause }),
         ])
-
-        stories = radioStories.filter(story => {
-          const content = `${story.title} ${story.content || ''} ${story.keywords || ''}`.toLowerCase()
-          return clientKeywords.some(kw => content.includes(kw))
-        }).slice(0, limit)
-        total = radioTotal
+        stories = radioStories
+        total = count
         break
       }
 
       case 'print': {
-        const [printStories, printTotal] = await Promise.all([
+        const [printStories, count] = await Promise.all([
           prisma.printStory.findMany({
-            where: { ...searchFilter, ...industryFilter },
+            where: whereClause,
             include: {
               publication: true,
               issue: true,
@@ -146,16 +167,12 @@ export async function GET(request: NextRequest) {
             },
             orderBy: { date: 'desc' },
             skip,
-            take: limit * 2,
+            take: limit,
           }),
-          prisma.printStory.count({ where: { ...searchFilter, ...industryFilter } }),
+          prisma.printStory.count({ where: whereClause }),
         ])
-
-        stories = printStories.filter(story => {
-          const content = `${story.title} ${story.content || ''} ${story.keywords || ''}`.toLowerCase()
-          return clientKeywords.some(kw => content.includes(kw))
-        }).slice(0, limit)
-        total = printTotal
+        stories = printStories
+        total = count
         break
       }
     }
@@ -167,6 +184,11 @@ export async function GET(request: NextRequest) {
         limit,
         total,
         totalPages: Math.ceil(total / limit),
+      },
+      // Debug info (can be removed in production)
+      debug: {
+        clientKeywords,
+        industryIds,
       },
     })
   } catch (error) {
