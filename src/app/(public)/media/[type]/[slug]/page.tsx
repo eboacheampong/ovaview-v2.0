@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma'
 import { Badge } from '@/components/ui/badge'
 import { Calendar, User, Building2, Newspaper, Radio, Tv, Globe, Tag, ExternalLink, Play } from 'lucide-react'
 import { formatContentForDisplay } from '@/lib/content-utils'
+import { ImageGallery } from './image-gallery'
 
 type MediaType = 'web' | 'tv' | 'radio' | 'print'
 
@@ -193,8 +194,13 @@ export default async function PublicMediaPage({ params }: PageProps) {
 
         {images && images.length > 0 && (
           <div className="px-4 sm:px-8 mb-6">
-            <img src={images[0].url} alt={images[0].caption || title} className="w-full h-48 sm:h-64 object-cover rounded-xl" />
-            {images[0].caption && <p className="text-sm text-gray-500 mt-2 text-center">{images[0].caption}</p>}
+            <ImageGallery 
+              images={images.map((img: { id: string; url: string; caption?: string | null }) => ({ 
+                url: img.url, 
+                caption: img.caption 
+              }))} 
+              title={title}
+            />
           </div>
         )}
 
@@ -349,19 +355,7 @@ export default async function PublicMediaPage({ params }: PageProps) {
           </div>
         )}
 
-        {images && images.length > 1 && (
-          <div className="px-4 sm:px-8 pb-6 sm:pb-8 border-t border-gray-100 pt-6">
-            <h2 className="text-sm font-semibold text-gray-700 mb-3">More Images</h2>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
-              {images.slice(1).map((image: { id: string; url: string; caption?: string | null }, index: number) => (
-                <div key={image.id || index} className="relative">
-                  <img src={image.url} alt={image.caption || `Image ${index + 2}`} className="w-full h-24 sm:h-32 object-cover rounded-lg" />
-                  {image.caption && <p className="text-xs text-gray-500 mt-1">{image.caption}</p>}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+
       </article>
 
       <footer className="mt-6 sm:mt-8 py-4 sm:py-6 border-t border-gray-200">
