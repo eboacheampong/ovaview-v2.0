@@ -12,6 +12,8 @@ interface StatsCardsSectionProps {
   printCount: number
   webCount: number
   isLoading?: boolean
+  hideClients?: boolean
+  statsLabel?: string
 }
 
 export function StatsCardsSection({
@@ -23,6 +25,8 @@ export function StatsCardsSection({
   printCount,
   webCount,
   isLoading = false,
+  hideClients = false,
+  statsLabel,
 }: StatsCardsSectionProps) {
   const total = tvCount + radioCount + printCount + webCount
   
@@ -43,12 +47,19 @@ export function StatsCardsSection({
           todayEntries={todayEntries}
           lastUpdated="Just now"
           isLoading={isLoading}
+          hideClients={hideClients}
+          statsLabel={statsLabel}
         />
       </div>
 
       {/* Media Source Distribution - spans remaining columns on right */}
       <div className="md:col-span-1 lg:col-span-3">
-        <DistributionCard items={distributionItems} total={total} isLoading={isLoading} />
+        <DistributionCard 
+          items={distributionItems} 
+          total={total} 
+          isLoading={isLoading}
+          title={statsLabel ? `${statsLabel} Distribution` : undefined}
+        />
       </div>
     </div>
   )

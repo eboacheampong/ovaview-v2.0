@@ -71,7 +71,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   hasRole: (role: UserRole) => {
     const { user } = get()
     if (!user) return false
+    // Admin has access to everything
     if (user.role === 'admin') return true
+    // Data entry users have access to data_entry role items
+    if (user.role === 'data_entry' && role === 'data_entry') return true
+    // Otherwise check exact role match
     return user.role === role
   },
 

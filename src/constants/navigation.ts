@@ -52,7 +52,7 @@ export const navigationSections: NavSection[] = [
   {
     title: 'INSIGHTS',
     items: [
-      { label: 'Daily Insights', href: '/daily-insights', icon: Sparkles },
+      { label: 'Daily Insights', href: '/daily-insights', icon: Sparkles, requiredRole: 'admin' },
     ],
   },
   {
@@ -130,16 +130,16 @@ export const navigationSections: NavSection[] = [
         title: 'Tenders',
         icon: Briefcase,
         items: [
-          { label: 'All Tenders', href: '/tenders', icon: Layers },
-          { label: 'Tender Industries', href: '/tenders/industries', icon: BookOpen },
-          { label: 'Tender Types', href: '/tenders/types', icon: Layers },
-          { label: 'Add Tender', href: '/tenders/add', icon: Plus },
+          { label: 'All Tenders', href: '/tenders', icon: Layers, requiredRole: 'admin' },
+          { label: 'Tender Industries', href: '/tenders/industries', icon: BookOpen, requiredRole: 'admin' },
+          { label: 'Tender Types', href: '/tenders/types', icon: Layers, requiredRole: 'admin' },
+          { label: 'Add Tender', href: '/tenders/add', icon: Plus, requiredRole: 'admin' },
         ],
       },
     ],
     items: [
-      { label: 'Advanced Reports', href: '/reports/advanced', icon: BarChart3 },
-      { label: 'Reports', href: '/reports', icon: FileBarChart },
+      { label: 'Advanced Reports', href: '/reports/advanced', icon: BarChart3, requiredRole: 'admin' },
+      { label: 'Reports', href: '/reports', icon: FileBarChart, requiredRole: 'admin' },
     ],
   },
 ]

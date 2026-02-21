@@ -189,6 +189,11 @@ export default async function PublicMediaPage({ params }: PageProps) {
                 {overallSentiment.charAt(0).toUpperCase() + overallSentiment.slice(1)} Sentiment
               </Badge>
             )}
+            {sourceUrl && (
+              <a href={sourceUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-700 text-xs sm:text-sm font-medium bg-blue-50 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-colors">
+                <ExternalLink className="h-3.5 w-3.5" />View Original Source
+              </a>
+            )}
           </div>
         </div>
 
@@ -327,7 +332,7 @@ export default async function PublicMediaPage({ params }: PageProps) {
         )}
 
         {keywords && (
-          <div className="px-4 sm:px-8 pb-6">
+          <div className="px-4 sm:px-8 pb-6 sm:pb-8">
             <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 sm:p-5 border border-blue-100">
               <div className="flex items-center gap-2 mb-3">
                 <Tag className="h-4 w-4 text-blue-500" />
@@ -344,14 +349,6 @@ export default async function PublicMediaPage({ params }: PageProps) {
                 ))}
               </div>
             </div>
-          </div>
-        )}
-
-        {sourceUrl && (
-          <div className="px-4 sm:px-8 pb-6 sm:pb-8 border-t border-gray-100 pt-6">
-            <a href={sourceUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 text-sm font-medium bg-blue-50 px-4 py-2 rounded-lg hover:bg-blue-100 transition-colors">
-              <ExternalLink className="h-4 w-4" />View Original Source
-            </a>
           </div>
         )}
 

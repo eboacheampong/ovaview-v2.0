@@ -8,6 +8,8 @@ interface SummaryCardProps {
   todayEntries: number
   lastUpdated: string
   isLoading?: boolean
+  hideClients?: boolean
+  statsLabel?: string
 }
 
 export function SummaryCard({
@@ -16,12 +18,16 @@ export function SummaryCard({
   todayEntries,
   lastUpdated,
   isLoading = false,
+  hideClients = false,
+  statsLabel,
 }: SummaryCardProps) {
   return (
     <div className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-soft border border-gray-100 h-full flex flex-col justify-between">
       {/* Header */}
       <div className="mb-3 sm:mb-4">
-        <h3 className="text-xs sm:text-sm font-medium text-gray-500">Quick Overview</h3>
+        <h3 className="text-xs sm:text-sm font-medium text-gray-500">
+          {statsLabel ? `${statsLabel} Overview` : 'Quick Overview'}
+        </h3>
       </div>
 
       {/* Stats Grid */}
@@ -32,7 +38,9 @@ export function SummaryCard({
             <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-orange-50 flex items-center justify-center">
               <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-orange-500" />
             </div>
-            <span className="text-xs sm:text-sm text-gray-500">Total Coverage</span>
+            <span className="text-xs sm:text-sm text-gray-500">
+              {statsLabel ? `Total ${statsLabel}` : 'Total Coverage'}
+            </span>
           </div>
           {isLoading ? (
             <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
@@ -41,20 +49,22 @@ export function SummaryCard({
           )}
         </div>
 
-        {/* Active Clients */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 sm:gap-3">
-            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-emerald-50 flex items-center justify-center">
-              <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-emerald-500" />
+        {/* Active Clients - hidden for data entry users */}
+        {!hideClients && (
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-emerald-50 flex items-center justify-center">
+                <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-emerald-500" />
+              </div>
+              <span className="text-xs sm:text-sm text-gray-500">Active Clients</span>
             </div>
-            <span className="text-xs sm:text-sm text-gray-500">Active Clients</span>
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+            ) : (
+              <span className="text-base sm:text-lg font-bold text-gray-800">{activeClients}</span>
+            )}
           </div>
-          {isLoading ? (
-            <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
-          ) : (
-            <span className="text-base sm:text-lg font-bold text-gray-800">{activeClients}</span>
-          )}
-        </div>
+        )}
 
         {/* Today's Entries */}
         <div className="flex items-center justify-between">

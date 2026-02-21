@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
         name,
         email,
         password: hashedPassword,
-        role: roleUpper as 'ADMIN' | 'USER' | 'CLIENT_USER',
+        role: roleUpper as 'ADMIN' | 'USER' | 'DATA_ENTRY' | 'CLIENT_USER',
         clientId: clientId || null,
         isActive: true,
       },

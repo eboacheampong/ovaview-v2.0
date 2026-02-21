@@ -44,7 +44,8 @@ const AI_MODELS = [
 ]
 
 export default function SettingsPage() {
-  const { user } = useAuth()
+  const { user, hasRole } = useAuth()
+  const isAdmin = hasRole('admin')
   const [activeTab, setActiveTab] = useState<SettingsTab>('account')
   const [isLoading, setIsLoading] = useState(true)
 
@@ -164,11 +165,41 @@ export default function SettingsPage() {
 
   const tabs = [
     { id: 'account' as const, label: 'Account', icon: User },
-    { id: 'scraper' as const, label: 'Scraper', icon: Globe },
-    { id: 'ai' as const, label: 'AI Settings', icon: Bot },
+    ...(isAdmin ? [
+      { id: 'scraper' as const, label: 'Scraper', icon: Globe },
+      { id: 'ai' as const, label: 'AI Settings', icon: Bot },
+    ] : []),
   ]
 
   if (isLoading) return <div className="p-6 flex items-center justify-center min-h-[60vh]"><Loader2 className="h-8 w-8 animate-spin text-orange-500" /></div>
+
+  // For data entry users, show only password change
+  if (!isAdmin) {
+    return (
+      <div className="p-6">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-800">Account Settings</h1>
+          <p className="text-gray-500 mt-1">Manage your password</p>
+        </div>
+        <div className="max-w-3xl">
+          <Card>
+            <CardHeader><CardTitle>Change Password</CardTitle><CardDescription>Update your security credentials</CardDescription></CardHeader>
+            <CardContent>
+              <form onSubmit={handlePasswordSubmit} className="space-y-4">
+                <div className="space-y-2"><Label>Current Password</Label><Input type="password" value={passwordData.currentPassword} onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })} /></div>
+                <div className="space-y-2"><Label>New Password</Label><Input type="password" value={passwordData.newPassword} onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })} /></div>
+                <div className="space-y-2"><Label>Confirm Password</Label><Input type="password" value={passwordData.confirmPassword} onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })} /></div>
+                {passwordMessage && <p className={`text-sm ${passwordMessage.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>{passwordMessage.text}</p>}
+                <Button type="submit" disabled={passwordSaving} className="bg-orange-500 hover:bg-orange-600">
+                  {passwordSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Lock className="h-4 w-4 mr-2" />}Change Password
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="p-6">

@@ -13,11 +13,12 @@ interface DistributionCardProps {
   items: DistributionItem[]
   total: number
   isLoading?: boolean
+  title?: string
 }
 
 type FilterOption = 'all' | 'today' | 'week' | 'month'
 
-export function DistributionCard({ items, total, isLoading = false }: DistributionCardProps) {
+export function DistributionCard({ items, total, isLoading = false, title }: DistributionCardProps) {
   const [filter, setFilter] = useState<FilterOption>('all')
   
   // Sort by percentage descending
@@ -32,7 +33,7 @@ export function DistributionCard({ items, total, isLoading = false }: Distributi
       {/* Header with title, total, and filter */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0 mb-4 sm:mb-6">
         <div>
-          <h3 className="text-xs sm:text-sm font-medium text-gray-500">Media Source Distribution</h3>
+          <h3 className="text-xs sm:text-sm font-medium text-gray-500">{title || 'Media Source Distribution'}</h3>
           {isLoading ? (
             <div className="flex items-center gap-2 mt-1">
               <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
