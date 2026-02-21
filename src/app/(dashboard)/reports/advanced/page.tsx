@@ -116,7 +116,7 @@ export default function AdvancedReportsPage() {
 
       {/* Export Panel */}
       {showExportPanel && (
-        <div className="fixed inset-0 backdrop-blur-md z-[100] flex items-start justify-center pt-24 p-4" onClick={() => setShowExportPanel(false)}>
+        <div className="fixed inset-0 bg-black/20 z-[100] flex items-start justify-center pt-24 p-4" onClick={() => setShowExportPanel(false)}>
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between p-5 border-b border-gray-100">
               <h2 className="text-lg font-semibold text-gray-800">Export</h2>
