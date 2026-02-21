@@ -22,7 +22,6 @@ export async function GET(request: NextRequest) {
       where: { id: clientId },
       include: {
         keywords: { include: { keyword: true } },
-        industries: { include: { industry: true } },
       },
     })
 
@@ -31,18 +30,25 @@ export async function GET(request: NextRequest) {
     }
 
     // Build keyword list for filtering - include client name and all keywords
+    // This is what determines which stories the client sees
     const clientKeywords = [
       client.name.toLowerCase(),
       ...(client.newsKeywords?.split(',').map(k => k.trim().toLowerCase()).filter(Boolean) || []),
       ...client.keywords.map(ck => ck.keyword.name.toLowerCase()),
     ].filter(Boolean)
 
-    const industryIds = client.industries.map(ci => ci.industryId)
+    if (clientKeywords.length === 0) {
+      return NextResponse.json({
+        stories: [],
+        pagination: { page, limit, total: 0, totalPages: 0 },
+        debug: { clientKeywords: [], message: 'No keywords configured for this client' },
+      })
+    }
 
     const skip = (page - 1) * limit
 
     // Build keyword search conditions for database query
-    // This searches for ANY of the client keywords in title, content, keywords, or summary
+    // Stories show if ANY of the client keywords exist in title, content, keywords, or summary
     const keywordSearchConditions = clientKeywords.flatMap(kw => [
       { title: { contains: kw, mode: 'insensitive' as const } },
       { content: { contains: kw, mode: 'insensitive' as const } },
@@ -59,34 +65,20 @@ export async function GET(request: NextRequest) {
         ]
       : []
 
-    // Combined filter: must match client keywords AND (optionally) user search
+    // Build where clause - must match client keywords, and optionally user search
     const buildWhereClause = () => {
-      const keywordFilter = keywordSearchConditions.length > 0
-        ? { OR: keywordSearchConditions }
-        : {}
-      
-      const industryFilter = industryIds.length > 0
-        ? { industryId: { in: industryIds } }
-        : {}
-
-      // Stories must match EITHER keywords OR be in client's industries
-      const clientFilter = {
-        OR: [
-          keywordFilter,
-          industryFilter,
-        ].filter(f => Object.keys(f).length > 0)
-      }
+      const keywordFilter = { OR: keywordSearchConditions }
 
       if (userSearchConditions.length > 0) {
         return {
           AND: [
-            clientFilter,
+            keywordFilter,
             { OR: userSearchConditions },
           ],
         }
       }
 
-      return clientFilter
+      return keywordFilter
     }
 
     let stories: unknown[] = []
@@ -185,10 +177,8 @@ export async function GET(request: NextRequest) {
         total,
         totalPages: Math.ceil(total / limit),
       },
-      // Debug info (can be removed in production)
       debug: {
         clientKeywords,
-        industryIds,
       },
     })
   } catch (error) {

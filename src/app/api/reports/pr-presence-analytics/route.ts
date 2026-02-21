@@ -62,56 +62,24 @@ export async function GET(request: NextRequest) {
 
     const industryId = client.industries?.[0]?.industryId
 
-    // Build keyword search conditions for database query
-    // This searches for ANY of the client keywords in title, content, keywords, or summary
-    const keywordSearchConditions = clientKeywords.flatMap(kw => [
-      { title: { contains: kw, mode: 'insensitive' as const } },
-      { content: { contains: kw, mode: 'insensitive' as const } },
-      { keywords: { contains: kw, mode: 'insensitive' as const } },
-      { summary: { contains: kw, mode: 'insensitive' as const } },
-    ])
+    // Fetch ALL stories for the industry in the period (for industry-wide analysis)
+    const industryFilter = industryId ? { industryId } : {}
 
-    // Build filter that matches EITHER keywords OR industry
-    // This ensures we don't miss stories that mention the client but are in a different industry
-    const buildStoryFilter = () => {
-      const conditions: object[] = []
-      
-      if (keywordSearchConditions.length > 0) {
-        conditions.push({ OR: keywordSearchConditions })
-      }
-      
-      if (industryId) {
-        conditions.push({ industryId })
-      }
-      
-      if (conditions.length === 0) {
-        return { date: dateFilter }
-      }
-      
-      return {
-        date: dateFilter,
-        OR: conditions,
-      }
-    }
-
-    const storyFilter = buildStoryFilter()
-
-    // Fetch ALL stories that match either keywords OR industry
     const [allWebStories, allTvStories, allRadioStories, allPrintStories] = await Promise.all([
       prisma.webStory.findMany({
-        where: storyFilter,
+        where: { date: dateFilter, ...industryFilter },
         include: { publication: true, industry: true },
       }),
       prisma.tVStory.findMany({
-        where: storyFilter,
+        where: { date: dateFilter, ...industryFilter },
         include: { station: true, industry: true },
       }),
       prisma.radioStory.findMany({
-        where: storyFilter,
+        where: { date: dateFilter, ...industryFilter },
         include: { station: true, industry: true },
       }),
       prisma.printStory.findMany({
-        where: storyFilter,
+        where: { date: dateFilter, ...industryFilter },
         include: { publication: true, industry: true },
       }),
     ])
