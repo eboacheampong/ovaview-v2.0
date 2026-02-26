@@ -425,7 +425,9 @@ export async function GET(request: NextRequest) {
         let totalSentiment = 0
 
         allStories.forEach(story => {
-          const content = `${story.title} ${story.content || ''} ${story.keywords || ''}`.toLowerCase()
+          // Handle both regular stories (with title) and social posts (without title)
+          const storyTitle = 'title' in story ? (story as { title: string }).title : ''
+          const content = `${storyTitle} ${story.content || ''} ${story.keywords || ''}`.toLowerCase()
           const hasMatch = clientKeywords.some(kw => content.includes(kw))
           if (hasMatch) {
             mentions++
