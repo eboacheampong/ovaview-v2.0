@@ -175,7 +175,7 @@ export default function ClientInsightsPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
             keywords: ['mining news', 'business africa', 'industry update'],
-            platforms: ['youtube']
+            platforms: ['youtube', 'twitter', 'tiktok', 'instagram']
           }),
         })
         const data = await res.json()

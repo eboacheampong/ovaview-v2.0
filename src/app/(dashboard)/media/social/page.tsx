@@ -71,14 +71,17 @@ export default function SocialMediaPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           keywords: ['mining news', 'business africa', 'industry update', 'ghana news'],
-          platforms: ['youtube']
+          platforms: ['youtube', 'twitter', 'tiktok', 'instagram']
         }),
       })
       
       const data = await res.json()
       
       if (res.ok) {
-        setScrapeMessage(`✓ ${data.message}`)
+        const platformInfo = data.platformResults 
+          ? Object.entries(data.platformResults).map(([p, c]) => `${p}: ${c}`).join(', ')
+          : ''
+        setScrapeMessage(`✓ ${data.message}${platformInfo ? ` (${platformInfo})` : ''}`)
         await fetchPosts()
       } else {
         setScrapeMessage(`✗ ${data.error || 'Failed to scrape'}`)
@@ -213,7 +216,7 @@ export default function SocialMediaPage() {
             {isScraping ? (
               <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Scraping...</>
             ) : (
-              <><RefreshCw className="h-4 w-4 mr-2" /> Scrape YouTube</>
+              <><RefreshCw className="h-4 w-4 mr-2" /> Scrape All Platforms</>
             )}
           </Button>
           <Button onClick={() => router.push('/media/social/add')} className="bg-purple-500 hover:bg-purple-600">
