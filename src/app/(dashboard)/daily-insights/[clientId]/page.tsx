@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
   Eye, CheckCircle, Trash2, Loader2,
-  ArrowLeft, RefreshCw
+  ArrowLeft, RefreshCw, Globe, Share2, Heart, MessageCircle, ExternalLink
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -23,10 +23,34 @@ interface DailyInsight {
   scrapedAt: string
 }
 
+interface SocialPost {
+  id: string
+  platform: string
+  content: string | null
+  authorName: string | null
+  authorHandle: string | null
+  postUrl: string
+  embedUrl: string | null
+  likesCount: number | null
+  commentsCount: number | null
+  sharesCount: number | null
+  postedAt: string
+  industry: { name: string } | null
+}
+
 const statusConfig = {
   pending: { label: 'Pending', className: 'bg-amber-100 text-amber-700' },
   accepted: { label: 'Accepted', className: 'bg-emerald-100 text-emerald-700' },
   archived: { label: 'Archived', className: 'bg-gray-100 text-gray-600' },
+}
+
+const platformColors: Record<string, string> = {
+  TWITTER: 'bg-blue-100 text-blue-700',
+  YOUTUBE: 'bg-red-100 text-red-700',
+  FACEBOOK: 'bg-indigo-100 text-indigo-700',
+  LINKEDIN: 'bg-blue-100 text-blue-800',
+  INSTAGRAM: 'bg-pink-100 text-pink-700',
+  TIKTOK: 'bg-gray-100 text-gray-700',
 }
 
 export default function ClientInsightsPage() {
@@ -34,7 +58,9 @@ export default function ClientInsightsPage() {
   const router = useRouter()
   const clientId = params.clientId as string
 
+  const [activeTab, setActiveTab] = useState<'web' | 'social'>('web')
   const [articles, setArticles] = useState<DailyInsight[]>([])
+  const [socialPosts, setSocialPosts] = useState<SocialPost[]>([])
   const [clientName, setClientName] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState<string>('all')
@@ -58,7 +84,29 @@ export default function ClientInsightsPage() {
     }
   }, [clientId, statusFilter])
 
-  useEffect(() => { fetchArticles() }, [fetchArticles])
+  const fetchSocialPosts = useCallback(async () => {
+    try {
+      setIsLoading(true)
+      // Fetch social posts - for now fetch all, could be filtered by client keywords later
+      const res = await fetch(`/api/social-posts?limit=100`)
+      if (res.ok) {
+        const data = await res.json()
+        setSocialPosts(data.posts || [])
+      }
+    } catch (error) {
+      console.error('Failed to fetch social posts:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (activeTab === 'web') {
+      fetchArticles()
+    } else {
+      fetchSocialPosts()
+    }
+  }, [activeTab, fetchArticles, fetchSocialPosts])
 
   useEffect(() => {
     const fetchClient = async () => {
@@ -78,6 +126,11 @@ export default function ClientInsightsPage() {
     router.push(`/media/web/add?${p.toString()}`)
   }
 
+  const handleAcceptSocial = (post: SocialPost) => {
+    // Navigate to add social post page with pre-filled data
+    router.push(`/media/social/add?postUrl=${encodeURIComponent(post.postUrl)}`)
+  }
+
   const handleReject = async (article: DailyInsight) => {
     if (!confirm('Delete this article? This cannot be undone.')) return
     try {
@@ -89,25 +142,50 @@ export default function ClientInsightsPage() {
     finally { setIsDeleting(null) }
   }
 
+  const handleDeleteSocialPost = async (post: SocialPost) => {
+    if (!confirm('Delete this social post? This cannot be undone.')) return
+    try {
+      setIsDeleting(post.id)
+      const res = await fetch(`/api/social-posts/${post.id}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error('Failed to delete')
+      setSocialPosts(prev => prev.filter(p => p.id !== post.id))
+    } catch { alert('Failed to delete post') }
+    finally { setIsDeleting(null) }
+  }
+
   const handleRunScraper = async () => {
     try {
       setIsScraperRunning(true)
       setScraperMessage(null)
-      const res = await fetch('/api/daily-insights/scrape', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ clientId }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.message || data.error || 'Failed')
-      setScraperMessage(`✓ ${data.message}`)
-      await fetchArticles()
+      
+      if (activeTab === 'web') {
+        const res = await fetch('/api/daily-insights/scrape', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ clientId }),
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.message || data.error || 'Failed')
+        setScraperMessage(`✓ ${data.message}`)
+        await fetchArticles()
+      } else {
+        // Run social media scraper
+        const res = await fetch('/api/crawler/scrape-social', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ clientId }),
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.message || data.error || 'Failed to scrape social media')
+        setScraperMessage(`✓ ${data.message || 'Social media scrape completed'}`)
+        await fetchSocialPosts()
+      }
     } catch (err) {
       setScraperMessage(err instanceof Error ? `✗ ${err.message}` : '✗ Failed')
     } finally { setIsScraperRunning(false) }
   }
 
-  const columns: ColumnDef<DailyInsight>[] = [
+  const webColumns: ColumnDef<DailyInsight>[] = [
     {
       accessorKey: 'title',
       header: ({ column }) => <DataTableColumnHeader column={column} title="Title" />,
@@ -122,7 +200,6 @@ export default function ClientInsightsPage() {
       accessorKey: 'industry',
       header: ({ column }) => <DataTableColumnHeader column={column} title="Keyword" />,
       cell: ({ row }) => {
-        // Show only the first keyword to keep the table compact
         const raw = row.original.industry || 'General'
         const first = raw.split(',')[0].trim()
         return <Badge variant="outline" className="text-xs capitalize">{first}</Badge>
@@ -170,6 +247,75 @@ export default function ClientInsightsPage() {
     },
   ]
 
+  const socialColumns: ColumnDef<SocialPost>[] = [
+    {
+      accessorKey: 'platform',
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Platform" />,
+      cell: ({ row }) => (
+        <Badge className={platformColors[row.original.platform] || 'bg-gray-100'}>
+          {row.original.platform}
+        </Badge>
+      ),
+    },
+    {
+      accessorKey: 'content',
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Content" />,
+      cell: ({ row }) => (
+        <div className="max-w-sm">
+          <p className="truncate text-sm">{row.original.content?.substring(0, 80) || 'No content'}</p>
+          {row.original.authorHandle && (
+            <p className="text-xs text-gray-500">{row.original.authorHandle}</p>
+          )}
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'authorName',
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Author" />,
+      cell: ({ row }) => (
+        <span className="text-sm">{row.original.authorName || 'Unknown'}</span>
+      ),
+    },
+    {
+      accessorKey: 'engagement',
+      header: 'Engagement',
+      cell: ({ row }) => (
+        <div className="flex items-center gap-3 text-xs text-gray-500">
+          <span className="flex items-center gap-1"><Heart className="h-3 w-3" />{row.original.likesCount || 0}</span>
+          <span className="flex items-center gap-1"><MessageCircle className="h-3 w-3" />{row.original.commentsCount || 0}</span>
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'postedAt',
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Posted" />,
+      cell: ({ row }) => (
+        <span className="text-sm text-gray-500">
+          {new Date(row.original.postedAt).toLocaleDateString()}
+        </span>
+      ),
+    },
+    {
+      id: 'actions',
+      cell: ({ row }) => {
+        const post = row.original
+        return (
+          <div className="flex items-center gap-1 justify-end">
+            <Button variant="ghost" size="sm" onClick={() => window.open(post.postUrl, '_blank')} title="View post">
+              <ExternalLink className="h-4 w-4 text-blue-600" />
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => router.push(`/media/social/${post.id}/edit`)} title="Edit post">
+              <CheckCircle className="h-4 w-4 text-emerald-600" />
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => handleDeleteSocialPost(post)} disabled={isDeleting === post.id} title="Delete">
+              {isDeleting === post.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4 text-red-500" />}
+            </Button>
+          </div>
+        )
+      },
+    },
+  ]
+
   return (
     <div className="p-4 sm:p-6 space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -179,7 +325,9 @@ export default function ClientInsightsPage() {
           </Link>
           <div>
             <h1 className="text-2xl font-bold text-gray-800">{clientName}</h1>
-            <p className="text-gray-500 text-sm">{articles.length} articles</p>
+            <p className="text-gray-500 text-sm">
+              {activeTab === 'web' ? `${articles.length} articles` : `${socialPosts.length} social posts`}
+            </p>
           </div>
         </div>
         <Button onClick={handleRunScraper} disabled={isScraperRunning} className="gap-2 bg-orange-500 hover:bg-orange-600" size="sm">
@@ -193,27 +341,65 @@ export default function ClientInsightsPage() {
         </div>
       )}
 
-      <div className="flex gap-2">
-        {[{ value: 'all', label: 'All' }, { value: 'pending', label: 'Pending' }, { value: 'accepted', label: 'Accepted' }].map((f) => (
-          <Button key={f.value} variant={statusFilter === f.value ? 'default' : 'outline'} size="sm" onClick={() => setStatusFilter(f.value)}
-            className={statusFilter === f.value ? 'bg-orange-500 hover:bg-orange-600' : ''}>
-            {f.label}
-          </Button>
-        ))}
+      {/* Tab Navigation */}
+      <div className="flex gap-2 border-b border-gray-200 pb-2">
+        <Button 
+          variant={activeTab === 'web' ? 'default' : 'ghost'} 
+          size="sm" 
+          onClick={() => setActiveTab('web')}
+          className={activeTab === 'web' ? 'bg-orange-500 hover:bg-orange-600' : ''}
+        >
+          <Globe className="h-4 w-4 mr-2" /> Web Articles
+        </Button>
+        <Button 
+          variant={activeTab === 'social' ? 'default' : 'ghost'} 
+          size="sm" 
+          onClick={() => setActiveTab('social')}
+          className={activeTab === 'social' ? 'bg-purple-500 hover:bg-purple-600' : ''}
+        >
+          <Share2 className="h-4 w-4 mr-2" /> Social Media
+        </Button>
       </div>
+
+      {/* Status Filter - only for web articles */}
+      {activeTab === 'web' && (
+        <div className="flex gap-2">
+          {[{ value: 'all', label: 'All' }, { value: 'pending', label: 'Pending' }, { value: 'accepted', label: 'Accepted' }].map((f) => (
+            <Button key={f.value} variant={statusFilter === f.value ? 'default' : 'outline'} size="sm" onClick={() => setStatusFilter(f.value)}
+              className={statusFilter === f.value ? 'bg-orange-500 hover:bg-orange-600' : ''}>
+              {f.label}
+            </Button>
+          ))}
+        </div>
+      )}
 
       <div className="bg-white rounded-lg border">
         {isLoading ? (
           <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin text-gray-400" /></div>
-        ) : articles.length === 0 ? (
-          <div className="flex justify-center items-center h-64">
-            <div className="text-center">
-              <p className="text-gray-500 mb-1">No articles found</p>
-              <p className="text-sm text-gray-400">Try running the scraper or changing the filter</p>
+        ) : activeTab === 'web' ? (
+          articles.length === 0 ? (
+            <div className="flex justify-center items-center h-64">
+              <div className="text-center">
+                <Globe className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                <p className="text-gray-500 mb-1">No articles found</p>
+                <p className="text-sm text-gray-400">Try running the scraper or changing the filter</p>
+              </div>
             </div>
-          </div>
+          ) : (
+            <DataTable columns={webColumns} data={articles} searchPlaceholder="Search articles..." searchColumn="title" />
+          )
         ) : (
-          <DataTable columns={columns} data={articles} searchPlaceholder="Search articles..." searchColumn="title" />
+          socialPosts.length === 0 ? (
+            <div className="flex justify-center items-center h-64">
+              <div className="text-center">
+                <Share2 className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                <p className="text-gray-500 mb-1">No social posts found</p>
+                <p className="text-sm text-gray-400">Try running the social media scraper</p>
+              </div>
+            </div>
+          ) : (
+            <DataTable columns={socialColumns} data={socialPosts} searchPlaceholder="Search posts..." searchColumn="content" />
+          )
         )}
       </div>
     </div>
