@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     const mediaType = file.type || 'image/jpeg'
     const imageDataUrl = `data:${mediaType};base64,${base64}`
 
-    // Send to Gemma 3 4B IT model for extraction
+    // Send to Llama 3.1 8B model for faster extraction
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -34,25 +34,14 @@ export async function POST(request: NextRequest) {
         'X-Title': 'OvaView Media Monitoring',
       },
       body: JSON.stringify({
-        model: 'google/gemma-3-4b-it',
+        model: 'meta-llama/llama-3.2-11b-vision-instruct',
         messages: [
           {
             role: 'user',
             content: [
               {
                 type: 'text',
-                text: `You are a newspaper and magazine article extraction specialist. Carefully examine this image and extract the complete article text exactly as it appears.
-
-EXTRACTION RULES:
-1. Extract ALL text from the article including headers, body, bylines, and publication details
-2. Preserve the original formatting structure (paragraphs, line breaks)
-3. Include quotations exactly as they appear
-4. If there are multiple articles visible, extract the MAIN/PRIMARY article
-5. Skip any advertisements, page numbers, or non-article text
-6. Fix obvious OCR scanning artifacts if the source appears to be pre-OCR'd
-7. Return only the extracted text, nothing else
-
-Return the extracted article text:`,
+                text: `Extract ALL text from this newspaper/magazine article image. Include headers, body text, bylines, and publication details. Preserve paragraph structure. Skip ads and page numbers. Return only the extracted text, nothing else.`,
               },
               {
                 type: 'image_url',
@@ -64,14 +53,14 @@ Return the extracted article text:`,
           },
         ],
         max_tokens: 4096,
-        temperature: 0.3,
+        temperature: 0.1,
       }),
     })
 
     if (!response.ok) {
       const errorText = await response.text()
-      console.error('Gemma API error:', errorText)
-      throw new Error(`Gemma API error: ${response.status}`)
+      console.error('Vision API error:', errorText)
+      throw new Error(`Vision API error: ${response.status}`)
     }
 
     const data = await response.json()

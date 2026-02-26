@@ -96,10 +96,11 @@ PRESERVATION RULES:
 
 ANALYSIS TASKS:
 1. Generate a concise, descriptive title (max 100 characters) capturing the main topic
-2. Analyze sentiment of the corrected content
-3. Select keywords ONLY from this exact list - DO NOT suggest any keyword not in this list:
+2. Generate a brief summary (2-3 sentences) capturing the key points
+3. Analyze sentiment of the corrected content
+4. Select keywords ONLY from this exact list - DO NOT suggest any keyword not in this list:
    Available keywords: ${keywordList || 'None available'}
-4. Select the most appropriate industry and sub-industries (STRICT and CONSERVATIVE):
+5. Select the most appropriate industry and sub-industries (STRICT and CONSERVATIVE):
    Available industries: ${industryList || 'None available'}
 
 CRITICAL KEYWORD SELECTION RULES - READ CAREFULLY:
@@ -131,6 +132,7 @@ Respond in this exact JSON format only, no other text:
 {
   "text": "the fully corrected and formatted article with HTML markup, starting from actual content",
   "title": "Generated Title Here",
+  "summary": "A brief 2-3 sentence summary of the article content",
   "sentiment": {
     "positive": <number 0-100>,
     "neutral": <number 0-100>,
@@ -205,6 +207,7 @@ Use aggressive semantic knowledge to fix broken/non-existent words. Sentiment pe
     return NextResponse.json({
       text: result.text,
       title: result.title,
+      summary: result.summary || '',
       sentiment: {
         positive: Math.round(positive),
         neutral: Math.round(neutral),
