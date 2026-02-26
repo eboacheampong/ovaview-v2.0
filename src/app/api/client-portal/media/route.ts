@@ -167,6 +167,44 @@ export async function GET(request: NextRequest) {
         total = count
         break
       }
+
+      case 'social': {
+        // Build social-specific where clause (uses content instead of title)
+        const socialKeywordConditions = clientKeywords.flatMap(kw => [
+          { content: { contains: kw, mode: 'insensitive' as const } },
+          { keywords: { contains: kw, mode: 'insensitive' as const } },
+          { authorName: { contains: kw, mode: 'insensitive' as const } },
+        ])
+
+        const socialUserSearchConditions = search
+          ? [
+              { content: { contains: search, mode: 'insensitive' as const } },
+              { keywords: { contains: search, mode: 'insensitive' as const } },
+              { authorName: { contains: search, mode: 'insensitive' as const } },
+            ]
+          : []
+
+        const socialWhereClause = socialUserSearchConditions.length > 0
+          ? { AND: [{ OR: socialKeywordConditions }, { OR: socialUserSearchConditions }] }
+          : { OR: socialKeywordConditions }
+
+        const [socialPosts, count] = await Promise.all([
+          prisma.socialPost.findMany({
+            where: socialWhereClause,
+            include: {
+              account: true,
+              industry: true,
+            },
+            orderBy: { postedAt: 'desc' },
+            skip,
+            take: limit,
+          }),
+          prisma.socialPost.count({ where: socialWhereClause }),
+        ])
+        stories = socialPosts
+        total = count
+        break
+      }
     }
 
     return NextResponse.json({

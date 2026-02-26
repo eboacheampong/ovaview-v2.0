@@ -38,6 +38,7 @@ model User {
   tvStories       TVStory[]
   radioStories    RadioStory[]
   printStories    PrintStory[]
+  socialPosts     SocialPost[]
   articleViewLogs ArticleViewLog[]
   mediaEntryLogs  MediaEntryLog[]
   visitLogs       VisitLog[]
@@ -132,6 +133,7 @@ model Industry {
   tvStories     TVStory[]
   radioStories  RadioStory[]
   printStories  PrintStory[]
+  socialPosts   SocialPost[]
 }
 
 model SubIndustry {
@@ -143,10 +145,11 @@ model SubIndustry {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  webStories   WebStorySubIndustry[]
-  tvStories    TVStorySubIndustry[]
-  radioStories RadioStorySubIndustry[]
-  printStories PrintStorySubIndustry[]
+  webStories    WebStorySubIndustry[]
+  tvStories     TVStorySubIndustry[]
+  radioStories  RadioStorySubIndustry[]
+  printStories  PrintStorySubIndustry[]
+  socialPosts   SocialPostSubIndustry[]
 
   @@unique([name, industryId])
 }
@@ -532,6 +535,137 @@ enum DailyInsightStatus {
   pending
   accepted
   archived
+}
+
+enum SocialPlatform {
+  TWITTER
+  FACEBOOK
+  INSTAGRAM
+  LINKEDIN
+  YOUTUBE
+  TIKTOK
+}
+
+// Social Media Account (source tracking)
+model SocialAccount {
+  id             String         @id @default(cuid())
+  platform       SocialPlatform
+  handle         String
+  displayName    String?
+  profileUrl     String?
+  avatarUrl      String?
+  followersCount Int?           @default(0)
+  isVerified     Boolean        @default(false)
+  isActive       Boolean        @default(true)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  posts SocialPost[]
+
+  @@unique([platform, handle])
+}
+
+// Social Media Post
+model SocialPost {
+  id               String         @id @default(cuid())
+  platform         SocialPlatform
+  postId           String         // Platform-specific post ID
+  content          String?        @db.Text
+  summary          String?        @db.Text
+  authorHandle     String?
+  authorName       String?
+  authorAvatarUrl  String?
+  postUrl          String         // Direct link to post
+  embedUrl         String?        // oEmbed URL if available
+  embedHtml        String?        @db.Text // Embed HTML code
+  mediaUrls        String[]       // Images/videos in post
+  mediaType        String?        // image, video, carousel, etc.
+  likesCount       Int?           @default(0)
+  commentsCount    Int?           @default(0)
+  sharesCount      Int?           @default(0)
+  viewsCount       Int?           @default(0)
+  hashtags         String[]
+  mentions         String[]
+  keywords         String?
+  postedAt         DateTime
+  accountId        String?
+  account          SocialAccount? @relation(fields: [accountId], references: [id])
+  industryId       String?
+  industry         Industry?      @relation(fields: [industryId], references: [id])
+  createdById      String?
+  createdBy        User?          @relation(fields: [createdById], references: [id])
+  sentimentPositive Float?
+  sentimentNeutral  Float?
+  sentimentNegative Float?
+  overallSentiment  String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  subIndustries SocialPostSubIndustry[]
+
+  @@unique([platform, postId])
+  @@index([platform])
+  @@index([postedAt(sort: Desc)])
+  @@index([accountId])
+}
+
+model SocialPostSubIndustry {
+  id            String      @id @default(cuid())
+  socialPostId  String
+  socialPost    SocialPost  @relation(fields: [socialPostId], references: [id], onDelete: Cascade)
+  subIndustryId String
+  subIndustry   SubIndustry @relation(fields: [subIndustryId], references: [id], onDelete: Cascade)
+
+  @@unique([socialPostId, subIndustryId])
+}
+
+// Crawler Source Configuration
+model CrawlerSource {
+  id             String    @id @default(cuid())
+  name           String
+  url            String    @unique
+  sourceType     String    @default("news") // news, social, rss
+  industry       String    @default("general")
+  isActive       Boolean   @default(true)
+  crawlFrequency Int       @default(60) // minutes
+  lastCrawledAt  DateTime?
+  articlesFound  Int       @default(0)
+  errorCount     Int       @default(0)
+  lastError      String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  logs CrawlerLog[]
+}
+
+// Crawler Configuration Settings
+model CrawlerConfig {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String   @db.Text
+  description String?
+  category    String   @default("general") // general, performance, social, notifications
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Crawler Execution Logs
+model CrawlerLog {
+  id            String         @id @default(cuid())
+  sourceId      String?
+  source        CrawlerSource? @relation(fields: [sourceId], references: [id])
+  sourceName    String
+  sourceUrl     String
+  status        String         // running, success, error
+  articlesFound Int            @default(0)
+  articlesSaved Int            @default(0)
+  duration      Int            @default(0) // seconds
+  errorMessage  String?
+  startedAt     DateTime       @default(now())
+  completedAt   DateTime?
+
+  @@index([sourceId])
+  @@index([startedAt(sort: Desc)])
 }
 
 model DailyInsight {

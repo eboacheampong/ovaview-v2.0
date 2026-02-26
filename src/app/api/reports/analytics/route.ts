@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch all story counts in parallel
-    let [webStories, tvStories, radioStories, printStories] = await Promise.all([
+    let [webStories, tvStories, radioStories, printStories, socialPosts] = await Promise.all([
       mediaFilter === 'all' || mediaFilter === 'web' 
         ? prisma.webStory.findMany({
             where: { date: dateFilter, ...industryFilter },
@@ -69,32 +69,40 @@ export async function GET(request: NextRequest) {
             include: { publication: true, industry: true },
           })
         : [],
+      mediaFilter === 'all' || mediaFilter === 'social'
+        ? prisma.socialPost.findMany({
+            where: { postedAt: dateFilter, ...industryFilter },
+            include: { account: true, industry: true },
+          })
+        : [],
     ])
 
     // Filter stories by client keywords if clientId is provided
     if (clientId && clientKeywords.length > 0) {
-      const matchesClient = (story: { title: string; content: string | null; keywords: string | null }) => {
-        const content = `${story.title} ${story.content || ''} ${story.keywords || ''}`.toLowerCase()
+      const matchesClient = (story: { title?: string; content: string | null; keywords: string | null }) => {
+        const content = `${story.title || ''} ${story.content || ''} ${story.keywords || ''}`.toLowerCase()
         return clientKeywords.some(kw => content.includes(kw))
       }
       webStories = webStories.filter(matchesClient)
       tvStories = tvStories.filter(matchesClient)
       radioStories = radioStories.filter(matchesClient)
       printStories = printStories.filter(matchesClient)
+      socialPosts = socialPosts.filter(matchesClient)
     }
 
     // Calculate total coverage
-    const totalCoverage = webStories.length + tvStories.length + radioStories.length + printStories.length
+    const totalCoverage = webStories.length + tvStories.length + radioStories.length + printStories.length + socialPosts.length
 
     // Calculate total reach
     const webReach = webStories.reduce((sum, s) => sum + (s.publication?.reach || 0), 0)
     const tvReach = tvStories.reduce((sum, s) => sum + (s.station?.reach || 0), 0)
     const radioReach = radioStories.reduce((sum, s) => sum + (s.station?.reach || 0), 0)
     const printReach = printStories.reduce((sum, s) => sum + (s.publication?.reach || 0), 0)
-    const totalReach = webReach + tvReach + radioReach + printReach
+    const socialReach = socialPosts.reduce((sum, s) => sum + (s.viewsCount || s.likesCount || 0), 0)
+    const totalReach = webReach + tvReach + radioReach + printReach + socialReach
 
     // Calculate sentiment distribution
-    const allStories = [...webStories, ...tvStories, ...radioStories, ...printStories]
+    const allStories = [...webStories, ...tvStories, ...radioStories, ...printStories, ...socialPosts]
     const storiesWithSentiment = allStories.filter(s => s.overallSentiment)
     const sentimentCounts = {
       positive: storiesWithSentiment.filter(s => s.overallSentiment === 'positive').length,
@@ -123,16 +131,17 @@ export async function GET(request: NextRequest) {
       { name: 'Print', value: totalCoverage > 0 ? Math.round((printStories.length / totalCoverage) * 100) : 0, color: '#3b82f6' },
       { name: 'Radio', value: totalCoverage > 0 ? Math.round((radioStories.length / totalCoverage) * 100) : 0, color: '#10b981' },
       { name: 'TV', value: totalCoverage > 0 ? Math.round((tvStories.length / totalCoverage) * 100) : 0, color: '#8b5cf6' },
+      { name: 'Social', value: totalCoverage > 0 ? Math.round((socialPosts.length / totalCoverage) * 100) : 0, color: '#ec4899' },
     ]
 
     // Coverage trend by month
-    const coverageTrendMap = new Map<string, { print: number; radio: number; tv: number; web: number }>()
+    const coverageTrendMap = new Map<string, { print: number; radio: number; tv: number; web: number; social: number }>()
     
     // Initialize months
     for (let i = 5; i >= 0; i--) {
       const monthDate = subMonths(now, i)
       const monthKey = format(monthDate, 'MMM')
-      coverageTrendMap.set(monthKey, { print: 0, radio: 0, tv: 0, web: 0 })
+      coverageTrendMap.set(monthKey, { print: 0, radio: 0, tv: 0, web: 0, social: 0 })
     }
 
     // Count stories per month
@@ -156,11 +165,16 @@ export async function GET(request: NextRequest) {
       const existing = coverageTrendMap.get(monthKey)
       if (existing) existing.print++
     })
+    socialPosts.forEach(s => {
+      const monthKey = format(new Date(s.postedAt), 'MMM')
+      const existing = coverageTrendMap.get(monthKey)
+      if (existing) existing.social++
+    })
 
     const coverageTrendData = Array.from(coverageTrendMap.entries()).map(([month, data]) => ({
       month,
       ...data,
-      total: data.print + data.radio + data.tv + data.web,
+      total: data.print + data.radio + data.tv + data.web + data.social,
     }))
 
     // Industry performance
@@ -312,13 +326,14 @@ export async function GET(request: NextRequest) {
     // Get today's entries
     const todayStart = startOfDay(now)
     const todayEnd = endOfDay(now)
-    const [todayWeb, todayTv, todayRadio, todayPrint] = await Promise.all([
+    const [todayWeb, todayTv, todayRadio, todayPrint, todaySocial] = await Promise.all([
       prisma.webStory.count({ where: { createdAt: { gte: todayStart, lte: todayEnd } } }),
       prisma.tVStory.count({ where: { createdAt: { gte: todayStart, lte: todayEnd } } }),
       prisma.radioStory.count({ where: { createdAt: { gte: todayStart, lte: todayEnd } } }),
       prisma.printStory.count({ where: { createdAt: { gte: todayStart, lte: todayEnd } } }),
+      prisma.socialPost.count({ where: { createdAt: { gte: todayStart, lte: todayEnd } } }),
     ])
-    const todayEntries = todayWeb + todayTv + todayRadio + todayPrint
+    const todayEntries = todayWeb + todayTv + todayRadio + todayPrint + todaySocial
 
     // Calculate previous period for comparison
     const prevStartDate = subDays(startDate, dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : dateRange === '90d' ? 90 : 365)
@@ -512,6 +527,7 @@ export async function GET(request: NextRequest) {
       tvCount: tvStories.length,
       radioCount: radioStories.length,
       printCount: printStories.length,
+      socialCount: socialPosts.length,
     }
 
     // Recent alerts (based on actual data patterns)
