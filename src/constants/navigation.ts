@@ -26,6 +26,7 @@ import {
   NotebookText,
   Tag,
   Sparkles,
+  Share2,
 } from 'lucide-react'
 import { UserRole } from '@/types/user'
 
@@ -119,6 +120,14 @@ export const navigationSections: NavSection[] = [
           { label: 'Add Story', href: '/media/radio/add', icon: Plus },
           { label: 'Radio Stations', href: '/media/radio/stations', icon: Antenna },
           { label: 'Radio Programs', href: '/media/radio/programs', icon: Radio },
+        ],
+      },
+      {
+        title: 'Social Media',
+        icon: Share2,
+        items: [
+          { label: 'Social Posts', href: '/media/social', icon: Share2 },
+          { label: 'Add Post', href: '/media/social/add', icon: Plus },
         ],
       },
     ],
