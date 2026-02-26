@@ -7,10 +7,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select } from '@/components/ui/select'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, Wand2, ExternalLink, Loader2 } from 'lucide-react'
-import Link from 'next/link'
+import { Wand2, ExternalLink, Loader2, Share2, User, Heart, MessageCircle, Repeat2, Eye, Link2, Code, FileText } from 'lucide-react'
 
 const platforms = [
   { value: 'TWITTER', label: 'Twitter/X' },
@@ -170,7 +168,7 @@ export default function EditSocialPostPage() {
 
   if (isLoading) {
     return (
-      <div className="p-6 flex items-center justify-center min-h-[400px]">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-purple-500" />
       </div>
     )
@@ -178,81 +176,93 @@ export default function EditSocialPostPage() {
 
   if (error) {
     return (
-      <div className="p-6">
-        <div className="text-center py-12">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
           <p className="text-red-500 mb-4">{error}</p>
-          <Link href="/media/social">
-            <Button variant="outline">Back to Social Posts</Button>
-          </Link>
+          <Button variant="outline" onClick={() => router.push('/media/social')}>Back to Social Posts</Button>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
-      <div className="flex items-center gap-4 mb-6">
-        <Link href="/media/social">
-          <Button variant="ghost" size="sm">
-            <ArrowLeft className="h-4 w-4 mr-2" /> Back
-          </Button>
-        </Link>
-        <div className="flex-1">
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold">Edit Social Post</h1>
-            <Badge className={platformColors[formData.platform] || 'bg-gray-100'}>
-              {formData.platform}
-            </Badge>
+    <div className="min-h-screen bg-gray-50">
+      <div className="bg-gradient-to-r from-purple-500 to-purple-600 text-white py-6 px-6 shadow-lg">
+        <div className="max-w-4xl mx-auto flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl font-bold">Edit Social Post</h1>
+              <Badge className={`${platformColors[formData.platform] || 'bg-gray-100'}`}>
+                {formData.platform}
+              </Badge>
+            </div>
+            <p className="text-purple-100 text-sm mt-1">Update social media post details</p>
           </div>
-          <p className="text-gray-500">Update social media post details</p>
+          {formData.postUrl && (
+            <Button variant="outline" size="sm" onClick={() => window.open(formData.postUrl, '_blank')} className="bg-white/10 border-white/20 text-white hover:bg-white/20">
+              <ExternalLink className="h-4 w-4 mr-2" /> View Original
+            </Button>
+          )}
         </div>
-        {formData.postUrl && (
-          <Button variant="outline" size="sm" onClick={() => window.open(formData.postUrl, '_blank')}>
-            <ExternalLink className="h-4 w-4 mr-2" /> View Original
-          </Button>
-        )}
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Post Info (Read-only)</CardTitle>
-          </CardHeader>
-          <CardContent className="grid grid-cols-2 gap-4">
-            <div>
-              <Label>Platform</Label>
-              <Input value={platforms.find(p => p.value === formData.platform)?.label || formData.platform} disabled />
+      <form onSubmit={handleSubmit} className="max-w-4xl mx-auto p-6 space-y-8">
+        
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="p-2 bg-gray-100 rounded-lg">
+              <User className="h-5 w-5 text-gray-600" />
             </div>
             <div>
-              <Label>Posted At</Label>
-              <Input value={formData.postedAt ? new Date(formData.postedAt).toLocaleString() : 'Unknown'} disabled />
+              <h2 className="font-semibold text-gray-800">Post Info (Read-only)</h2>
+              <p className="text-sm text-gray-500">Original post information cannot be changed</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label className="text-gray-600 mb-2 block">Platform</Label>
+              <Input value={platforms.find(p => p.value === formData.platform)?.label || formData.platform} disabled className="h-11 bg-gray-50" />
             </div>
             <div>
-              <Label>Author Name</Label>
-              <Input value={formData.authorName || 'Unknown'} disabled />
+              <Label className="text-gray-600 mb-2 block">Posted At</Label>
+              <Input value={formData.postedAt ? new Date(formData.postedAt).toLocaleString() : 'Unknown'} disabled className="h-11 bg-gray-50" />
             </div>
             <div>
-              <Label>Author Handle</Label>
-              <Input value={formData.authorHandle || 'Unknown'} disabled />
+              <Label className="text-gray-600 mb-2 block">Author Name</Label>
+              <Input value={formData.authorName || 'Unknown'} disabled className="h-11 bg-gray-50" />
             </div>
-          </CardContent>
-        </Card>
+            <div>
+              <Label className="text-gray-600 mb-2 block">Author Handle</Label>
+              <Input value={formData.authorHandle || 'Unknown'} disabled className="h-11 bg-gray-50" />
+            </div>
+          </div>
+        </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Editable Content</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label>Industry</Label>
-              <Select 
-                options={industryOptions} 
-                value={formData.industryId} 
-                onChange={e => setFormData(p => ({ ...p, industryId: e.target.value }))} 
-              />
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="p-2 bg-purple-100 rounded-lg">
+              <Share2 className="h-5 w-5 text-purple-600" />
             </div>
+            <Label className="font-semibold text-gray-800">Industry Classification</Label>
+          </div>
+          <Select 
+            options={industryOptions} 
+            value={formData.industryId} 
+            onChange={e => setFormData(p => ({ ...p, industryId: e.target.value }))} 
+            className="h-11 max-w-md"
+          />
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="p-2 bg-green-100 rounded-lg">
+              <FileText className="h-5 w-5 text-green-600" />
+            </div>
+            <Label className="font-semibold text-gray-800">Editable Content</Label>
+          </div>
+          <div className="space-y-4">
             <div>
-              <Label>Post Content</Label>
+              <Label className="text-gray-600 mb-2 block">Post Content</Label>
               <Textarea 
                 value={formData.content} 
                 onChange={e => setFormData(p => ({ ...p, content: e.target.value }))} 
@@ -261,36 +271,42 @@ export default function EditSocialPostPage() {
               />
             </div>
             <div>
-              <Label>Keywords</Label>
-              <Input value={formData.keywords} onChange={e => setFormData(p => ({ ...p, keywords: e.target.value }))} placeholder="mining, gold, industry" />
+              <Label className="text-gray-600 mb-2 block">Keywords</Label>
+              <Input value={formData.keywords} onChange={e => setFormData(p => ({ ...p, keywords: e.target.value }))} placeholder="mining, gold, industry" className="h-11" />
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>URL & Embed</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="p-2 bg-orange-100 rounded-lg">
+              <Link2 className="h-5 w-5 text-orange-600" />
+            </div>
             <div>
-              <Label>Post URL</Label>
+              <h2 className="font-semibold text-gray-800">URL & Embed</h2>
+              <p className="text-sm text-gray-500">Update embed code for display</p>
+            </div>
+          </div>
+          <div className="space-y-4">
+            <div>
+              <Label className="text-gray-600 mb-2 block">Post URL (Read-only)</Label>
               <div className="flex gap-2">
                 <Input 
                   value={formData.postUrl} 
                   disabled
-                  className="flex-1 bg-gray-50"
+                  className="flex-1 h-11 bg-gray-50"
                 />
-                <Button type="button" variant="outline" onClick={generateEmbed}>
+                <Button type="button" variant="outline" onClick={generateEmbed} className="h-11 px-4">
                   <Wand2 className="h-4 w-4 mr-2" /> Regenerate Embed
                 </Button>
               </div>
             </div>
             <div>
-              <Label>Embed URL</Label>
-              <Input value={formData.embedUrl} onChange={e => setFormData(p => ({ ...p, embedUrl: e.target.value }))} placeholder="https://www.youtube.com/embed/..." />
+              <Label className="text-gray-600 mb-2 block">Embed URL</Label>
+              <Input value={formData.embedUrl} onChange={e => setFormData(p => ({ ...p, embedUrl: e.target.value }))} placeholder="https://www.youtube.com/embed/..." className="h-11" />
             </div>
             <div>
-              <Label>Embed HTML</Label>
+              <Label className="text-gray-600 mb-2 flex items-center gap-2"><Code className="h-4 w-4" />Embed HTML</Label>
               <Textarea 
                 value={formData.embedHtml} 
                 onChange={e => setFormData(p => ({ ...p, embedHtml: e.target.value }))} 
@@ -300,51 +316,49 @@ export default function EditSocialPostPage() {
             </div>
             {formData.embedHtml && (
               <div>
-                <Label>Embed Preview</Label>
-                <div className="border rounded-lg p-4 bg-gray-50 mt-2">
+                <Label className="text-gray-600 mb-2 block">Embed Preview</Label>
+                <div className="border rounded-lg p-4 bg-gray-50">
                   <div dangerouslySetInnerHTML={{ __html: formData.embedHtml }} />
                 </div>
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Engagement Stats (Read-only)</CardTitle>
-          </CardHeader>
-          <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div>
-              <Label>Likes</Label>
-              <Input type="number" value={formData.likesCount} disabled />
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="p-2 bg-pink-100 rounded-lg">
+              <Heart className="h-5 w-5 text-pink-600" />
             </div>
             <div>
-              <Label>Comments</Label>
-              <Input type="number" value={formData.commentsCount} disabled />
+              <h2 className="font-semibold text-gray-800">Engagement Stats (Read-only)</h2>
+              <p className="text-sm text-gray-500">Original engagement metrics</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div>
+              <Label className="text-gray-600 mb-2 flex items-center gap-1"><Heart className="h-3 w-3" />Likes</Label>
+              <Input type="number" value={formData.likesCount} disabled className="h-11 bg-gray-50" />
             </div>
             <div>
-              <Label>Shares</Label>
-              <Input type="number" value={formData.sharesCount} disabled />
+              <Label className="text-gray-600 mb-2 flex items-center gap-1"><MessageCircle className="h-3 w-3" />Comments</Label>
+              <Input type="number" value={formData.commentsCount} disabled className="h-11 bg-gray-50" />
             </div>
             <div>
-              <Label>Views</Label>
-              <Input type="number" value={formData.viewsCount} disabled />
+              <Label className="text-gray-600 mb-2 flex items-center gap-1"><Repeat2 className="h-3 w-3" />Shares</Label>
+              <Input type="number" value={formData.sharesCount} disabled className="h-11 bg-gray-50" />
             </div>
-          </CardContent>
-        </Card>
+            <div>
+              <Label className="text-gray-600 mb-2 flex items-center gap-1"><Eye className="h-3 w-3" />Views</Label>
+              <Input type="number" value={formData.viewsCount} disabled className="h-11 bg-gray-50" />
+            </div>
+          </div>
+        </div>
 
-        <div className="flex justify-end gap-4">
-          <Link href="/media/social">
-            <Button type="button" variant="outline">Cancel</Button>
-          </Link>
-          <Button type="submit" disabled={isSaving} className="bg-purple-500 hover:bg-purple-600">
-            {isSaving ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving...
-              </>
-            ) : (
-              'Save Changes'
-            )}
+        <div className="flex justify-end gap-4 pt-4">
+          <Button type="button" variant="outline" onClick={() => router.back()} className="px-6">Cancel</Button>
+          <Button type="submit" className="bg-purple-500 hover:bg-purple-600 text-white px-8" disabled={isSaving}>
+            {isSaving ? (<><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving...</>) : 'Save Changes'}
           </Button>
         </div>
       </form>

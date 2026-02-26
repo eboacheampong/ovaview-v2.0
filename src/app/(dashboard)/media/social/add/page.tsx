@@ -7,9 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select } from '@/components/ui/select'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { ArrowLeft, Wand2 } from 'lucide-react'
-import Link from 'next/link'
+import { Wand2, Loader2, Share2, User, Calendar, Heart, MessageCircle, Repeat2, Eye, Link2, Code } from 'lucide-react'
 
 const platforms = [
   { value: 'TWITTER', label: 'Twitter/X' },
@@ -126,98 +124,121 @@ export default function AddSocialPostPage() {
   ]
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
-      <div className="flex items-center gap-4 mb-6">
-        <Link href="/media/social">
-          <Button variant="ghost" size="sm">
-            <ArrowLeft className="h-4 w-4 mr-2" /> Back
-          </Button>
-        </Link>
-        <div>
-          <h1 className="text-2xl font-bold">Add Social Post</h1>
-          <p className="text-gray-500">Manually add a social media post</p>
+    <div className="min-h-screen bg-gray-50">
+      <div className="bg-gradient-to-r from-purple-500 to-purple-600 text-white py-6 px-6 shadow-lg">
+        <div className="max-w-4xl mx-auto">
+          <h1 className="text-2xl font-bold">New Social Post</h1>
+          <p className="text-purple-100 text-sm mt-1">Manually add a social media post to the monitoring system</p>
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Platform & Author</CardTitle>
-          </CardHeader>
-          <CardContent className="grid grid-cols-2 gap-4">
+      <form onSubmit={handleSubmit} className="max-w-4xl mx-auto p-6 space-y-8">
+        
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="p-2 bg-purple-100 rounded-lg">
+              <Share2 className="h-5 w-5 text-purple-600" />
+            </div>
             <div>
-              <Label>Platform</Label>
+              <h2 className="font-semibold text-gray-800">Platform & Industry</h2>
+              <p className="text-sm text-gray-500">Select the social platform and industry classification</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label className="text-gray-600 mb-2 block">Platform</Label>
               <Select 
                 options={platforms} 
                 value={formData.platform} 
                 onChange={e => setFormData(p => ({ ...p, platform: e.target.value }))} 
+                className="h-11"
               />
             </div>
             <div>
-              <Label>Industry</Label>
+              <Label className="text-gray-600 mb-2 block">Industry</Label>
               <Select 
                 options={industryOptions} 
                 value={formData.industryId} 
                 onChange={e => setFormData(p => ({ ...p, industryId: e.target.value }))} 
+                className="h-11"
               />
             </div>
-            <div>
-              <Label>Author Name</Label>
-              <Input value={formData.authorName} onChange={e => setFormData(p => ({ ...p, authorName: e.target.value }))} placeholder="John Doe" />
-            </div>
-            <div>
-              <Label>Author Handle</Label>
-              <Input value={formData.authorHandle} onChange={e => setFormData(p => ({ ...p, authorHandle: e.target.value }))} placeholder="@johndoe" />
-            </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Content</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label>Post Content</Label>
-              <Textarea 
-                value={formData.content} 
-                onChange={e => setFormData(p => ({ ...p, content: e.target.value }))} 
-                placeholder="Enter the post content..."
-                rows={4}
-              />
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="p-2 bg-blue-100 rounded-lg">
+              <User className="h-5 w-5 text-blue-600" />
             </div>
             <div>
-              <Label>Keywords</Label>
-              <Input value={formData.keywords} onChange={e => setFormData(p => ({ ...p, keywords: e.target.value }))} placeholder="mining, gold, industry" />
+              <h2 className="font-semibold text-gray-800">Author Information</h2>
+              <p className="text-sm text-gray-500">Details about the post author</p>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label className="text-gray-600 mb-2 block">Author Name</Label>
+              <Input value={formData.authorName} onChange={e => setFormData(p => ({ ...p, authorName: e.target.value }))} placeholder="John Doe" className="h-11" />
+            </div>
+            <div>
+              <Label className="text-gray-600 mb-2 block">Author Handle</Label>
+              <Input value={formData.authorHandle} onChange={e => setFormData(p => ({ ...p, authorHandle: e.target.value }))} placeholder="@johndoe" className="h-11" />
+            </div>
+          </div>
+        </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>URL & Embed</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="p-2 bg-green-100 rounded-lg">
+              <MessageCircle className="h-5 w-5 text-green-600" />
+            </div>
+            <Label className="font-semibold text-gray-800">Post Content</Label>
+          </div>
+          <Textarea 
+            value={formData.content} 
+            onChange={e => setFormData(p => ({ ...p, content: e.target.value }))} 
+            placeholder="Enter the post content..."
+            rows={4}
+            className="mb-4"
+          />
+          <div>
+            <Label className="text-gray-600 mb-2 block">Keywords</Label>
+            <Input value={formData.keywords} onChange={e => setFormData(p => ({ ...p, keywords: e.target.value }))} placeholder="mining, gold, industry" className="h-11" />
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="p-2 bg-orange-100 rounded-lg">
+              <Link2 className="h-5 w-5 text-orange-600" />
+            </div>
             <div>
-              <Label>Post URL</Label>
+              <h2 className="font-semibold text-gray-800">URL & Embed</h2>
+              <p className="text-sm text-gray-500">Post URL and embed code for display</p>
+            </div>
+          </div>
+          <div className="space-y-4">
+            <div>
+              <Label className="text-gray-600 mb-2 block">Post URL</Label>
               <div className="flex gap-2">
                 <Input 
                   value={formData.postUrl} 
                   onChange={e => setFormData(p => ({ ...p, postUrl: e.target.value }))} 
                   placeholder="https://twitter.com/user/status/123..."
-                  className="flex-1"
+                  className="flex-1 h-11"
                 />
-                <Button type="button" variant="outline" onClick={generateEmbed}>
+                <Button type="button" variant="outline" onClick={generateEmbed} className="h-11 px-4">
                   <Wand2 className="h-4 w-4 mr-2" /> Generate Embed
                 </Button>
               </div>
             </div>
             <div>
-              <Label>Embed URL</Label>
-              <Input value={formData.embedUrl} onChange={e => setFormData(p => ({ ...p, embedUrl: e.target.value }))} placeholder="https://www.youtube.com/embed/..." />
+              <Label className="text-gray-600 mb-2 block">Embed URL</Label>
+              <Input value={formData.embedUrl} onChange={e => setFormData(p => ({ ...p, embedUrl: e.target.value }))} placeholder="https://www.youtube.com/embed/..." className="h-11" />
             </div>
             <div>
-              <Label>Embed HTML</Label>
+              <Label className="text-gray-600 mb-2 flex items-center gap-2"><Code className="h-4 w-4" />Embed HTML</Label>
               <Textarea 
                 value={formData.embedHtml} 
                 onChange={e => setFormData(p => ({ ...p, embedHtml: e.target.value }))} 
@@ -225,43 +246,47 @@ export default function AddSocialPostPage() {
                 rows={3}
               />
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Engagement & Date</CardTitle>
-          </CardHeader>
-          <CardContent className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            <div>
-              <Label>Likes</Label>
-              <Input type="number" value={formData.likesCount} onChange={e => setFormData(p => ({ ...p, likesCount: parseInt(e.target.value) || 0 }))} />
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="p-2 bg-pink-100 rounded-lg">
+              <Heart className="h-5 w-5 text-pink-600" />
             </div>
             <div>
-              <Label>Comments</Label>
-              <Input type="number" value={formData.commentsCount} onChange={e => setFormData(p => ({ ...p, commentsCount: parseInt(e.target.value) || 0 }))} />
+              <h2 className="font-semibold text-gray-800">Engagement & Date</h2>
+              <p className="text-sm text-gray-500">Engagement metrics and posting date</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div>
+              <Label className="text-gray-600 mb-2 flex items-center gap-1"><Heart className="h-3 w-3" />Likes</Label>
+              <Input type="number" value={formData.likesCount} onChange={e => setFormData(p => ({ ...p, likesCount: parseInt(e.target.value) || 0 }))} className="h-11" />
             </div>
             <div>
-              <Label>Shares</Label>
-              <Input type="number" value={formData.sharesCount} onChange={e => setFormData(p => ({ ...p, sharesCount: parseInt(e.target.value) || 0 }))} />
+              <Label className="text-gray-600 mb-2 flex items-center gap-1"><MessageCircle className="h-3 w-3" />Comments</Label>
+              <Input type="number" value={formData.commentsCount} onChange={e => setFormData(p => ({ ...p, commentsCount: parseInt(e.target.value) || 0 }))} className="h-11" />
             </div>
             <div>
-              <Label>Views</Label>
-              <Input type="number" value={formData.viewsCount} onChange={e => setFormData(p => ({ ...p, viewsCount: parseInt(e.target.value) || 0 }))} />
+              <Label className="text-gray-600 mb-2 flex items-center gap-1"><Repeat2 className="h-3 w-3" />Shares</Label>
+              <Input type="number" value={formData.sharesCount} onChange={e => setFormData(p => ({ ...p, sharesCount: parseInt(e.target.value) || 0 }))} className="h-11" />
             </div>
             <div>
-              <Label>Posted At</Label>
-              <Input type="datetime-local" value={formData.postedAt} onChange={e => setFormData(p => ({ ...p, postedAt: e.target.value }))} />
+              <Label className="text-gray-600 mb-2 flex items-center gap-1"><Eye className="h-3 w-3" />Views</Label>
+              <Input type="number" value={formData.viewsCount} onChange={e => setFormData(p => ({ ...p, viewsCount: parseInt(e.target.value) || 0 }))} className="h-11" />
             </div>
-          </CardContent>
-        </Card>
+            <div>
+              <Label className="text-gray-600 mb-2 flex items-center gap-1"><Calendar className="h-3 w-3" />Posted At</Label>
+              <Input type="datetime-local" value={formData.postedAt} onChange={e => setFormData(p => ({ ...p, postedAt: e.target.value }))} className="h-11" />
+            </div>
+          </div>
+        </div>
 
-        <div className="flex justify-end gap-4">
-          <Link href="/media/social">
-            <Button type="button" variant="outline">Cancel</Button>
-          </Link>
-          <Button type="submit" disabled={isLoading} className="bg-purple-500 hover:bg-purple-600">
-            {isLoading ? 'Creating...' : 'Create Post'}
+        <div className="flex justify-end gap-4 pt-4">
+          <Button type="button" variant="outline" onClick={() => router.back()} className="px-6">Cancel</Button>
+          <Button type="submit" className="bg-purple-500 hover:bg-purple-600 text-white px-8" disabled={isLoading}>
+            {isLoading ? (<><Loader2 className="h-4 w-4 mr-2 animate-spin" />Creating...</>) : 'Create Post'}
           </Button>
         </div>
       </form>
