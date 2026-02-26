@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Select } from '@/components/ui/select'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, Wand2, ExternalLink, Loader2 } from 'lucide-react'
@@ -163,6 +163,11 @@ export default function EditSocialPostPage() {
     }
   }
 
+  const industryOptions = [
+    { value: '', label: 'No industry' },
+    ...industries.map(i => ({ value: i.id, label: i.name }))
+  ]
+
   if (isLoading) {
     return (
       <div className="p-6 flex items-center justify-center min-h-[400px]">
@@ -240,15 +245,11 @@ export default function EditSocialPostPage() {
           <CardContent className="space-y-4">
             <div>
               <Label>Industry</Label>
-              <Select value={formData.industryId} onValueChange={v => setFormData(p => ({ ...p, industryId: v }))}>
-                <SelectTrigger><SelectValue placeholder="Select industry" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">No industry</SelectItem>
-                  {industries.map(i => (
-                    <SelectItem key={i.id} value={i.id}>{i.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Select 
+                options={industryOptions} 
+                value={formData.industryId} 
+                onChange={e => setFormData(p => ({ ...p, industryId: e.target.value }))} 
+              />
             </div>
             <div>
               <Label>Post Content</Label>

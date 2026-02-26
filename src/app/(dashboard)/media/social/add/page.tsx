@@ -6,9 +6,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Select } from '@/components/ui/select'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { ArrowLeft, Wand2, ExternalLink } from 'lucide-react'
+import { ArrowLeft, Wand2 } from 'lucide-react'
 import Link from 'next/link'
 
 const platforms = [
@@ -120,6 +120,11 @@ export default function AddSocialPostPage() {
     }
   }
 
+  const industryOptions = [
+    { value: '', label: 'Select industry' },
+    ...industries.map(i => ({ value: i.id, label: i.name }))
+  ]
+
   return (
     <div className="p-6 max-w-4xl mx-auto">
       <div className="flex items-center gap-4 mb-6">
@@ -142,25 +147,19 @@ export default function AddSocialPostPage() {
           <CardContent className="grid grid-cols-2 gap-4">
             <div>
               <Label>Platform</Label>
-              <Select value={formData.platform} onValueChange={v => setFormData(p => ({ ...p, platform: v }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {platforms.map(p => (
-                    <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Select 
+                options={platforms} 
+                value={formData.platform} 
+                onChange={e => setFormData(p => ({ ...p, platform: e.target.value }))} 
+              />
             </div>
             <div>
               <Label>Industry</Label>
-              <Select value={formData.industryId} onValueChange={v => setFormData(p => ({ ...p, industryId: v }))}>
-                <SelectTrigger><SelectValue placeholder="Select industry" /></SelectTrigger>
-                <SelectContent>
-                  {industries.map(i => (
-                    <SelectItem key={i.id} value={i.id}>{i.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Select 
+                options={industryOptions} 
+                value={formData.industryId} 
+                onChange={e => setFormData(p => ({ ...p, industryId: e.target.value }))} 
+              />
             </div>
             <div>
               <Label>Author Name</Label>
