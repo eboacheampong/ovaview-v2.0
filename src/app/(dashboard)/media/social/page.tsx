@@ -179,7 +179,7 @@ export default function SocialMediaPage() {
       <DataTable
         columns={columns}
         data={posts}
-        searchKey="content"
+        searchColumn="content"
         searchPlaceholder="Search posts..."
         isLoading={isLoading}
       />
