@@ -169,15 +169,18 @@ export default function ClientInsightsPage() {
         setScraperMessage(`✓ ${data.message}`)
         await fetchArticles()
       } else {
-        // Run social media scraper
-        const res = await fetch('/api/crawler/scrape-social', {
+        // Use the direct scrape endpoint (works without Python crawler)
+        const res = await fetch('/api/social-posts/scrape', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ clientId }),
+          body: JSON.stringify({ 
+            keywords: ['mining news', 'business africa', 'industry update'],
+            platforms: ['youtube']
+          }),
         })
         const data = await res.json()
         if (!res.ok) throw new Error(data.message || data.error || 'Failed to scrape social media')
-        setScraperMessage(`✓ ${data.message || 'Social media scrape completed'}`)
+        setScraperMessage(`✓ ${data.message}`)
         await fetchSocialPosts()
       }
     } catch (err) {

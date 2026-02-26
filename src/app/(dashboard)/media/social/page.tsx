@@ -6,7 +6,7 @@ import { ColumnDef } from '@tanstack/react-table'
 import { DataTable, DataTableColumnHeader } from '@/components/data-table'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Pencil, Trash2, ExternalLink, Code } from 'lucide-react'
+import { Plus, Pencil, Trash2, ExternalLink, Code, RefreshCw, Loader2 } from 'lucide-react'
 import { format } from 'date-fns'
 
 interface SocialPost {
@@ -39,6 +39,8 @@ export default function SocialMediaPage() {
   const router = useRouter()
   const [posts, setPosts] = useState<SocialPost[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [isScraping, setIsScraping] = useState(false)
+  const [scrapeMessage, setScrapeMessage] = useState<string | null>(null)
 
   useEffect(() => {
     fetchPosts()
@@ -46,6 +48,7 @@ export default function SocialMediaPage() {
 
   const fetchPosts = async () => {
     try {
+      setIsLoading(true)
       const res = await fetch('/api/social-posts?limit=100')
       if (res.ok) {
         const data = await res.json()
@@ -55,6 +58,35 @@ export default function SocialMediaPage() {
       console.error('Failed to fetch posts:', error)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const handleScrape = async () => {
+    try {
+      setIsScraping(true)
+      setScrapeMessage(null)
+      
+      const res = await fetch('/api/social-posts/scrape', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          keywords: ['mining news', 'business africa', 'industry update', 'ghana news'],
+          platforms: ['youtube']
+        }),
+      })
+      
+      const data = await res.json()
+      
+      if (res.ok) {
+        setScrapeMessage(`✓ ${data.message}`)
+        await fetchPosts()
+      } else {
+        setScrapeMessage(`✗ ${data.error || 'Failed to scrape'}`)
+      }
+    } catch (error) {
+      setScrapeMessage('✗ Failed to scrape social media')
+    } finally {
+      setIsScraping(false)
     }
   }
 
@@ -171,10 +203,34 @@ export default function SocialMediaPage() {
           <h1 className="text-3xl font-bold text-gray-800">Social Media Posts</h1>
           <p className="text-gray-500 mt-1">Manage social media posts and embeds</p>
         </div>
-        <Button onClick={() => router.push('/media/social/add')} className="bg-purple-500 hover:bg-purple-600">
-          <Plus className="h-4 w-4 mr-2" /> Add Post
-        </Button>
+        <div className="flex gap-3">
+          <Button 
+            onClick={handleScrape} 
+            disabled={isScraping}
+            variant="outline"
+            className="border-purple-300 text-purple-600 hover:bg-purple-50"
+          >
+            {isScraping ? (
+              <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Scraping...</>
+            ) : (
+              <><RefreshCw className="h-4 w-4 mr-2" /> Scrape YouTube</>
+            )}
+          </Button>
+          <Button onClick={() => router.push('/media/social/add')} className="bg-purple-500 hover:bg-purple-600">
+            <Plus className="h-4 w-4 mr-2" /> Add Post
+          </Button>
+        </div>
       </div>
+
+      {scrapeMessage && (
+        <div className={`mb-4 p-3 rounded-lg text-sm font-medium ${
+          scrapeMessage.startsWith('✓') 
+            ? 'bg-green-50 text-green-700 border border-green-200' 
+            : 'bg-red-50 text-red-700 border border-red-200'
+        }`}>
+          {scrapeMessage}
+        </div>
+      )}
 
       <DataTable
         columns={columns}
@@ -183,6 +239,8 @@ export default function SocialMediaPage() {
         searchPlaceholder="Search posts..."
         isLoading={isLoading}
       />
+    </div>
+  )
     </div>
   )
 }
