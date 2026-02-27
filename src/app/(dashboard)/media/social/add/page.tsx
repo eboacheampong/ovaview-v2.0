@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -20,25 +20,30 @@ const platforms = [
 
 export default function AddSocialPostPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [isLoading, setIsLoading] = useState(false)
   const [industries, setIndustries] = useState<{ id: string; name: string }[]>([])
   
+  // Initialize form data from URL params (for pre-filling from insights)
   const [formData, setFormData] = useState({
-    platform: 'TWITTER',
-    content: '',
-    authorName: '',
-    authorHandle: '',
-    postUrl: '',
-    embedUrl: '',
-    embedHtml: '',
-    keywords: '',
-    likesCount: 0,
-    commentsCount: 0,
-    sharesCount: 0,
-    viewsCount: 0,
+    platform: searchParams.get('platform') || 'TWITTER',
+    content: searchParams.get('content') || '',
+    authorName: searchParams.get('authorName') || '',
+    authorHandle: searchParams.get('authorHandle') || '',
+    postUrl: searchParams.get('postUrl') || '',
+    embedUrl: searchParams.get('embedUrl') || '',
+    embedHtml: searchParams.get('embedHtml') || '',
+    keywords: searchParams.get('keywords') || '',
+    likesCount: parseInt(searchParams.get('likesCount') || '0'),
+    commentsCount: parseInt(searchParams.get('commentsCount') || '0'),
+    sharesCount: parseInt(searchParams.get('sharesCount') || '0'),
+    viewsCount: parseInt(searchParams.get('viewsCount') || '0'),
     postedAt: new Date().toISOString().slice(0, 16),
     industryId: '',
   })
+
+  // Check if we have pre-filled data
+  const isPreFilled = searchParams.get('postUrl') !== null
 
   useEffect(() => {
     fetch('/api/industries')
@@ -62,7 +67,7 @@ export default function AddSocialPostPage() {
     }
 
     // Twitter/X
-    const twMatch = url.match(/(?:twitter\.com|x\.com)\/\w+\/status\/(\d+)/)
+    const twMatch = url.match(/(?:twitter\.com|x\.com)\/(\w+)\/status\/(\d+)/)
     if (twMatch) {
       embedUrl = url
       embedHtml = `<blockquote class="twitter-tweet"><a href="${url}"></a></blockquote><script async src="https://platform.twitter.com/widgets.js"></script>`
@@ -93,8 +98,19 @@ export default function AddSocialPostPage() {
 
     try {
       const payload = {
-        ...formData,
-        postId: `manual_${Date.now()}`,
+        platform: formData.platform,
+        postId: searchParams.get('postId') || `manual_${Date.now()}`,
+        content: formData.content,
+        authorName: formData.authorName,
+        authorHandle: formData.authorHandle,
+        postUrl: formData.postUrl,
+        embedUrl: formData.embedUrl,
+        embedHtml: formData.embedHtml,
+        keywords: formData.keywords,
+        likesCount: formData.likesCount,
+        commentsCount: formData.commentsCount,
+        sharesCount: formData.sharesCount,
+        viewsCount: formData.viewsCount,
         postedAt: new Date(formData.postedAt).toISOString(),
         industryId: formData.industryId || null,
       }
@@ -109,7 +125,11 @@ export default function AddSocialPostPage() {
         router.push('/media/social')
       } else {
         const error = await res.json()
-        alert(error.error || 'Failed to create post')
+        if (error.error?.includes('already exists')) {
+          alert('This post has already been added.')
+        } else {
+          alert(error.error || 'Failed to create post')
+        }
       }
     } catch (error) {
       alert('Failed to create post')
@@ -127,13 +147,16 @@ export default function AddSocialPostPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="bg-gradient-to-r from-purple-500 to-purple-600 text-white py-6 px-6 shadow-lg">
         <div className="max-w-4xl mx-auto">
-          <h1 className="text-2xl font-bold">New Social Post</h1>
-          <p className="text-purple-100 text-sm mt-1">Manually add a social media post to the monitoring system</p>
+          <h1 className="text-2xl font-bold">{isPreFilled ? 'Add Scraped Social Post' : 'New Social Post'}</h1>
+          <p className="text-purple-100 text-sm mt-1">
+            {isPreFilled ? 'Review and save this social media post' : 'Manually add a social media post to the monitoring system'}
+          </p>
         </div>
       </div>
 
       <form onSubmit={handleSubmit} className="max-w-4xl mx-auto p-6 space-y-8">
         
+        {/* Platform & Industry */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
           <div className="flex items-center gap-2 mb-4">
             <div className="p-2 bg-purple-100 rounded-lg">
@@ -166,6 +189,7 @@ export default function AddSocialPostPage() {
           </div>
         </div>
 
+        {/* Author Information */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
           <div className="flex items-center gap-2 mb-4">
             <div className="p-2 bg-blue-100 rounded-lg">
@@ -188,6 +212,7 @@ export default function AddSocialPostPage() {
           </div>
         </div>
 
+        {/* Content */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
           <div className="flex items-center gap-2 mb-4">
             <div className="p-2 bg-green-100 rounded-lg">
@@ -208,6 +233,7 @@ export default function AddSocialPostPage() {
           </div>
         </div>
 
+        {/* URL & Embed */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
           <div className="flex items-center gap-2 mb-4">
             <div className="p-2 bg-orange-100 rounded-lg">
@@ -246,9 +272,18 @@ export default function AddSocialPostPage() {
                 rows={3}
               />
             </div>
+            {formData.embedHtml && (
+              <div>
+                <Label className="text-gray-600 mb-2 block">Embed Preview</Label>
+                <div className="border rounded-lg p-4 bg-gray-50 overflow-hidden">
+                  <div dangerouslySetInnerHTML={{ __html: formData.embedHtml }} />
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
+        {/* Engagement & Date */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
           <div className="flex items-center gap-2 mb-4">
             <div className="p-2 bg-pink-100 rounded-lg">
@@ -283,10 +318,11 @@ export default function AddSocialPostPage() {
           </div>
         </div>
 
+        {/* Actions */}
         <div className="flex justify-end gap-4 pt-4">
           <Button type="button" variant="outline" onClick={() => router.back()} className="px-6">Cancel</Button>
           <Button type="submit" className="bg-purple-500 hover:bg-purple-600 text-white px-8" disabled={isLoading}>
-            {isLoading ? (<><Loader2 className="h-4 w-4 mr-2 animate-spin" />Creating...</>) : 'Create Post'}
+            {isLoading ? (<><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving...</>) : (isPreFilled ? 'Save Post' : 'Create Post')}
           </Button>
         </div>
       </form>

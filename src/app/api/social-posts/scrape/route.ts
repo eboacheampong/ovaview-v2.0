@@ -35,7 +35,7 @@ async function scrapeYouTube(keyword: string): Promise<any[]> {
   
   try {
     console.log(`[YouTube] Searching for: ${keyword}`)
-    const searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(keyword)}&sp=CAI%253D` // Sort by upload date
+    const searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(keyword)}&sp=CAI%253D`
     const response = await fetchWithHeaders(searchUrl)
     
     if (!response.ok) {
@@ -48,13 +48,11 @@ async function scrapeYouTube(keyword: string): Promise<any[]> {
     // Try multiple patterns to find video data
     let data: any = null
     
-    // Pattern 1: ytInitialData
     const match1 = html.match(/var ytInitialData = ({.*?});/)
     if (match1) {
       try { data = JSON.parse(match1[1]) } catch {}
     }
     
-    // Pattern 2: ytInitialData in script tag
     if (!data) {
       const match2 = html.match(/ytInitialData["\s]*[:=]["\s]*({.*?});?\s*<\/script>/)
       if (match2) {
@@ -67,21 +65,20 @@ async function scrapeYouTube(keyword: string): Promise<any[]> {
       return posts
     }
     
-    // Navigate to video results
     const contents = data?.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer?.contents || []
     
     for (const section of contents) {
       const items = section?.itemSectionRenderer?.contents || []
       
-      for (const item of items.slice(0, 15)) {
+      for (const item of items.slice(0, 12)) {
         const video = item?.videoRenderer
         if (!video?.videoId) continue
         
         const videoId = video.videoId
         const title = video.title?.runs?.[0]?.text || video.title?.simpleText || ''
         const channel = video.ownerText?.runs?.[0]?.text || video.longBylineText?.runs?.[0]?.text || ''
+        const description = video.detailedMetadataSnippets?.[0]?.snippetText?.runs?.map((r: any) => r.text).join('') || ''
         
-        // Parse view count
         let views = 0
         const viewsText = video.viewCountText?.simpleText || video.viewCountText?.runs?.[0]?.text || '0'
         const viewsMatch = viewsText.match(/([\d,\.]+)\s*(K|M|B)?/i)
@@ -101,6 +98,7 @@ async function scrapeYouTube(keyword: string): Promise<any[]> {
           platform: 'YOUTUBE' as SocialPlatform,
           postId: videoId,
           content: title,
+          summary: description,
           authorHandle: '',
           authorName: channel,
           postUrl: `https://www.youtube.com/watch?v=${videoId}`,
@@ -128,16 +126,18 @@ async function scrapeYouTube(keyword: string): Promise<any[]> {
   return posts
 }
 
-// ============ TWITTER/X SCRAPER (via Nitter) ============
+// ============ TWITTER/X SCRAPER ============
 async function scrapeTwitter(keyword: string): Promise<any[]> {
   const posts: any[] = []
   
-  // Nitter instances to try (some may be down)
+  // Multiple Nitter instances to try
   const nitterInstances = [
     'https://nitter.privacydev.net',
     'https://nitter.poast.org',
     'https://nitter.net',
     'https://nitter.cz',
+    'https://nitter.1d4.us',
+    'https://nitter.kavin.rocks',
   ]
   
   for (const instance of nitterInstances) {
@@ -153,74 +153,96 @@ async function scrapeTwitter(keyword: string): Promise<any[]> {
       
       const html = await response.text()
       
-      // Check if we got a valid page
-      if (!html.includes('timeline-item') && !html.includes('tweet-content')) {
-        console.log(`[Twitter] ${instance} returned invalid page`)
+      // Check if we got a valid page with tweets
+      if (!html.includes('timeline-item') && !html.includes('tweet-body')) {
+        console.log(`[Twitter] ${instance} returned no tweets`)
         continue
       }
       
-      // Parse tweets - Nitter uses specific HTML structure
-      const tweetRegex = /<div class="timeline-item[^"]*">([\s\S]*?)<\/div>\s*<\/div>\s*<\/div>\s*<\/div>/g
-      let match
-      let count = 0
+      // Parse tweets using regex patterns for Nitter's HTML structure
+      // Pattern for tweet containers
+      const tweetBlocks = html.split(/<div class="timeline-item\s*">/g).slice(1)
       
-      while ((match = tweetRegex.exec(html)) !== null && count < 10) {
+      for (const block of tweetBlocks.slice(0, 15)) {
         try {
-          const tweetHtml = match[1]
-          
-          // Extract username
-          const usernameMatch = tweetHtml.match(/href="\/([^/"]+)"[^>]*class="[^"]*username/)
-          const username = usernameMatch ? usernameMatch[1] : ''
+          // Extract username from profile link
+          const usernameMatch = block.match(/href="\/([^/"?]+)"[^>]*class="[^"]*username/)
+          if (!usernameMatch) continue
+          const username = usernameMatch[1]
           
           // Extract display name
-          const nameMatch = tweetHtml.match(/<a[^>]*class="[^"]*fullname[^"]*"[^>]*>([^<]+)<\/a>/)
+          const nameMatch = block.match(/class="[^"]*fullname[^"]*"[^>]*>([^<]+)</)
           const displayName = nameMatch ? nameMatch[1].trim() : username
           
-          // Extract tweet text
-          const textMatch = tweetHtml.match(/<div class="tweet-content[^"]*"[^>]*>([\s\S]*?)<\/div>/)
-          let tweetText = textMatch ? textMatch[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() : ''
+          // Extract tweet content
+          const contentMatch = block.match(/class="tweet-content[^"]*"[^>]*>([\s\S]*?)<\/div>/)
+          if (!contentMatch) continue
+          let tweetText = contentMatch[1]
+            .replace(/<a[^>]*>([^<]*)<\/a>/g, '$1') // Keep link text
+            .replace(/<[^>]+>/g, ' ') // Remove other tags
+            .replace(/\s+/g, ' ')
+            .trim()
+          
+          if (tweetText.length < 10) continue
           
           // Extract tweet ID from status link
-          const linkMatch = tweetHtml.match(/href="\/[^/]+\/status\/(\d+)"/)
-          const tweetId = linkMatch ? linkMatch[1] : ''
+          const statusMatch = block.match(/href="\/[^/]+\/status\/(\d+)/)
+          if (!statusMatch) continue
+          const tweetId = statusMatch[1]
           
           // Extract stats
-          const statsMatch = tweetHtml.match(/<span class="tweet-stat"[^>]*>[\s\S]*?<\/span>/g) || []
-          let likes = 0, retweets = 0, replies = 0
+          let likes = 0, retweets = 0, replies = 0, quotes = 0
           
-          for (const stat of statsMatch) {
-            const numMatch = stat.match(/>(\d+)</)
-            const num = numMatch ? parseInt(numMatch[1]) : 0
-            if (stat.includes('heart') || stat.includes('like')) likes = num
-            else if (stat.includes('retweet')) retweets = num
-            else if (stat.includes('comment') || stat.includes('reply')) replies = num
+          const likeMatch = block.match(/icon-heart[^>]*><\/span>\s*<span[^>]*>(\d+)/)
+          if (likeMatch) likes = parseInt(likeMatch[1]) || 0
+          
+          const rtMatch = block.match(/icon-retweet[^>]*><\/span>\s*<span[^>]*>(\d+)/)
+          if (rtMatch) retweets = parseInt(rtMatch[1]) || 0
+          
+          const replyMatch = block.match(/icon-comment[^>]*><\/span>\s*<span[^>]*>(\d+)/)
+          if (replyMatch) replies = parseInt(replyMatch[1]) || 0
+          
+          const quoteMatch = block.match(/icon-quote[^>]*><\/span>\s*<span[^>]*>(\d+)/)
+          if (quoteMatch) quotes = parseInt(quoteMatch[1]) || 0
+          
+          // Extract date
+          const dateMatch = block.match(/title="([^"]+)"[^>]*class="[^"]*tweet-date/)
+          let postedAt = new Date()
+          if (dateMatch) {
+            try { postedAt = new Date(dateMatch[1]) } catch {}
           }
           
-          if (tweetId && username && tweetText.length > 10) {
-            const postUrl = `https://twitter.com/${username}/status/${tweetId}`
-            
-            posts.push({
-              platform: 'TWITTER' as SocialPlatform,
-              postId: tweetId,
-              content: tweetText.substring(0, 500),
-              authorHandle: `@${username}`,
-              authorName: displayName,
-              postUrl,
-              embedUrl: postUrl,
-              embedHtml: `<blockquote class="twitter-tweet"><a href="${postUrl}"></a></blockquote><script async src="https://platform.twitter.com/widgets.js"></script>`,
-              mediaUrls: [],
-              mediaType: 'text',
-              viewsCount: 0,
-              likesCount: likes,
-              commentsCount: replies,
-              sharesCount: retweets,
-              hashtags: (tweetText.match(/#\w+/g) || []),
-              mentions: (tweetText.match(/@\w+/g) || []),
-              keywords: keyword,
-              postedAt: new Date(),
-            })
-            count++
+          // Extract media
+          const mediaUrls: string[] = []
+          const imgRegex = /class="[^"]*still-image[^"]*"[^>]*href="([^"]+)"/g
+          let imgMatch
+          while ((imgMatch = imgRegex.exec(block)) !== null) {
+            mediaUrls.push(imgMatch[1].startsWith('http') ? imgMatch[1] : `${instance}${imgMatch[1]}`)
           }
+          
+          const postUrl = `https://twitter.com/${username}/status/${tweetId}`
+          
+          posts.push({
+            platform: 'TWITTER' as SocialPlatform,
+            postId: tweetId,
+            content: tweetText.substring(0, 500),
+            summary: '',
+            authorHandle: `@${username}`,
+            authorName: displayName,
+            postUrl,
+            embedUrl: postUrl,
+            embedHtml: `<blockquote class="twitter-tweet"><p>${tweetText.substring(0, 280)}</p>&mdash; ${displayName} (@${username}) <a href="${postUrl}">View on Twitter</a></blockquote><script async src="https://platform.twitter.com/widgets.js"></script>`,
+            mediaUrls,
+            mediaType: mediaUrls.length > 0 ? 'image' : 'text',
+            viewsCount: 0,
+            likesCount: likes,
+            commentsCount: replies,
+            sharesCount: retweets + quotes,
+            hashtags: (tweetText.match(/#\w+/g) || []),
+            mentions: (tweetText.match(/@\w+/g) || []),
+            keywords: keyword,
+            postedAt,
+          })
         } catch (e) {
           continue
         }
@@ -249,14 +271,10 @@ async function scrapeTikTok(keyword: string): Promise<any[]> {
   
   try {
     console.log(`[TikTok] Searching for: ${keyword}`)
-    
-    // TikTok's web search is heavily protected, try the tag page instead
     const hashtag = keyword.replace(/\s+/g, '').toLowerCase()
     const searchUrl = `https://www.tiktok.com/tag/${hashtag}`
     
-    const response = await fetchWithHeaders(searchUrl, {
-      'Accept': 'text/html,application/xhtml+xml',
-    })
+    const response = await fetchWithHeaders(searchUrl)
     
     if (!response.ok) {
       console.log(`[TikTok] Failed with status: ${response.status}`)
@@ -265,7 +283,6 @@ async function scrapeTikTok(keyword: string): Promise<any[]> {
     
     const html = await response.text()
     
-    // Try to find SIGI_STATE or __UNIVERSAL_DATA_FOR_REHYDRATION__
     let data: any = null
     
     const sigiMatch = html.match(/<script id="SIGI_STATE"[^>]*>({[\s\S]*?})<\/script>/)
@@ -281,9 +298,7 @@ async function scrapeTikTok(keyword: string): Promise<any[]> {
     }
     
     if (data) {
-      // Try different data structures
       const items = data?.ItemModule || data?.['__DEFAULT_SCOPE__']?.['webapp.video-detail']?.itemInfo?.itemStruct || {}
-      
       const itemList = Array.isArray(items) ? items : Object.values(items)
       
       for (const item of itemList.slice(0, 10)) {
@@ -302,6 +317,7 @@ async function scrapeTikTok(keyword: string): Promise<any[]> {
           platform: 'TIKTOK' as SocialPlatform,
           postId: videoId,
           content: desc.substring(0, 500),
+          summary: '',
           authorHandle: `@${username}`,
           authorName: nickname,
           postUrl,
@@ -335,8 +351,6 @@ async function scrapeInstagram(keyword: string): Promise<any[]> {
   
   try {
     console.log(`[Instagram] Searching for: ${keyword}`)
-    
-    // Instagram requires login for most content, try hashtag explore
     const hashtag = keyword.replace(/\s+/g, '').toLowerCase()
     const searchUrl = `https://www.instagram.com/explore/tags/${hashtag}/`
     
@@ -349,7 +363,6 @@ async function scrapeInstagram(keyword: string): Promise<any[]> {
     
     const html = await response.text()
     
-    // Try to find shared data
     let data: any = null
     
     const sharedDataMatch = html.match(/window\._sharedData\s*=\s*({[\s\S]*?});/)
@@ -357,17 +370,8 @@ async function scrapeInstagram(keyword: string): Promise<any[]> {
       try { data = JSON.parse(sharedDataMatch[1]) } catch {}
     }
     
-    // Try additional data script
-    if (!data) {
-      const additionalMatch = html.match(/window\.__additionalDataLoaded\s*\([^,]+,\s*({[\s\S]*?})\)/)
-      if (additionalMatch) {
-        try { data = JSON.parse(additionalMatch[1]) } catch {}
-      }
-    }
-    
     if (data) {
-      const edges = data?.entry_data?.TagPage?.[0]?.graphql?.hashtag?.edge_hashtag_to_media?.edges ||
-                    data?.graphql?.hashtag?.edge_hashtag_to_media?.edges || []
+      const edges = data?.entry_data?.TagPage?.[0]?.graphql?.hashtag?.edge_hashtag_to_media?.edges || []
       
       for (const edge of edges.slice(0, 10)) {
         const node = edge.node
@@ -380,6 +384,7 @@ async function scrapeInstagram(keyword: string): Promise<any[]> {
           platform: 'INSTAGRAM' as SocialPlatform,
           postId: node.shortcode,
           content: caption.substring(0, 500),
+          summary: '',
           authorHandle: node.owner?.username ? `@${node.owner.username}` : '',
           authorName: node.owner?.username || '',
           postUrl,
@@ -407,34 +412,74 @@ async function scrapeInstagram(keyword: string): Promise<any[]> {
   return posts
 }
 
-// ============ FACEBOOK SCRAPER ============
-async function scrapeFacebook(keyword: string): Promise<any[]> {
-  // Facebook requires authentication for search
-  // For production, use Facebook Graph API
-  console.log('[Facebook] Requires Graph API authentication - skipping')
-  return []
-}
-
-// ============ LINKEDIN SCRAPER ============
-async function scrapeLinkedIn(keyword: string): Promise<any[]> {
-  // LinkedIn requires authentication
-  // For production, use LinkedIn API
-  console.log('[LinkedIn] Requires API authentication - skipping')
-  return []
+// ============ GET CLIENT KEYWORDS ============
+async function getClientKeywords(clientId: string): Promise<string[]> {
+  try {
+    const client = await prisma.client.findUnique({
+      where: { id: clientId },
+      select: {
+        name: true,
+        newsKeywords: true,
+        keywords: {
+          include: { keyword: true }
+        }
+      }
+    })
+    
+    if (!client) return []
+    
+    const keywords = new Set<string>()
+    
+    // Add client name
+    if (client.name) {
+      keywords.add(client.name.toLowerCase().trim())
+    }
+    
+    // Add news keywords
+    if (client.newsKeywords) {
+      client.newsKeywords.split(',').forEach(k => {
+        const t = k.trim().toLowerCase()
+        if (t) keywords.add(t)
+      })
+    }
+    
+    // Add linked keywords
+    client.keywords.forEach(k => {
+      if (k.keyword.name) {
+        keywords.add(k.keyword.name.toLowerCase().trim())
+      }
+    })
+    
+    return Array.from(keywords)
+  } catch (error) {
+    console.error('Error fetching client keywords:', error)
+    return []
+  }
 }
 
 // ============ MAIN SCRAPE ENDPOINT ============
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}))
-    const { keywords: providedKeywords, platforms: providedPlatforms } = body
+    const { clientId, keywords: providedKeywords, platforms: providedPlatforms, save = true } = body
 
-    // Default keywords if none provided
-    const keywords = providedKeywords?.length > 0 
-      ? providedKeywords 
-      : ['mining news', 'business africa', 'ghana news', 'industry update']
+    // Get keywords - either from client or provided directly
+    let keywords: string[] = []
     
-    // Default to all supported platforms
+    if (clientId) {
+      keywords = await getClientKeywords(clientId)
+      console.log(`[Social Scraper] Using client keywords: ${keywords.join(', ')}`)
+    }
+    
+    if (providedKeywords?.length > 0) {
+      keywords = Array.from(new Set([...keywords, ...providedKeywords]))
+    }
+    
+    // Default keywords if none found
+    if (keywords.length === 0) {
+      keywords = ['news', 'business', 'industry']
+    }
+
     const platforms = providedPlatforms?.length > 0 
       ? providedPlatforms 
       : ['youtube', 'twitter', 'tiktok', 'instagram']
@@ -450,7 +495,7 @@ export async function POST(request: NextRequest) {
       const platformLower = platform.toLowerCase()
       platformResults[platformLower] = { found: 0, errors: [] }
       
-      for (const keyword of keywords.slice(0, 3)) {
+      for (const keyword of keywords.slice(0, 5)) { // Up to 5 keywords per platform
         try {
           let posts: any[] = []
           
@@ -468,19 +513,13 @@ export async function POST(request: NextRequest) {
             case 'instagram':
               posts = await scrapeInstagram(keyword)
               break
-            case 'facebook':
-              posts = await scrapeFacebook(keyword)
-              break
-            case 'linkedin':
-              posts = await scrapeLinkedIn(keyword)
-              break
           }
           
           platformResults[platformLower].found += posts.length
           allPosts.push(...posts)
           
           // Delay between requests
-          await new Promise(resolve => setTimeout(resolve, 800))
+          await new Promise(resolve => setTimeout(resolve, 600))
         } catch (error) {
           const errMsg = error instanceof Error ? error.message : 'Unknown error'
           platformResults[platformLower].errors.push(`${keyword}: ${errMsg}`)
@@ -500,51 +539,54 @@ export async function POST(request: NextRequest) {
 
     console.log(`[Social Scraper] Total unique posts: ${uniquePosts.length}`)
 
-    // Save to database
+    // Save to database if requested
     let savedCount = 0
     let duplicateCount = 0
     
-    for (const post of uniquePosts) {
-      try {
-        const existing = await prisma.socialPost.findUnique({
-          where: {
-            platform_postId: {
+    if (save) {
+      for (const post of uniquePosts) {
+        try {
+          const existing = await prisma.socialPost.findUnique({
+            where: {
+              platform_postId: {
+                platform: post.platform,
+                postId: post.postId,
+              }
+            }
+          })
+
+          if (existing) {
+            duplicateCount++
+            continue
+          }
+
+          await prisma.socialPost.create({
+            data: {
               platform: post.platform,
               postId: post.postId,
+              content: post.content,
+              summary: post.summary,
+              authorHandle: post.authorHandle,
+              authorName: post.authorName,
+              postUrl: post.postUrl,
+              embedUrl: post.embedUrl,
+              embedHtml: post.embedHtml,
+              mediaUrls: post.mediaUrls || [],
+              mediaType: post.mediaType,
+              likesCount: post.likesCount || 0,
+              commentsCount: post.commentsCount || 0,
+              sharesCount: post.sharesCount || 0,
+              viewsCount: post.viewsCount || 0,
+              hashtags: post.hashtags || [],
+              mentions: post.mentions || [],
+              keywords: post.keywords,
+              postedAt: post.postedAt,
             }
-          }
-        })
-
-        if (existing) {
-          duplicateCount++
-          continue
+          })
+          savedCount++
+        } catch (saveError) {
+          console.error('[Social Scraper] Save error:', saveError)
         }
-
-        await prisma.socialPost.create({
-          data: {
-            platform: post.platform,
-            postId: post.postId,
-            content: post.content,
-            authorHandle: post.authorHandle,
-            authorName: post.authorName,
-            postUrl: post.postUrl,
-            embedUrl: post.embedUrl,
-            embedHtml: post.embedHtml,
-            mediaUrls: post.mediaUrls || [],
-            mediaType: post.mediaType,
-            likesCount: post.likesCount || 0,
-            commentsCount: post.commentsCount || 0,
-            sharesCount: post.sharesCount || 0,
-            viewsCount: post.viewsCount || 0,
-            hashtags: post.hashtags || [],
-            mentions: post.mentions || [],
-            keywords: post.keywords,
-            postedAt: post.postedAt,
-          }
-        })
-        savedCount++
-      } catch (saveError) {
-        console.error('[Social Scraper] Save error:', saveError)
       }
     }
 
@@ -553,12 +595,16 @@ export async function POST(request: NextRequest) {
       .map(([p, r]) => `${p}: ${r.found}`)
       .join(', ')
 
-    const message = `Found ${uniquePosts.length} posts (${platformSummary}), saved ${savedCount} new, ${duplicateCount} duplicates`
+    const message = save 
+      ? `Found ${uniquePosts.length} posts (${platformSummary}), saved ${savedCount} new, ${duplicateCount} duplicates`
+      : `Found ${uniquePosts.length} posts (${platformSummary})`
+    
     console.log(`[Social Scraper] ${message}`)
 
     return NextResponse.json({
       success: true,
       message,
+      posts: uniquePosts, // Return posts for display
       postsFound: uniquePosts.length,
       postsSaved: savedCount,
       duplicates: duplicateCount,
@@ -585,7 +631,6 @@ export async function GET() {
   return NextResponse.json({
     status: 'ready',
     supportedPlatforms: ['youtube', 'twitter', 'tiktok', 'instagram'],
-    limitedPlatforms: ['facebook', 'linkedin'],
-    note: 'Facebook and LinkedIn require API authentication',
+    note: 'Pass clientId to use client keywords, or provide keywords array directly',
   })
 }
