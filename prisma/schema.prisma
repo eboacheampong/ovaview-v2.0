@@ -78,6 +78,7 @@ model Client {
   competitors         ClientCompetitor[] @relation("ClientCompetitors")
   competitorOf        ClientCompetitor[] @relation("CompetitorOf")
   dailyInsights       DailyInsight[]
+  socialPosts         SocialPost[]
 }
 
 // Competitor Tracking
@@ -590,6 +591,8 @@ model SocialPost {
   postedAt         DateTime
   accountId        String?
   account          SocialAccount? @relation(fields: [accountId], references: [id])
+  clientId         String?
+  client           Client?        @relation(fields: [clientId], references: [id], onDelete: SetNull)
   industryId       String?
   industry         Industry?      @relation(fields: [industryId], references: [id])
   createdById      String?
@@ -603,10 +606,11 @@ model SocialPost {
 
   subIndustries SocialPostSubIndustry[]
 
-  @@unique([platform, postId])
+  @@unique([platform, postId, clientId])
   @@index([platform])
   @@index([postedAt(sort: Desc)])
   @@index([accountId])
+  @@index([clientId])
 }
 
 model SocialPostSubIndustry {

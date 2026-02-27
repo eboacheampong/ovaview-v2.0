@@ -12,6 +12,7 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '10')
     const search = searchParams.get('search') || ''
     const platform = searchParams.get('platform') as SocialPlatform | null
+    const clientId = searchParams.get('clientId')
 
     const skip = (page - 1) * limit
 
@@ -29,12 +30,17 @@ export async function GET(request: NextRequest) {
       where.platform = platform
     }
 
+    if (clientId) {
+      where.clientId = clientId
+    }
+
     const [posts, total] = await Promise.all([
       prisma.socialPost.findMany({
         where,
         include: {
           account: true,
           industry: true,
+          client: { select: { id: true, name: true } },
           subIndustries: { include: { subIndustry: true } },
         },
         orderBy: { postedAt: 'desc' },

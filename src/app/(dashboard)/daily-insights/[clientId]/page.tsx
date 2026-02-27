@@ -103,7 +103,7 @@ export default function ClientInsightsPage() {
   const fetchSocialPosts = useCallback(async () => {
     try {
       setIsLoading(true)
-      const res = await fetch(`/api/social-posts?limit=100`)
+      const res = await fetch(`/api/social-posts?clientId=${clientId}&limit=100`)
       if (res.ok) {
         const data = await res.json()
         setSocialPosts(data.posts || [])
@@ -113,7 +113,7 @@ export default function ClientInsightsPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [clientId])
 
   useEffect(() => {
     if (activeTab === 'web') {

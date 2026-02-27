@@ -543,15 +543,61 @@ export async function POST(request: NextRequest) {
     let savedCount = 0
     let duplicateCount = 0
     
-    if (save) {
+    if (save && clientId) {
       for (const post of uniquePosts) {
         try {
-          const existing = await prisma.socialPost.findUnique({
+          // Check for existing post for this client
+          const existing = await prisma.socialPost.findFirst({
             where: {
-              platform_postId: {
-                platform: post.platform,
-                postId: post.postId,
-              }
+              platform: post.platform,
+              postId: post.postId,
+              clientId: clientId,
+            }
+          })
+
+          if (existing) {
+            duplicateCount++
+            continue
+          }
+
+          await prisma.socialPost.create({
+            data: {
+              platform: post.platform,
+              postId: post.postId,
+              content: post.content,
+              summary: post.summary,
+              authorHandle: post.authorHandle,
+              authorName: post.authorName,
+              postUrl: post.postUrl,
+              embedUrl: post.embedUrl,
+              embedHtml: post.embedHtml,
+              mediaUrls: post.mediaUrls || [],
+              mediaType: post.mediaType,
+              likesCount: post.likesCount || 0,
+              commentsCount: post.commentsCount || 0,
+              sharesCount: post.sharesCount || 0,
+              viewsCount: post.viewsCount || 0,
+              hashtags: post.hashtags || [],
+              mentions: post.mentions || [],
+              keywords: post.keywords,
+              postedAt: post.postedAt,
+              clientId: clientId,
+            }
+          })
+          savedCount++
+        } catch (saveError) {
+          console.error('[Social Scraper] Save error:', saveError)
+        }
+      }
+    } else if (save) {
+      // No clientId - save without client association (for general scraping)
+      for (const post of uniquePosts) {
+        try {
+          const existing = await prisma.socialPost.findFirst({
+            where: {
+              platform: post.platform,
+              postId: post.postId,
+              clientId: null,
             }
           })
 
