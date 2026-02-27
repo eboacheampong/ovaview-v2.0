@@ -61,13 +61,12 @@ export async function POST(request: NextRequest) {
         let savedCount = 0
         for (const post of posts) {
           try {
-            // Check if post already exists
-            const existing = await prisma.socialPost.findUnique({
+            // Check if post already exists (without client association)
+            const existing = await prisma.socialPost.findFirst({
               where: {
-                platform_postId: {
-                  platform: post.platform as SocialPlatform,
-                  postId: post.post_id,
-                }
+                platform: post.platform as SocialPlatform,
+                postId: post.post_id,
+                clientId: clientId || null,
               }
             })
 
@@ -92,6 +91,7 @@ export async function POST(request: NextRequest) {
                   mentions: post.mentions || [],
                   keywords: post.keywords,
                   postedAt: new Date(post.posted_at || Date.now()),
+                  clientId: clientId || null,
                 }
               })
               savedCount++

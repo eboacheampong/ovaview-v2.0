@@ -91,6 +91,7 @@ export async function POST(request: NextRequest) {
       keywords,
       postedAt,
       accountId,
+      clientId,
       industryId,
       subIndustryIds,
       sentimentPositive,
@@ -106,9 +107,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if post already exists
-    const existing = await prisma.socialPost.findUnique({
-      where: { platform_postId: { platform, postId } },
+    // Check if post already exists for this client
+    const existing = await prisma.socialPost.findFirst({
+      where: { platform, postId, clientId: clientId || null },
     })
 
     if (existing) {
@@ -141,6 +142,7 @@ export async function POST(request: NextRequest) {
         keywords,
         postedAt: new Date(postedAt),
         accountId,
+        clientId,
         industryId,
         sentimentPositive,
         sentimentNeutral,
@@ -156,6 +158,7 @@ export async function POST(request: NextRequest) {
       },
       include: {
         account: true,
+        client: { select: { id: true, name: true } },
         industry: true,
         subIndustries: { include: { subIndustry: true } },
       },
