@@ -1,129 +1,127 @@
-import { ApiResponse, ApiError, FetchParams, PaginatedResponse } from '@/types/api'
+/**
+ * API Client for OvaView
+ * 
+ * Supports both:
+ * - Local Next.js API routes (NEXT_PUBLIC_API_URL="local" or not set)
+ * - External NestJS backend (NEXT_PUBLIC_API_URL="http://localhost:4000/api")
+ * 
+ * Usage:
+ *   import { apiClient } from '@/lib/api-client'
+ *   const data = await apiClient.get('/clients')
+ *   const result = await apiClient.post('/auth/login', { email, password })
+ */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '/api'
+const API_URL = process.env.NEXT_PUBLIC_API_URL
 
-class ApiClient {
-  private baseUrl: string
-  private token: string | null = null
+// Check if using local Next.js API or external NestJS backend
+const isLocalApi = !API_URL || API_URL === 'local'
 
-  constructor(baseUrl: string = API_BASE_URL) {
-    this.baseUrl = baseUrl
-  }
-
-  setToken(token: string | null) {
-    this.token = token
-  }
-
-  private async request<T>(
-    endpoint: string,
-    options: RequestInit = {}
-  ): Promise<ApiResponse<T>> {
-    const headers: HeadersInit = {
-      'Content-Type': 'application/json',
-      ...options.headers,
+function getBaseUrl(): string {
+  if (isLocalApi) {
+    // Use Next.js API routes
+    if (typeof window === 'undefined') {
+      // Server-side: use absolute URL
+      return process.env.NEXTAUTH_URL || 'http://localhost:3000'
     }
-
-    if (this.token) {
-      (headers as Record<string, string>)['Authorization'] = `Bearer ${this.token}`
-    }
-
-    try {
-      const response = await fetch(`${this.baseUrl}${endpoint}`, {
-        ...options,
-        headers,
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        return {
-          success: false,
-          error: data.error || {
-            code: 'UNKNOWN_ERROR',
-            message: 'An unexpected error occurred',
-          },
-        }
-      }
-
-      return {
-        success: true,
-        data: data.data || data,
-      }
-    } catch (error) {
-      return {
-        success: false,
-        error: {
-          code: 'NETWORK_ERROR',
-          message: 'Unable to connect. Please check your connection.',
-        },
-      }
-    }
+    // Client-side: use relative URL
+    return ''
   }
-
-  async get<T>(endpoint: string, params?: FetchParams): Promise<ApiResponse<T>> {
-    const queryString = params ? this.buildQueryString(params) : ''
-    return this.request<T>(`${endpoint}${queryString}`)
-  }
-
-  async post<T>(endpoint: string, body: unknown): Promise<ApiResponse<T>> {
-    return this.request<T>(endpoint, {
-      method: 'POST',
-      body: JSON.stringify(body),
-    })
-  }
-
-  async put<T>(endpoint: string, body: unknown): Promise<ApiResponse<T>> {
-    return this.request<T>(endpoint, {
-      method: 'PUT',
-      body: JSON.stringify(body),
-    })
-  }
-
-  async patch<T>(endpoint: string, body: unknown): Promise<ApiResponse<T>> {
-    return this.request<T>(endpoint, {
-      method: 'PATCH',
-      body: JSON.stringify(body),
-    })
-  }
-
-  async delete<T>(endpoint: string): Promise<ApiResponse<T>> {
-    return this.request<T>(endpoint, {
-      method: 'DELETE',
-    })
-  }
-
-  private buildQueryString(params: FetchParams): string {
-    const searchParams = new URLSearchParams()
-
-    if (params.page !== undefined) {
-      searchParams.set('page', params.page.toString())
-    }
-    if (params.pageSize !== undefined) {
-      searchParams.set('pageSize', params.pageSize.toString())
-    }
-    if (params.sortColumn) {
-      searchParams.set('sortColumn', params.sortColumn)
-    }
-    if (params.sortDirection) {
-      searchParams.set('sortDirection', params.sortDirection)
-    }
-    if (params.search) {
-      searchParams.set('search', params.search)
-    }
-    if (params.filters) {
-      Object.entries(params.filters).forEach(([key, value]) => {
-        if (Array.isArray(value)) {
-          value.forEach((v) => searchParams.append(key, v))
-        } else {
-          searchParams.set(key, value)
-        }
-      })
-    }
-
-    const queryString = searchParams.toString()
-    return queryString ? `?${queryString}` : ''
-  }
+  // External NestJS backend
+  return API_URL
 }
 
-export const apiClient = new ApiClient()
+function buildUrl(path: string): string {
+  const base = getBaseUrl()
+  const apiPath = isLocalApi ? `/api${path}` : path
+  return `${base}${apiPath}`
+}
+
+interface RequestOptions extends Omit<RequestInit, 'body'> {
+  body?: any
+}
+
+async function request<T = any>(path: string, options: RequestOptions = {}): Promise<T> {
+  const url = buildUrl(path)
+  const { body, headers: customHeaders, ...rest } = options
+
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+    ...customHeaders,
+  }
+
+  // Add auth token if available (for external API)
+  if (!isLocalApi && typeof window !== 'undefined') {
+    const token = localStorage.getItem('auth_token')
+    if (token) {
+      (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`
+    }
+  }
+
+  const config: RequestInit = {
+    ...rest,
+    headers,
+    body: body ? JSON.stringify(body) : undefined,
+  }
+
+  const response = await fetch(url, config)
+
+  // Handle non-JSON responses
+  const contentType = response.headers.get('content-type')
+  if (!contentType?.includes('application/json')) {
+    if (!response.ok) {
+      throw new Error(`Request failed: ${response.status} ${response.statusText}`)
+    }
+    return {} as T
+  }
+
+  const data = await response.json()
+
+  if (!response.ok) {
+    throw new Error(data.error || data.message || `Request failed: ${response.status}`)
+  }
+
+  return data
+}
+
+export const apiClient = {
+  get: <T = any>(path: string, options?: RequestOptions) => 
+    request<T>(path, { ...options, method: 'GET' }),
+
+  post: <T = any>(path: string, body?: any, options?: RequestOptions) => 
+    request<T>(path, { ...options, method: 'POST', body }),
+
+  put: <T = any>(path: string, body?: any, options?: RequestOptions) => 
+    request<T>(path, { ...options, method: 'PUT', body }),
+
+  patch: <T = any>(path: string, body?: any, options?: RequestOptions) => 
+    request<T>(path, { ...options, method: 'PATCH', body }),
+
+  delete: <T = any>(path: string, options?: RequestOptions) => 
+    request<T>(path, { ...options, method: 'DELETE' }),
+
+  // Helper to check which API is being used
+  isUsingExternalApi: () => !isLocalApi,
+  getApiUrl: () => getBaseUrl(),
+}
+
+// For auth token management when using external API
+export const authStorage = {
+  setToken: (token: string) => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('auth_token', token)
+    }
+  },
+  getToken: () => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('auth_token')
+    }
+    return null
+  },
+  removeToken: () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('auth_token')
+    }
+  },
+}
+
 export default apiClient
