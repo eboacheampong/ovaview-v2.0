@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import { ConfirmDialog, FormModal } from '@/components/modals'
 import { useModal } from '@/hooks/use-modal'
-import { Trash2, Pencil, Bell, Clock, Mail, MessageSquare, Loader2, Search, X, Check, ChevronsUpDown } from 'lucide-react'
+import { Trash2, Pencil, Bell, Clock, Mail, Loader2, Search, X, Check, ChevronsUpDown } from 'lucide-react'
 import { format } from 'date-fns'
 
 interface Client {
@@ -27,7 +27,6 @@ interface NotificationSetting {
   timezone: string
   isActive: boolean
   emailEnabled: boolean
-  smsEnabled: boolean
   lastSentAt: string | null
   createdAt: string
   updatedAt: string
@@ -37,11 +36,29 @@ interface NotificationSetting {
 type TabType = 'list' | 'create'
 
 const TIMEZONES = [
-  { value: 'Africa/Harare', label: 'Africa/Harare (CAT)' },
-  { value: 'Africa/Johannesburg', label: 'Africa/Johannesburg (SAST)' },
-  { value: 'Africa/Lagos', label: 'Africa/Lagos (WAT)' },
-  { value: 'Africa/Nairobi', label: 'Africa/Nairobi (EAT)' },
+  { value: 'GMT', label: 'GMT (Greenwich Mean Time)' },
+  { value: 'Africa/Harare', label: 'Africa/Harare (CAT, GMT+2)' },
+  { value: 'Africa/Johannesburg', label: 'Africa/Johannesburg (SAST, GMT+2)' },
+  { value: 'Africa/Lagos', label: 'Africa/Lagos (WAT, GMT+1)' },
+  { value: 'Africa/Nairobi', label: 'Africa/Nairobi (EAT, GMT+3)' },
   { value: 'UTC', label: 'UTC' },
+]
+
+// Common notification times for quick selection
+const PRESET_TIMES = [
+  { value: '06:00', label: '6:00 AM' },
+  { value: '07:00', label: '7:00 AM' },
+  { value: '08:00', label: '8:00 AM' },
+  { value: '09:00', label: '9:00 AM' },
+  { value: '10:00', label: '10:00 AM' },
+  { value: '11:00', label: '11:00 AM' },
+  { value: '12:00', label: '12:00 PM' },
+  { value: '13:00', label: '1:00 PM' },
+  { value: '14:00', label: '2:00 PM' },
+  { value: '15:00', label: '3:00 PM' },
+  { value: '16:00', label: '4:00 PM' },
+  { value: '17:00', label: '5:00 PM' },
+  { value: '18:00', label: '6:00 PM' },
 ]
 
 export default function NotificationsPage() {
@@ -56,10 +73,9 @@ export default function NotificationsPage() {
   const [clientSearch, setClientSearch] = useState('')
   const [showClientDropdown, setShowClientDropdown] = useState(false)
   const [notificationTime, setNotificationTime] = useState('08:00')
-  const [timezone, setTimezone] = useState('Africa/Harare')
+  const [timezone, setTimezone] = useState('GMT')
   const [isActive, setIsActive] = useState(true)
   const [emailEnabled, setEmailEnabled] = useState(true)
-  const [smsEnabled, setSmsEnabled] = useState(false)
 
   // Modals
   const deleteModal = useModal<NotificationSetting>()
@@ -70,10 +86,9 @@ export default function NotificationsPage() {
   const [editClientSearch, setEditClientSearch] = useState('')
   const [showEditClientDropdown, setShowEditClientDropdown] = useState(false)
   const [editNotificationTime, setEditNotificationTime] = useState('08:00')
-  const [editTimezone, setEditTimezone] = useState('Africa/Harare')
+  const [editTimezone, setEditTimezone] = useState('GMT')
   const [editIsActive, setEditIsActive] = useState(true)
   const [editEmailEnabled, setEditEmailEnabled] = useState(true)
-  const [editSmsEnabled, setEditSmsEnabled] = useState(false)
 
   useEffect(() => {
     fetchSettings()
@@ -147,10 +162,9 @@ export default function NotificationsPage() {
     setSelectedClientId('')
     setClientSearch('')
     setNotificationTime('08:00')
-    setTimezone('Africa/Harare')
+    setTimezone('GMT')
     setIsActive(true)
     setEmailEnabled(true)
-    setSmsEnabled(false)
   }
 
   const handleCreateSubmit = async () => {
@@ -166,7 +180,6 @@ export default function NotificationsPage() {
           timezone,
           isActive,
           emailEnabled,
-          smsEnabled,
         }),
       })
       if (res.ok) {
@@ -191,7 +204,6 @@ export default function NotificationsPage() {
     setEditTimezone(setting.timezone)
     setEditIsActive(setting.isActive)
     setEditEmailEnabled(setting.emailEnabled)
-    setEditSmsEnabled(setting.smsEnabled)
     editModal.open(setting)
   }
 
@@ -208,7 +220,6 @@ export default function NotificationsPage() {
           timezone: editTimezone,
           isActive: editIsActive,
           emailEnabled: editEmailEnabled,
-          smsEnabled: editSmsEnabled,
         }),
       })
       if (res.ok) {
@@ -293,21 +304,15 @@ export default function NotificationsPage() {
     },
     {
       id: 'channels',
-      header: 'Channels',
+      header: 'Channel',
       cell: ({ row }) => (
         <div className="flex items-center gap-2">
-          {row.original.emailEnabled && (
+          {row.original.emailEnabled ? (
             <Badge variant="outline" className="border-blue-200 bg-blue-50 text-blue-700 gap-1">
               <Mail className="h-3 w-3" /> Email
             </Badge>
-          )}
-          {row.original.smsEnabled && (
-            <Badge variant="outline" className="border-green-200 bg-green-50 text-green-700 gap-1">
-              <MessageSquare className="h-3 w-3" /> SMS
-            </Badge>
-          )}
-          {!row.original.emailEnabled && !row.original.smsEnabled && (
-            <span className="text-gray-400 text-sm">None</span>
+          ) : (
+            <span className="text-gray-400 text-sm">Disabled</span>
           )}
         </div>
       ),
@@ -542,15 +547,15 @@ export default function NotificationsPage() {
             <div className="grid grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label className="text-gray-700">Notification Time</Label>
-                <div className="relative">
-                  <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <Input
-                    type="time"
-                    value={notificationTime}
-                    onChange={(e) => setNotificationTime(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
+                <select
+                  value={notificationTime}
+                  onChange={(e) => setNotificationTime(e.target.value)}
+                  className="w-full h-10 rounded-md border border-gray-300 px-3 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                >
+                  {PRESET_TIMES.map((time) => (
+                    <option key={time.value} value={time.value}>{time.label}</option>
+                  ))}
+                </select>
                 <p className="text-xs text-gray-500">Time when notifications will be sent daily</p>
               </div>
 
@@ -568,30 +573,15 @@ export default function NotificationsPage() {
               </div>
             </div>
 
-            <div className="space-y-4">
-              <Label className="text-gray-700">Notification Channels</Label>
-              <div className="flex gap-6">
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id="emailEnabled"
-                    checked={emailEnabled}
-                    onCheckedChange={(c) => setEmailEnabled(!!c)}
-                  />
-                  <Label htmlFor="emailEnabled" className="text-sm cursor-pointer flex items-center gap-1">
-                    <Mail className="h-4 w-4 text-blue-500" /> Email Notifications
-                  </Label>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id="smsEnabled"
-                    checked={smsEnabled}
-                    onCheckedChange={(c) => setSmsEnabled(!!c)}
-                  />
-                  <Label htmlFor="smsEnabled" className="text-sm cursor-pointer flex items-center gap-1">
-                    <MessageSquare className="h-4 w-4 text-green-500" /> SMS Notifications
-                  </Label>
-                </div>
-              </div>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="emailEnabled"
+                checked={emailEnabled}
+                onCheckedChange={(c) => setEmailEnabled(!!c)}
+              />
+              <Label htmlFor="emailEnabled" className="text-sm cursor-pointer flex items-center gap-1">
+                <Mail className="h-4 w-4 text-blue-500" /> Enable Email Notifications
+              </Label>
             </div>
 
             <div className="flex items-center gap-2">
@@ -664,15 +654,15 @@ export default function NotificationsPage() {
           <div className="grid grid-cols-2 gap-6">
             <div className="space-y-2">
               <Label className="text-gray-700">Notification Time</Label>
-              <div className="relative">
-                <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <Input
-                  type="time"
-                  value={editNotificationTime}
-                  onChange={(e) => setEditNotificationTime(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
+              <select
+                value={editNotificationTime}
+                onChange={(e) => setEditNotificationTime(e.target.value)}
+                className="w-full h-10 rounded-md border border-gray-300 px-3 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+              >
+                {PRESET_TIMES.map((time) => (
+                  <option key={time.value} value={time.value}>{time.label}</option>
+                ))}
+              </select>
             </div>
 
             <div className="space-y-2">
@@ -689,30 +679,15 @@ export default function NotificationsPage() {
             </div>
           </div>
 
-          <div className="space-y-4">
-            <Label className="text-gray-700">Notification Channels</Label>
-            <div className="flex gap-6">
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="editEmailEnabled"
-                  checked={editEmailEnabled}
-                  onCheckedChange={(c) => setEditEmailEnabled(!!c)}
-                />
-                <Label htmlFor="editEmailEnabled" className="text-sm cursor-pointer flex items-center gap-1">
-                  <Mail className="h-4 w-4 text-blue-500" /> Email
-                </Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="editSmsEnabled"
-                  checked={editSmsEnabled}
-                  onCheckedChange={(c) => setEditSmsEnabled(!!c)}
-                />
-                <Label htmlFor="editSmsEnabled" className="text-sm cursor-pointer flex items-center gap-1">
-                  <MessageSquare className="h-4 w-4 text-green-500" /> SMS
-                </Label>
-              </div>
-            </div>
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="editEmailEnabled"
+              checked={editEmailEnabled}
+              onCheckedChange={(c) => setEditEmailEnabled(!!c)}
+            />
+            <Label htmlFor="editEmailEnabled" className="text-sm cursor-pointer flex items-center gap-1">
+              <Mail className="h-4 w-4 text-blue-500" /> Enable Email Notifications
+            </Label>
           </div>
 
           <div className="flex items-center gap-2">

@@ -711,10 +711,9 @@ model ClientNotificationSetting {
   clientId         String   @unique
   client           Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
   notificationTime String   // Time in HH:mm format (24-hour)
-  timezone         String   @default("Africa/Harare")
+  timezone         String   @default("GMT")
   isActive         Boolean  @default(true)
   emailEnabled     Boolean  @default(true)
-  smsEnabled       Boolean  @default(false)
   lastSentAt       DateTime?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt

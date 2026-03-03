@@ -31,7 +31,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { clientId, notificationTime, timezone, isActive, emailEnabled, smsEnabled } = body
+    const { clientId, notificationTime, timezone, isActive, emailEnabled } = body
 
     if (!clientId || !notificationTime) {
       return NextResponse.json(
@@ -61,10 +61,9 @@ export async function POST(request: NextRequest) {
       data: {
         clientId,
         notificationTime,
-        timezone: timezone || 'Africa/Harare',
+        timezone: timezone || 'GMT',
         isActive: isActive ?? true,
         emailEnabled: emailEnabled ?? true,
-        smsEnabled: smsEnabled ?? false,
       },
       include: {
         client: {
