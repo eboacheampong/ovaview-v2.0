@@ -27,6 +27,7 @@ import {
   Tag,
   Sparkles,
   Share2,
+  Bell,
 } from 'lucide-react'
 import { UserRole } from '@/types/user'
 
@@ -143,6 +144,13 @@ export const navigationSections: NavSection[] = [
           { label: 'Tender Industries', href: '/tenders/industries', icon: BookOpen, requiredRole: 'admin' },
           { label: 'Tender Types', href: '/tenders/types', icon: Layers, requiredRole: 'admin' },
           { label: 'Add Tender', href: '/tenders/add', icon: Plus, requiredRole: 'admin' },
+        ],
+      },
+      {
+        title: 'Notifications',
+        icon: Bell,
+        items: [
+          { label: 'Client Notifications', href: '/notifications', icon: Bell, requiredRole: 'admin' },
         ],
       },
     ],

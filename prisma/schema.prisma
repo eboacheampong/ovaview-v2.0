@@ -71,14 +71,15 @@ model Client {
   tenderSmsAlerts   Boolean @default(false)
   tenderKeywords    String?
 
-  users               User[]
-  industries          ClientIndustry[]
-  keywords            ClientKeyword[]
-  articleViewLogs     ArticleViewLog[]
-  competitors         ClientCompetitor[] @relation("ClientCompetitors")
-  competitorOf        ClientCompetitor[] @relation("CompetitorOf")
-  dailyInsights       DailyInsight[]
-  socialPosts         SocialPost[]
+  users                   User[]
+  industries              ClientIndustry[]
+  keywords                ClientKeyword[]
+  articleViewLogs         ArticleViewLog[]
+  competitors             ClientCompetitor[] @relation("ClientCompetitors")
+  competitorOf            ClientCompetitor[] @relation("CompetitorOf")
+  dailyInsights           DailyInsight[]
+  socialPosts             SocialPost[]
+  notificationSetting     ClientNotificationSetting?
 }
 
 // Competitor Tracking
@@ -702,4 +703,22 @@ model SystemSetting {
   value     String   @db.Text
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// Client Notification Settings
+model ClientNotificationSetting {
+  id               String   @id @default(cuid())
+  clientId         String   @unique
+  client           Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  notificationTime String   // Time in HH:mm format (24-hour)
+  timezone         String   @default("Africa/Harare")
+  isActive         Boolean  @default(true)
+  emailEnabled     Boolean  @default(true)
+  smsEnabled       Boolean  @default(false)
+  lastSentAt       DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([notificationTime])
+  @@index([isActive])
 }
