@@ -44,21 +44,14 @@ const TIMEZONES = [
   { value: 'UTC', label: 'UTC' },
 ]
 
-// Common notification times for quick selection
-const PRESET_TIMES = [
-  { value: '06:00', label: '6:00 AM' },
-  { value: '07:00', label: '7:00 AM' },
-  { value: '08:00', label: '8:00 AM' },
-  { value: '09:00', label: '9:00 AM' },
-  { value: '10:00', label: '10:00 AM' },
-  { value: '11:00', label: '11:00 AM' },
-  { value: '12:00', label: '12:00 PM' },
-  { value: '13:00', label: '1:00 PM' },
-  { value: '14:00', label: '2:00 PM' },
-  { value: '15:00', label: '3:00 PM' },
-  { value: '16:00', label: '4:00 PM' },
-  { value: '17:00', label: '5:00 PM' },
-  { value: '18:00', label: '6:00 PM' },
+// Quick preset times for easy selection
+const QUICK_TIMES = [
+  { value: '06:00', label: '6 AM' },
+  { value: '08:00', label: '8 AM' },
+  { value: '09:00', label: '9 AM' },
+  { value: '12:00', label: '12 PM' },
+  { value: '14:00', label: '2 PM' },
+  { value: '17:00', label: '5 PM' },
 ]
 
 export default function NotificationsPage() {
@@ -547,16 +540,31 @@ export default function NotificationsPage() {
             <div className="grid grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label className="text-gray-700">Notification Time</Label>
-                <select
-                  value={notificationTime}
-                  onChange={(e) => setNotificationTime(e.target.value)}
-                  className="w-full h-10 rounded-md border border-gray-300 px-3 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                >
-                  {PRESET_TIMES.map((time) => (
-                    <option key={time.value} value={time.value}>{time.label}</option>
+                <div className="relative">
+                  <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    type="time"
+                    value={notificationTime}
+                    onChange={(e) => setNotificationTime(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {QUICK_TIMES.map((time) => (
+                    <button
+                      key={time.value}
+                      type="button"
+                      onClick={() => setNotificationTime(time.value)}
+                      className={`px-2.5 py-1 text-xs rounded-full border transition-colors ${
+                        notificationTime === time.value
+                          ? 'bg-orange-100 border-orange-300 text-orange-700'
+                          : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
+                      }`}
+                    >
+                      {time.label}
+                    </button>
                   ))}
-                </select>
-                <p className="text-xs text-gray-500">Time when notifications will be sent daily</p>
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -654,15 +662,31 @@ export default function NotificationsPage() {
           <div className="grid grid-cols-2 gap-6">
             <div className="space-y-2">
               <Label className="text-gray-700">Notification Time</Label>
-              <select
-                value={editNotificationTime}
-                onChange={(e) => setEditNotificationTime(e.target.value)}
-                className="w-full h-10 rounded-md border border-gray-300 px-3 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-              >
-                {PRESET_TIMES.map((time) => (
-                  <option key={time.value} value={time.value}>{time.label}</option>
+              <div className="relative">
+                <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  type="time"
+                  value={editNotificationTime}
+                  onChange={(e) => setEditNotificationTime(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {QUICK_TIMES.map((time) => (
+                  <button
+                    key={time.value}
+                    type="button"
+                    onClick={() => setEditNotificationTime(time.value)}
+                    className={`px-2.5 py-1 text-xs rounded-full border transition-colors ${
+                      editNotificationTime === time.value
+                        ? 'bg-orange-100 border-orange-300 text-orange-700'
+                        : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
+                    }`}
+                  >
+                    {time.label}
+                  </button>
                 ))}
-              </select>
+              </div>
             </div>
 
             <div className="space-y-2">
