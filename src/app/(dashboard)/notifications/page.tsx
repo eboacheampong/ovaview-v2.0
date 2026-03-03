@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import { ConfirmDialog, FormModal } from '@/components/modals'
 import { useModal } from '@/hooks/use-modal'
-import { Trash2, Pencil, Bell, Clock, Mail, Loader2, Search, X, Check, ChevronsUpDown } from 'lucide-react'
+import { Trash2, Pencil, Bell, Clock, Mail, Loader2, Search, X, Check, ChevronsUpDown, Send } from 'lucide-react'
 import { format } from 'date-fns'
 
 interface Client {
@@ -73,6 +73,7 @@ export default function NotificationsPage() {
   // Modals
   const deleteModal = useModal<NotificationSetting>()
   const editModal = useModal<NotificationSetting>()
+  const [sendingId, setSendingId] = useState<string | null>(null)
 
   // Edit form state
   const [editClientId, setEditClientId] = useState('')
@@ -260,6 +261,31 @@ export default function NotificationsPage() {
     }
   }
 
+  const handleSendNow = async (setting: NotificationSetting) => {
+    setSendingId(setting.id)
+    try {
+      const res = await fetch(`/api/notification-settings/${setting.id}/send`, {
+        method: 'POST',
+      })
+      if (res.ok) {
+        // Update lastSentAt in the UI
+        const now = new Date().toISOString()
+        setSettings(settings.map(s => 
+          s.id === setting.id ? { ...s, lastSentAt: now } : s
+        ))
+        alert(`Notification sent successfully to ${setting.client.name}`)
+      } else {
+        const error = await res.json()
+        alert(error.error || 'Failed to send notification')
+      }
+    } catch (err) {
+      console.error('Failed to send notification:', err)
+      alert('Failed to send notification')
+    } finally {
+      setSendingId(null)
+    }
+  }
+
   const columns: ColumnDef<NotificationSetting>[] = [
     {
       accessorKey: 'client.name',
@@ -350,12 +376,27 @@ export default function NotificationsPage() {
       id: 'actions',
       header: 'Actions',
       cell: ({ row }) => (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => handleSendNow(row.original)}
+            disabled={sendingId === row.original.id}
+            className="text-green-500 hover:text-green-700 hover:bg-green-50"
+            title="Send notification now"
+          >
+            {sendingId === row.original.id ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Send className="h-4 w-4" />
+            )}
+          </Button>
           <Button
             variant="ghost"
             size="sm"
             onClick={() => handleEditOpen(row.original)}
             className="text-blue-500 hover:text-blue-700 hover:bg-blue-50"
+            title="Edit"
           >
             <Pencil className="h-4 w-4" />
           </Button>
@@ -364,6 +405,7 @@ export default function NotificationsPage() {
             size="sm"
             onClick={() => deleteModal.open(row.original)}
             className="text-red-500 hover:text-red-700 hover:bg-red-50"
+            title="Delete"
           >
             <Trash2 className="h-4 w-4" />
           </Button>
