@@ -164,9 +164,9 @@ function generateEmailHtml(data: EmailTemplateData): string {
               </td>
               `}
               <td style="vertical-align: top; padding: 14px 16px;">
-                <div style="margin-bottom: 6px;">
+                <div style="margin-bottom: 6px; display: flex; align-items: center; gap: 8px;">
                   <span style="background: #fff7ed; color: #f97316; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 3px; text-transform: uppercase; border: 1px solid #fed7aa;">${getMediaTypeLabel(item.type)}</span>
-                  <span style="margin-left: 6px;">${getSentimentDot(item.sentiment)}</span>
+                  ${getSentimentDot(item.sentiment)}
                 </div>
                 <div style="color: #0f172a; font-weight: 700; font-size: 15px; line-height: 1.35; margin-bottom: 6px;">
                   ${item.title.length > 80 ? item.title.substring(0, 80) + '...' : item.title}
@@ -206,7 +206,7 @@ function generateEmailHtml(data: EmailTemplateData): string {
       .mobile-pad { padding-left: 12px !important; padding-right: 12px !important; }
       .card-image { width: 90px !important; min-width: 90px !important; }
       .card-image img, .card-image div { width: 90px !important; height: 90px !important; }
-      .card-summary { font-size: 12px !important; }
+      .card-summary { display: none !important; }
       .hero-title { font-size: 20px !important; }
       .stat-cell { padding: 2px !important; }
       .stat-inner { padding: 6px 2px !important; }
