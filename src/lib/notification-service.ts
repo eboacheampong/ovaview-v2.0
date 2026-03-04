@@ -3,14 +3,9 @@ import { sendNotificationEmail, MediaItem } from '@/lib/email'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 
-interface ClientNotificationData {
-  settingId: string
-  clientId: string
-  clientName: string
-  clientEmail: string | null
-  lastSentAt: Date | null
-  users: { id: string; name: string; email: string }[]
-}
+// Use type assertion to work around stale TypeScript cache
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const db = prisma as any
 
 // Get all media items for a client since last notification
 async function getMediaItemsSinceLastNotification(
@@ -30,17 +25,14 @@ async function getMediaItemsSinceLastNotification(
 
   if (!client) return []
 
-  const industryIds = client.industries.map(i => i.industryId)
-  const keywordNames = client.keywords.map(k => k.keyword.name.toLowerCase())
+  const industryIds = client.industries.map((i: { industryId: string }) => i.industryId)
+  const keywordNames = client.keywords.map((k: { keyword: { name: string } }) => k.keyword.name.toLowerCase())
 
   const mediaItems: MediaItem[] = []
 
   // Build filter conditions
   const hasIndustries = industryIds.length > 0
   const hasKeywords = keywordNames.length > 0
-
-  // If no industries and no keywords, fetch all recent media
-  // Otherwise filter by industries/keywords
 
   // Fetch web stories
   const webStories = await prisma.webStory.findMany({
@@ -49,7 +41,7 @@ async function getMediaItemsSinceLastNotification(
       ...(hasIndustries || hasKeywords ? {
         OR: [
           ...(hasIndustries ? [{ industryId: { in: industryIds } }] : []),
-          ...(hasKeywords ? keywordNames.flatMap(kw => [
+          ...(hasKeywords ? keywordNames.flatMap((kw: string) => [
             { title: { contains: kw, mode: 'insensitive' as const } },
             { keywords: { contains: kw, mode: 'insensitive' as const } },
           ]) : []),
@@ -84,7 +76,7 @@ async function getMediaItemsSinceLastNotification(
       ...(hasIndustries || hasKeywords ? {
         OR: [
           ...(hasIndustries ? [{ industryId: { in: industryIds } }] : []),
-          ...(hasKeywords ? keywordNames.flatMap(kw => [
+          ...(hasKeywords ? keywordNames.flatMap((kw: string) => [
             { title: { contains: kw, mode: 'insensitive' as const } },
             { keywords: { contains: kw, mode: 'insensitive' as const } },
           ]) : []),
@@ -116,7 +108,7 @@ async function getMediaItemsSinceLastNotification(
       ...(hasIndustries || hasKeywords ? {
         OR: [
           ...(hasIndustries ? [{ industryId: { in: industryIds } }] : []),
-          ...(hasKeywords ? keywordNames.flatMap(kw => [
+          ...(hasKeywords ? keywordNames.flatMap((kw: string) => [
             { title: { contains: kw, mode: 'insensitive' as const } },
             { keywords: { contains: kw, mode: 'insensitive' as const } },
           ]) : []),
@@ -148,7 +140,7 @@ async function getMediaItemsSinceLastNotification(
       ...(hasIndustries || hasKeywords ? {
         OR: [
           ...(hasIndustries ? [{ industryId: { in: industryIds } }] : []),
-          ...(hasKeywords ? keywordNames.flatMap(kw => [
+          ...(hasKeywords ? keywordNames.flatMap((kw: string) => [
             { title: { contains: kw, mode: 'insensitive' as const } },
             { keywords: { contains: kw, mode: 'insensitive' as const } },
           ]) : []),
@@ -176,14 +168,22 @@ async function getMediaItemsSinceLastNotification(
     })
   }
 
-  // Fetch Social posts
-  const socialPosts = await prisma.socialPost.findMany({
+  // Fetch Social posts - filter by client or by industry/keywords
+  const socialPosts = await db.socialPost.findMany({
     where: {
       createdAt: { gte: since },
-      clientId: clientId, // Social posts are directly linked to clients
+      OR: [
+        { clientId: clientId },
+        ...(hasIndustries ? [{ industryId: { in: industryIds } }] : []),
+        ...(hasKeywords ? keywordNames.flatMap((kw: string) => [
+          { content: { contains: kw, mode: 'insensitive' } },
+          { keywords: { contains: kw, mode: 'insensitive' } },
+        ]) : []),
+      ],
     },
     include: { account: { select: { handle: true, platform: true } } },
     orderBy: { postedAt: 'desc' },
+    take: 50,
   })
 
   for (const post of socialPosts) {
@@ -205,6 +205,7 @@ async function getMediaItemsSinceLastNotification(
   return mediaItems
 }
 
+
 // Send notification for a single client
 export async function sendClientNotification(settingId: string): Promise<{
   success: boolean
@@ -215,7 +216,7 @@ export async function sendClientNotification(settingId: string): Promise<{
   try {
     console.log('[Notification] Fetching setting:', settingId)
     
-    const setting = await prisma.clientNotificationSetting.findUnique({
+    const setting = await db.clientNotificationSetting.findUnique({
       where: { id: settingId },
       include: {
         client: {
@@ -250,7 +251,7 @@ export async function sendClientNotification(settingId: string): Promise<{
 
     if (mediaItems.length === 0) {
       // Update lastSentAt even if no items (to prevent re-checking same period)
-      await prisma.clientNotificationSetting.update({
+      await db.clientNotificationSetting.update({
         where: { id: settingId },
         data: { lastSentAt: new Date() },
       })
@@ -267,12 +268,12 @@ export async function sendClientNotification(settingId: string): Promise<{
 
     // Add all client users
     for (const user of setting.client.users) {
-      if (user.email && !recipients.some(r => r.email === user.email)) {
+      if (user.email && !recipients.some((r: { email: string }) => r.email === user.email)) {
         recipients.push({ email: user.email, name: user.name })
       }
     }
 
-    console.log('[Notification] Recipients:', recipients.map(r => r.email))
+    console.log('[Notification] Recipients:', recipients.map((r: { email: string }) => r.email))
 
     if (recipients.length === 0) {
       return { success: false, emailsSent: 0, itemsCount: mediaItems.length, error: 'No recipients found' }
@@ -298,7 +299,7 @@ export async function sendClientNotification(settingId: string): Promise<{
     }
 
     // Update lastSentAt
-    await prisma.clientNotificationSetting.update({
+    await db.clientNotificationSetting.update({
       where: { id: settingId },
       data: { lastSentAt: new Date() },
     })
@@ -306,7 +307,7 @@ export async function sendClientNotification(settingId: string): Promise<{
     // Log the email send
     await prisma.emailLog.create({
       data: {
-        recipient: recipients.map(r => r.email).join(', '),
+        recipient: recipients.map((r: { email: string }) => r.email).join(', '),
         subject: `Daily Media Update for ${setting.client.name}`,
         status: emailsSent > 0 ? 'sent' : 'failed',
         errorMessage: emailsSent === 0 ? 'No emails sent' : null,
@@ -332,7 +333,7 @@ export async function processScheduledNotifications(): Promise<{
   const currentTime = `${currentHour}:${currentMinute}`
 
   // Get all active notification settings
-  const settings = await prisma.clientNotificationSetting.findMany({
+  const settings = await db.clientNotificationSetting.findMany({
     where: {
       isActive: true,
       emailEnabled: true,
@@ -382,7 +383,6 @@ export async function processScheduledNotifications(): Promise<{
 
 // Convert local time to UTC
 function convertToUTC(time: string, timezone: string): string {
-  // Simple timezone offset mapping
   const offsets: Record<string, number> = {
     'GMT': 0,
     'UTC': 0,

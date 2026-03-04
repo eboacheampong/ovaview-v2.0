@@ -1,6 +1,12 @@
 import { Resend } from 'resend'
 
+// Initialize Resend with API key
 const resend = new Resend(process.env.RESEND_API_KEY)
+
+// Log if API key is missing
+if (!process.env.RESEND_API_KEY) {
+  console.warn('[Email] RESEND_API_KEY is not set - emails will fail')
+}
 
 export interface MediaItem {
   id: string
@@ -22,13 +28,20 @@ export interface NotificationEmailData {
   maxItemsToShow?: number
 }
 
-const FROM_EMAIL = process.env.EMAIL_FROM || 'Ovaview <notifications@ovaview.com>'
+// For Resend free tier, use onboarding@resend.dev or a verified domain
+// EMAIL_FROM should be either 'onboarding@resend.dev' for testing or 'name@your-verified-domain.com'
+const FROM_EMAIL = process.env.EMAIL_FROM || 'Ovaview <onboarding@resend.dev>'
 const MAX_ITEMS_DEFAULT = 10
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 const LOGO_URL = `${APP_URL}/Ovaview-Media-Monitoring-Logo.png`
 
 export async function sendNotificationEmail(data: NotificationEmailData) {
   const { clientName, recipientEmail, recipientName, mediaItems, dashboardUrl, maxItemsToShow = MAX_ITEMS_DEFAULT } = data
+  
+  console.log('[Email] Preparing to send notification email')
+  console.log('[Email] From:', FROM_EMAIL)
+  console.log('[Email] To:', recipientEmail)
+  console.log('[Email] Items count:', mediaItems.length)
   
   const displayItems = mediaItems.slice(0, maxItemsToShow)
   const hasMore = mediaItems.length > maxItemsToShow
@@ -54,19 +67,27 @@ export async function sendNotificationEmail(data: NotificationEmailData) {
     dashboardUrl,
   })
 
-  const { data: result, error } = await resend.emails.send({
-    from: FROM_EMAIL,
-    to: recipientEmail,
-    subject: `📰 Daily Media Update for ${clientName} - ${mediaItems.length} new ${mediaItems.length === 1 ? 'item' : 'items'}`,
-    html,
-  })
+  console.log('[Email] Sending via Resend...')
+  
+  try {
+    const { data: result, error } = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: recipientEmail,
+      subject: `📰 Daily Media Update for ${clientName} - ${mediaItems.length} new ${mediaItems.length === 1 ? 'item' : 'items'}`,
+      html,
+    })
 
-  if (error) {
-    console.error('Failed to send email:', error)
-    throw new Error(`Failed to send email: ${error.message}`)
+    if (error) {
+      console.error('[Email] Resend error:', error)
+      throw new Error(`Failed to send email: ${error.message}`)
+    }
+
+    console.log('[Email] Successfully sent! ID:', result?.id)
+    return result
+  } catch (err) {
+    console.error('[Email] Exception while sending:', err)
+    throw err
   }
-
-  return result
 }
 
 function getMediaTypeLabel(type: string): string {
