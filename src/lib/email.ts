@@ -155,13 +155,13 @@ function generateEmailHtml(data: EmailTemplateData): string {
           <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
             <tr>
               ${item.imageUrl ? `
-              <td class="card-image" width="120" style="width: 120px; min-width: 120px; background: url('${item.imageUrl}') center/cover no-repeat #f1f5f9;">
-                <!--[if gte mso 9]><img src="${item.imageUrl}" alt="" width="120" style="display:block;width:120px;" /><![endif]-->
-                <div style="width: 120px; font-size: 0; line-height: 0;">&nbsp;</div>
+              <td class="card-image" width="150" style="width: 150px; min-width: 150px; background: url('${item.imageUrl}') center/cover no-repeat #f1f5f9;">
+                <!--[if gte mso 9]><img src="${item.imageUrl}" alt="" width="150" style="display:block;width:150px;" /><![endif]-->
+                <div style="width: 150px; font-size: 0; line-height: 0;">&nbsp;</div>
               </td>
               ` : `
-              <td class="card-image" width="120" style="width: 120px; min-width: 120px; background: #f1f5f9;">
-                <div style="width: 120px; font-size: 0; line-height: 0;">&nbsp;</div>
+              <td class="card-image" width="150" style="width: 150px; min-width: 150px; background: #f1f5f9;">
+                <div style="width: 150px; font-size: 0; line-height: 0;">&nbsp;</div>
               </td>
               `}
               <td style="vertical-align: top; padding: 14px 16px;">
@@ -211,8 +211,8 @@ function generateEmailHtml(data: EmailTemplateData): string {
     @media only screen and (max-width: 620px) {
       .email-container { width: 100% !important; }
       .mobile-pad { padding-left: 12px !important; padding-right: 12px !important; }
-      .card-image { width: 90px !important; min-width: 90px !important; }
-      .card-image img, .card-image div { width: 90px !important; height: 90px !important; }
+      .card-image { width: 110px !important; min-width: 110px !important; }
+      .card-image img, .card-image div { width: 110px !important; }
       .card-summary { display: none !important; }
       .hero-title { font-size: 20px !important; }
       .stat-cell { padding: 2px !important; }
