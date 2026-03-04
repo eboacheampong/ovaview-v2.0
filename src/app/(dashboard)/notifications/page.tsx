@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import { ConfirmDialog, FormModal } from '@/components/modals'
 import { useModal } from '@/hooks/use-modal'
-import { Trash2, Pencil, Bell, Clock, Mail, Loader2, Search, X, Check, ChevronsUpDown, Send } from 'lucide-react'
+import { Trash2, Pencil, Bell, Clock, Mail, Loader2, Search, X, Check, ChevronsUpDown, Send, BarChart3, Brain, Calendar, FileText } from 'lucide-react'
 import { format } from 'date-fns'
 
 interface Client {
@@ -75,7 +75,7 @@ export default function NotificationsPage() {
   const editModal = useModal<NotificationSetting>()
   const sendModal = useModal<NotificationSetting>()
   const [sendingId, setSendingId] = useState<string | null>(null)
-  const [sendMode, setSendMode] = useState<'since_last' | 'last_24h'>('since_last')
+  const [sendMode, setSendMode] = useState<'since_last' | 'last_24h' | 'weekly_report' | 'monthly_report'>('since_last')
 
   // Edit form state
   const [editClientId, setEditClientId] = useState('')
@@ -276,6 +276,25 @@ export default function NotificationsPage() {
     sendModal.close()
     
     try {
+      // Handle report types differently
+      if (sendMode === 'weekly_report' || sendMode === 'monthly_report') {
+        const reportType = sendMode === 'weekly_report' ? 'weekly' : 'monthly'
+        const res = await fetch(`/api/notification-settings/${setting.id}/send-report`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reportType }),
+        })
+        const data = await res.json()
+
+        if (data.success && data.emailsSent > 0) {
+          alert(`${reportType === 'weekly' ? 'Weekly' : 'Monthly AI Insights'} report sent to ${data.emailsSent} recipient(s) for ${setting.client.name}`)
+        } else {
+          alert(`Failed to send ${reportType} report: ${data.error || 'Unknown error'}`)
+        }
+        return
+      }
+
+      // Standard notification send
       const res = await fetch(`/api/notification-settings/${setting.id}/send`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -803,71 +822,131 @@ export default function NotificationsPage() {
         icon={<Send className="h-6 w-6" />}
         onSubmit={handleSendNow}
         isSubmitting={sendingId === sendModal.data?.id}
-        submitLabel="Send Now"
-        size="md"
+        submitLabel={sendMode === 'weekly_report' ? 'Generate & Send Weekly Report' : sendMode === 'monthly_report' ? 'Generate & Send Monthly Report' : 'Send Now'}
+        size="lg"
       >
         <div className="space-y-4">
           <p className="text-sm text-gray-600">
-            Choose which media updates to include in this notification:
+            Choose what to send to {sendModal.data?.client.name}:
           </p>
-          
-          <div className="space-y-3">
-            <label 
-              className={`flex items-start gap-3 p-4 rounded-lg border cursor-pointer transition-colors ${
-                sendMode === 'since_last' 
-                  ? 'border-orange-300 bg-orange-50' 
-                  : 'border-gray-200 hover:border-gray-300'
-              }`}
-              onClick={() => setSendMode('since_last')}
-            >
-              <input
-                type="radio"
-                name="sendMode"
-                checked={sendMode === 'since_last'}
-                onChange={() => setSendMode('since_last')}
-                className="mt-1 accent-orange-500"
-              />
-              <div>
-                <p className="font-medium text-gray-900">Since last notification</p>
-                <p className="text-sm text-gray-500">
-                  Send all media items since the last notification was sent
-                  {sendModal.data?.lastSentAt && (
-                    <span className="block mt-1 text-xs text-gray-400">
-                      Last sent: {format(new Date(sendModal.data.lastSentAt), 'MMM d, yyyy HH:mm')}
-                    </span>
-                  )}
-                  {!sendModal.data?.lastSentAt && (
-                    <span className="block mt-1 text-xs text-gray-400">
-                      Never sent before - will include last 24 hours
-                    </span>
-                  )}
-                </p>
-              </div>
-            </label>
 
-            <label 
-              className={`flex items-start gap-3 p-4 rounded-lg border cursor-pointer transition-colors ${
-                sendMode === 'last_24h' 
-                  ? 'border-orange-300 bg-orange-50' 
-                  : 'border-gray-200 hover:border-gray-300'
-              }`}
-              onClick={() => setSendMode('last_24h')}
-            >
-              <input
-                type="radio"
-                name="sendMode"
-                checked={sendMode === 'last_24h'}
-                onChange={() => setSendMode('last_24h')}
-                className="mt-1 accent-orange-500"
-              />
-              <div>
-                <p className="font-medium text-gray-900">Last 24 hours</p>
-                <p className="text-sm text-gray-500">
-                  Send all media items from the past 24 hours regardless of last notification
-                </p>
-              </div>
-            </label>
+          {/* Section: Daily Updates */}
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <FileText className="h-4 w-4 text-gray-400" />
+              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Daily Media Updates</span>
+            </div>
+            <div className="space-y-2">
+              <label 
+                className={`flex items-start gap-3 p-3.5 rounded-lg border cursor-pointer transition-all ${
+                  sendMode === 'since_last' 
+                    ? 'border-orange-300 bg-orange-50 shadow-sm' 
+                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                }`}
+                onClick={() => setSendMode('since_last')}
+              >
+                <input type="radio" name="sendMode" checked={sendMode === 'since_last'} onChange={() => setSendMode('since_last')} className="mt-0.5 accent-orange-500" />
+                <div>
+                  <p className="font-medium text-gray-900 text-sm">Since last notification</p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    All media items since the last notification
+                    {sendModal.data?.lastSentAt && (
+                      <span className="block mt-0.5 text-gray-400">
+                        Last sent: {format(new Date(sendModal.data.lastSentAt), 'MMM d, yyyy HH:mm')}
+                      </span>
+                    )}
+                    {!sendModal.data?.lastSentAt && (
+                      <span className="block mt-0.5 text-gray-400">Never sent – will include last 24 hours</span>
+                    )}
+                  </p>
+                </div>
+              </label>
+
+              <label 
+                className={`flex items-start gap-3 p-3.5 rounded-lg border cursor-pointer transition-all ${
+                  sendMode === 'last_24h' 
+                    ? 'border-orange-300 bg-orange-50 shadow-sm' 
+                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                }`}
+                onClick={() => setSendMode('last_24h')}
+              >
+                <input type="radio" name="sendMode" checked={sendMode === 'last_24h'} onChange={() => setSendMode('last_24h')} className="mt-0.5 accent-orange-500" />
+                <div>
+                  <p className="font-medium text-gray-900 text-sm">Last 24 hours</p>
+                  <p className="text-xs text-gray-500 mt-0.5">All media items from the past 24 hours</p>
+                </div>
+              </label>
+            </div>
           </div>
+
+          {/* Divider */}
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200"></div></div>
+            <div className="relative flex justify-center"><span className="bg-white px-3 text-xs text-gray-400 uppercase tracking-wide">AI-Powered Reports</span></div>
+          </div>
+
+          {/* Section: AI Reports */}
+          <div>
+            <div className="space-y-2">
+              <label 
+                className={`flex items-start gap-3 p-3.5 rounded-lg border cursor-pointer transition-all ${
+                  sendMode === 'weekly_report' 
+                    ? 'border-blue-300 bg-blue-50 shadow-sm' 
+                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                }`}
+                onClick={() => setSendMode('weekly_report')}
+              >
+                <input type="radio" name="sendMode" checked={sendMode === 'weekly_report'} onChange={() => setSendMode('weekly_report')} className="mt-0.5 accent-blue-500" />
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <BarChart3 className="h-4 w-4 text-blue-500" />
+                    <p className="font-medium text-gray-900 text-sm">Weekly Report</p>
+                    <span className="text-[10px] font-semibold bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">AI</span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    AI-generated weekly summary with mentions, reach, sentiment analysis, top sources, and key highlights from the past 7 days.
+                  </p>
+                  <p className="text-[10px] text-gray-400 mt-1 flex items-center gap-1">
+                    <Calendar className="h-3 w-3" /> Auto-sent every Sunday at 6 PM
+                  </p>
+                </div>
+              </label>
+
+              <label 
+                className={`flex items-start gap-3 p-3.5 rounded-lg border cursor-pointer transition-all ${
+                  sendMode === 'monthly_report' 
+                    ? 'border-purple-300 bg-purple-50 shadow-sm' 
+                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                }`}
+                onClick={() => setSendMode('monthly_report')}
+              >
+                <input type="radio" name="sendMode" checked={sendMode === 'monthly_report'} onChange={() => setSendMode('monthly_report')} className="mt-0.5 accent-purple-500" />
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <Brain className="h-4 w-4 text-purple-500" />
+                    <p className="font-medium text-gray-900 text-sm">Monthly AI Insights</p>
+                    <span className="text-[10px] font-semibold bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">AI</span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Comprehensive AI analysis with deep insights, month-over-month trends, sentiment breakdown, and strategic recommendations.
+                  </p>
+                  <p className="text-[10px] text-gray-400 mt-1 flex items-center gap-1">
+                    <Calendar className="h-3 w-3" /> Auto-sent on the 1st of each month at 6 PM
+                  </p>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          {/* Warning for AI reports */}
+          {(sendMode === 'weekly_report' || sendMode === 'monthly_report') && (
+            <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200">
+              <Brain className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+              <p className="text-xs text-amber-700">
+                This will use AI to analyze media data and generate insights. The report may take 15-30 seconds to generate.
+              </p>
+            </div>
+          )}
         </div>
       </FormModal>
     </div>
