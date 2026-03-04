@@ -76,6 +76,7 @@ async function getMediaItemsForClient(
       internalUrl: `${APP_URL}/media/web/${story.slug}`,
       imageUrl: story.images[0]?.url || null,
       publication: story.publication?.name,
+      sentiment: story.overallSentiment,
     })
   }
 
@@ -109,6 +110,7 @@ async function getMediaItemsForClient(
       internalUrl: `${APP_URL}/media/tv/${story.slug}`,
       imageUrl: null,
       publication: story.station?.name,
+      sentiment: story.overallSentiment,
     })
   }
 
@@ -142,6 +144,7 @@ async function getMediaItemsForClient(
       internalUrl: `${APP_URL}/media/radio/${story.slug}`,
       imageUrl: null,
       publication: story.station?.name,
+      sentiment: story.overallSentiment,
     })
   }
 
@@ -178,6 +181,7 @@ async function getMediaItemsForClient(
       internalUrl: `${APP_URL}/media/print/${story.slug}`,
       imageUrl: story.images[0]?.url || null,
       publication: story.publication?.name,
+      sentiment: story.overallSentiment,
     })
   }
 
@@ -210,6 +214,7 @@ async function getMediaItemsForClient(
       internalUrl: `${APP_URL}/media/social/${post.id}`,
       imageUrl: post.mediaUrls?.[0] || null,
       publication: post.account ? `@${post.account.handle}` : post.authorHandle,
+      sentiment: post.overallSentiment,
     })
   }
 

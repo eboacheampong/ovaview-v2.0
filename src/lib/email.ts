@@ -18,6 +18,7 @@ export interface MediaItem {
   internalUrl?: string | null
   imageUrl?: string | null
   publication?: string | null
+  sentiment?: string | null
 }
 
 export interface NotificationEmailData {
@@ -121,6 +122,14 @@ function formatDate(): string {
   }).toUpperCase()
 }
 
+function getSentimentDot(sentiment?: string | null): string {
+  if (!sentiment) return '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#9ca3af;vertical-align:middle;"></span>'
+  const s = sentiment.toLowerCase()
+  if (s === 'positive') return '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#22c55e;vertical-align:middle;"></span>'
+  if (s === 'negative') return '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#ef4444;vertical-align:middle;"></span>'
+  return '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#9ca3af;vertical-align:middle;"></span>'
+}
+
 interface EmailTemplateData {
   clientName: string
   recipientName?: string
@@ -146,16 +155,21 @@ function generateEmailHtml(data: EmailTemplateData): string {
           <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
             <tr>
               ${item.imageUrl ? `
-              <td class="card-image" width="110" style="vertical-align: top; width: 110px; min-width: 110px;">
-                <img src="${item.imageUrl}" alt="" width="110" style="display: block; width: 110px; height: auto; min-height: 100px; object-fit: cover;" />
+              <td class="card-image" width="120" style="vertical-align: top; width: 120px; min-width: 120px;">
+                <img src="${item.imageUrl}" alt="" width="120" height="120" style="display: block; width: 120px; height: 120px; object-fit: cover;" />
               </td>
-              ` : ''}
+              ` : `
+              <td class="card-image" width="120" style="vertical-align: top; background: #f1f5f9; width: 120px; min-width: 120px;">
+                <div style="width: 120px; height: 120px;"></div>
+              </td>
+              `}
               <td style="vertical-align: top; padding: 14px 16px;">
                 <div style="margin-bottom: 6px;">
                   <span style="background: #fff7ed; color: #f97316; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 3px; text-transform: uppercase; border: 1px solid #fed7aa;">${getMediaTypeLabel(item.type)}</span>
+                  <span style="margin-left: 6px;">${getSentimentDot(item.sentiment)}</span>
                 </div>
                 <div style="color: #0f172a; font-weight: 700; font-size: 15px; line-height: 1.35; margin-bottom: 6px;">
-                  ${item.title.length > 90 ? item.title.substring(0, 90) + '...' : item.title}
+                  ${item.title.length > 80 ? item.title.substring(0, 80) + '...' : item.title}
                 </div>
                 ${item.summary ? `<div class="card-summary" style="color: #64748b; font-size: 13px; line-height: 1.45; margin-bottom: 8px;">${item.summary.substring(0, 120)}${item.summary.length > 120 ? '...' : ''}</div>` : ''}
                 <div style="color: #94a3b8; font-size: 11px;">
@@ -190,11 +204,15 @@ function generateEmailHtml(data: EmailTemplateData): string {
     @media only screen and (max-width: 620px) {
       .email-container { width: 100% !important; }
       .mobile-pad { padding-left: 12px !important; padding-right: 12px !important; }
-      .stats-row td { display: inline-block !important; width: 30% !important; margin-bottom: 6px !important; }
       .card-image { width: 90px !important; min-width: 90px !important; }
-      .card-image img { width: 90px !important; min-height: 90px !important; }
-      .card-summary { font-size: 12px !important; -webkit-line-clamp: 2; display: -webkit-box !important; -webkit-box-orient: vertical; overflow: hidden; }
+      .card-image img, .card-image div { width: 90px !important; height: 90px !important; }
+      .card-summary { font-size: 12px !important; }
       .hero-title { font-size: 20px !important; }
+      .stat-cell { padding: 2px !important; }
+      .stat-inner { padding: 6px 2px !important; }
+      .stat-icon { font-size: 14px !important; }
+      .stat-num { font-size: 14px !important; }
+      .stat-label { font-size: 8px !important; }
     }
   </style>
 </head>
@@ -236,40 +254,40 @@ function generateEmailHtml(data: EmailTemplateData): string {
           <tr>
             <td class="mobile-pad" style="padding: 0 24px 20px 24px;">
               <table width="100%" cellpadding="0" cellspacing="0" border="0">
-                <tr class="stats-row">
-                  <td width="20%" align="center" style="padding: 3px;">
-                    <table cellpadding="0" cellspacing="0" border="0" style="background: #f8f7f5; border: 1px solid #e2e8f0; border-radius: 8px; width: 100%;"><tr><td align="center" style="padding: 10px 6px;">
-                      <div style="font-size: 18px; margin-bottom: 2px;">🌐</div>
-                      <div style="font-size: 16px; font-weight: 700; color: #0f172a;">${counts.web}</div>
-                      <div style="font-size: 9px; font-weight: 600; color: #94a3b8; text-transform: uppercase;">Web</div>
+                <tr>
+                  <td class="stat-cell" width="20%" align="center" style="padding: 3px;">
+                    <table cellpadding="0" cellspacing="0" border="0" style="background: #f8f7f5; border: 1px solid #e2e8f0; border-radius: 8px; width: 100%;"><tr><td class="stat-inner" align="center" style="padding: 10px 4px;">
+                      <div class="stat-icon" style="font-size: 18px; margin-bottom: 2px;">🌐</div>
+                      <div class="stat-num" style="font-size: 16px; font-weight: 700; color: #0f172a;">${counts.web}</div>
+                      <div class="stat-label" style="font-size: 9px; font-weight: 600; color: #94a3b8; text-transform: uppercase;">Web</div>
                     </td></tr></table>
                   </td>
-                  <td width="20%" align="center" style="padding: 3px;">
-                    <table cellpadding="0" cellspacing="0" border="0" style="background: #f8f7f5; border: 1px solid #e2e8f0; border-radius: 8px; width: 100%;"><tr><td align="center" style="padding: 10px 6px;">
-                      <div style="font-size: 18px; margin-bottom: 2px;">📺</div>
-                      <div style="font-size: 16px; font-weight: 700; color: #0f172a;">${counts.tv}</div>
-                      <div style="font-size: 9px; font-weight: 600; color: #94a3b8; text-transform: uppercase;">TV</div>
+                  <td class="stat-cell" width="20%" align="center" style="padding: 3px;">
+                    <table cellpadding="0" cellspacing="0" border="0" style="background: #f8f7f5; border: 1px solid #e2e8f0; border-radius: 8px; width: 100%;"><tr><td class="stat-inner" align="center" style="padding: 10px 4px;">
+                      <div class="stat-icon" style="font-size: 18px; margin-bottom: 2px;">📺</div>
+                      <div class="stat-num" style="font-size: 16px; font-weight: 700; color: #0f172a;">${counts.tv}</div>
+                      <div class="stat-label" style="font-size: 9px; font-weight: 600; color: #94a3b8; text-transform: uppercase;">TV</div>
                     </td></tr></table>
                   </td>
-                  <td width="20%" align="center" style="padding: 3px;">
-                    <table cellpadding="0" cellspacing="0" border="0" style="background: #f8f7f5; border: 1px solid #e2e8f0; border-radius: 8px; width: 100%;"><tr><td align="center" style="padding: 10px 6px;">
-                      <div style="font-size: 18px; margin-bottom: 2px;">📻</div>
-                      <div style="font-size: 16px; font-weight: 700; color: #0f172a;">${counts.radio}</div>
-                      <div style="font-size: 9px; font-weight: 600; color: #94a3b8; text-transform: uppercase;">Radio</div>
+                  <td class="stat-cell" width="20%" align="center" style="padding: 3px;">
+                    <table cellpadding="0" cellspacing="0" border="0" style="background: #f8f7f5; border: 1px solid #e2e8f0; border-radius: 8px; width: 100%;"><tr><td class="stat-inner" align="center" style="padding: 10px 4px;">
+                      <div class="stat-icon" style="font-size: 18px; margin-bottom: 2px;">📻</div>
+                      <div class="stat-num" style="font-size: 16px; font-weight: 700; color: #0f172a;">${counts.radio}</div>
+                      <div class="stat-label" style="font-size: 9px; font-weight: 600; color: #94a3b8; text-transform: uppercase;">Radio</div>
                     </td></tr></table>
                   </td>
-                  <td width="20%" align="center" style="padding: 3px;">
-                    <table cellpadding="0" cellspacing="0" border="0" style="background: #f8f7f5; border: 1px solid #e2e8f0; border-radius: 8px; width: 100%;"><tr><td align="center" style="padding: 10px 6px;">
-                      <div style="font-size: 18px; margin-bottom: 2px;">📰</div>
-                      <div style="font-size: 16px; font-weight: 700; color: #0f172a;">${counts.print}</div>
-                      <div style="font-size: 9px; font-weight: 600; color: #94a3b8; text-transform: uppercase;">Print</div>
+                  <td class="stat-cell" width="20%" align="center" style="padding: 3px;">
+                    <table cellpadding="0" cellspacing="0" border="0" style="background: #f8f7f5; border: 1px solid #e2e8f0; border-radius: 8px; width: 100%;"><tr><td class="stat-inner" align="center" style="padding: 10px 4px;">
+                      <div class="stat-icon" style="font-size: 18px; margin-bottom: 2px;">📰</div>
+                      <div class="stat-num" style="font-size: 16px; font-weight: 700; color: #0f172a;">${counts.print}</div>
+                      <div class="stat-label" style="font-size: 9px; font-weight: 600; color: #94a3b8; text-transform: uppercase;">Print</div>
                     </td></tr></table>
                   </td>
-                  <td width="20%" align="center" style="padding: 3px;">
-                    <table cellpadding="0" cellspacing="0" border="0" style="background: #f8f7f5; border: 1px solid #e2e8f0; border-radius: 8px; width: 100%;"><tr><td align="center" style="padding: 10px 6px;">
-                      <div style="font-size: 18px; margin-bottom: 2px;">💬</div>
-                      <div style="font-size: 16px; font-weight: 700; color: #0f172a;">${counts.social}</div>
-                      <div style="font-size: 9px; font-weight: 600; color: #94a3b8; text-transform: uppercase;">Social</div>
+                  <td class="stat-cell" width="20%" align="center" style="padding: 3px;">
+                    <table cellpadding="0" cellspacing="0" border="0" style="background: #f8f7f5; border: 1px solid #e2e8f0; border-radius: 8px; width: 100%;"><tr><td class="stat-inner" align="center" style="padding: 10px 4px;">
+                      <div class="stat-icon" style="font-size: 18px; margin-bottom: 2px;">💬</div>
+                      <div class="stat-num" style="font-size: 16px; font-weight: 700; color: #0f172a;">${counts.social}</div>
+                      <div class="stat-label" style="font-size: 9px; font-weight: 600; color: #94a3b8; text-transform: uppercase;">Social</div>
                     </td></tr></table>
                   </td>
                 </tr>
