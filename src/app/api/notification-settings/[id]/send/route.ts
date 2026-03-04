@@ -13,21 +13,23 @@ export async function POST(
     console.log('[Notification] Manual send triggered for setting:', id)
 
     const result = await sendClientNotification(id)
-    console.log('[Notification] Result:', result)
+    console.log('[Notification] Result:', JSON.stringify(result))
 
-    if (!result.success) {
-      return NextResponse.json({ error: result.error }, { status: 400 })
-    }
-
+    // Always return the full result so UI can show accurate feedback
     return NextResponse.json({ 
-      success: true, 
-      message: `Notification sent successfully`,
+      success: result.success,
+      error: result.error || null,
       emailsSent: result.emailsSent,
       itemsCount: result.itemsCount,
-      sentAt: new Date().toISOString(),
-    })
+      sentAt: result.success && result.emailsSent > 0 ? new Date().toISOString() : null,
+    }, { status: result.success ? 200 : 400 })
   } catch (error) {
     console.error('[Notification] Failed to send notification:', error)
-    return NextResponse.json({ error: String(error) }, { status: 500 })
+    return NextResponse.json({ 
+      success: false,
+      error: String(error),
+      emailsSent: 0,
+      itemsCount: 0,
+    }, { status: 500 })
   }
 }

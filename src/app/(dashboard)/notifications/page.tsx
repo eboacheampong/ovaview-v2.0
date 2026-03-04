@@ -269,24 +269,30 @@ export default function NotificationsPage() {
       })
       const data = await res.json()
       
-      if (res.ok) {
-        // Update lastSentAt in the UI
+      if (!res.ok) {
+        // API returned an error
+        alert(`❌ Failed: ${data.error || 'Unknown error'}`)
+        return
+      }
+
+      // Check what actually happened
+      if (data.emailsSent === 0 && data.itemsCount === 0) {
+        alert(`ℹ️ No new media items found for ${setting.client.name} since last notification`)
+      } else if (data.emailsSent === 0 && data.itemsCount > 0) {
+        alert(`⚠️ Found ${data.itemsCount} items but no emails sent - check if client has email recipients`)
+      } else if (data.emailsSent > 0) {
+        // Actually sent emails - update UI
         const now = new Date().toISOString()
         setSettings(settings.map(s => 
           s.id === setting.id ? { ...s, lastSentAt: now } : s
         ))
-        
-        if (data.itemsCount === 0) {
-          alert(`No new media items to send for ${setting.client.name}`)
-        } else {
-          alert(`✅ Sent ${data.itemsCount} media items to ${data.emailsSent} recipient(s) for ${setting.client.name}`)
-        }
+        alert(`✅ Successfully sent ${data.itemsCount} media items to ${data.emailsSent} recipient(s) for ${setting.client.name}`)
       } else {
-        alert(data.error || 'Failed to send notification')
+        alert(`⚠️ Unexpected response: ${JSON.stringify(data)}`)
       }
     } catch (err) {
       console.error('Failed to send notification:', err)
-      alert('Failed to send notification')
+      alert(`❌ Network error: ${err instanceof Error ? err.message : 'Failed to connect'}`)
     } finally {
       setSendingId(null)
     }
