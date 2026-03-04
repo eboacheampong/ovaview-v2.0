@@ -1,11 +1,11 @@
 export async function register() {
-  // Only run on server side
-  if (process.env.NEXT_RUNTIME === 'nodejs') {
-    // Dynamically import to avoid client-side issues
+  // Cron jobs are DISABLED by default to avoid Vercel usage limits
+  // To enable, set ENABLE_CRON=true in your environment variables
+  
+  if (process.env.NEXT_RUNTIME === 'nodejs' && process.env.ENABLE_CRON === 'true') {
     const { initializeDailyInsightsCron } = await import('@/lib/scrapers/daily-insights-cron')
     const { initializeNotificationCron } = await import('@/lib/notification-cron')
     
-    // Initialize cron jobs
     initializeDailyInsightsCron()
     initializeNotificationCron()
   }

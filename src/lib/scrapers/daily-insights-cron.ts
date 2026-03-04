@@ -9,22 +9,18 @@ export interface CronTaskConfig {
 
 let scheduledTask: ScheduledTask | null = null
 
-// Schedule the Daily Insights scraper to run automatically
-// Cron patterns (minute hour day month weekday):
-// '0 */6 * * *' = Every 6 hours
-// '0 0 * * *' = Every day at midnight
-// '0 6,12,18 * * *' = At 6am, noon, and 6pm daily
+// Schedule the Daily Insights scraper
+// DISABLED by default - only runs if ENABLE_CRON=true
 export function initializeDailyInsightsCron(config?: CronTaskConfig) {
   const schedule = config?.schedule || 
                    process.env.DAILY_INSIGHTS_CRON_SCHEDULE || 
-                   '0 */6 * * *'
+                   '0 */6 * * *' // Every 6 hours
 
-  const enabled = config?.enabled !== false && 
-                  (process.env.ENABLE_CRON === 'true' || 
-                   process.env.NODE_ENV === 'production')
+  // Must explicitly enable - no auto-enable in production
+  const enabled = config?.enabled !== false && process.env.ENABLE_CRON === 'true'
 
   if (!enabled) {
-    console.log('[Daily Insights] Cron job disabled (enable with ENABLE_CRON=true)')
+    console.log('[Daily Insights] Cron disabled (set ENABLE_CRON=true to enable)')
     return null
   }
 

@@ -3,42 +3,42 @@ import { processScheduledNotifications } from '@/lib/notification-service'
 
 let scheduledTask: ScheduledTask | null = null
 
-// Schedule notification processing to run every minute
-// This checks all client notification times and sends emails when due
+// Schedule notification processing
+// DISABLED by default - only runs if ENABLE_NOTIFICATION_CRON=true
 export function initializeNotificationCron() {
-  const enabled = process.env.ENABLE_NOTIFICATION_CRON === 'true' || 
-                  process.env.NODE_ENV === 'production'
+  // Must explicitly enable - no auto-enable in production
+  const enabled = process.env.ENABLE_NOTIFICATION_CRON === 'true'
 
   if (!enabled) {
-    console.log('[Notifications] Cron job disabled (enable with ENABLE_NOTIFICATION_CRON=true)')
+    console.log('[Notifications] Cron disabled (set ENABLE_NOTIFICATION_CRON=true to enable)')
     return null
   }
 
   if (scheduledTask) {
-    console.warn('[Notifications] Cron job already initialized, skipping...')
+    console.warn('[Notifications] Cron already initialized, skipping...')
     return scheduledTask
   }
 
-  // Run every minute to check for notifications due
-  const task = cron.schedule('* * * * *', async () => {
+  // Run every 5 minutes instead of every minute to reduce load
+  const task = cron.schedule('*/5 * * * *', async () => {
     try {
       const result = await processScheduledNotifications()
       
       if (result.processed > 0) {
-        console.log(`[Notifications] Processed ${result.processed} notifications, sent ${result.sent} emails`)
+        console.log(`[Notifications] Processed ${result.processed}, sent ${result.sent}`)
         if (result.errors.length > 0) {
           console.error('[Notifications] Errors:', result.errors)
         }
       }
     } catch (error) {
-      console.error('[Notifications] Cron job failed:', error)
+      console.error('[Notifications] Cron failed:', error)
     }
   })
 
   task.start()
   scheduledTask = task
 
-  console.log('[Notifications] Cron job initialized - checking every minute')
+  console.log('[Notifications] Cron initialized - checking every 5 minutes')
   return task
 }
 
