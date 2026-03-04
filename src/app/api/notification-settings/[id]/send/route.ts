@@ -10,9 +10,21 @@ export async function POST(
 ) {
   try {
     const { id } = await params
-    console.log('[Notification] Manual send triggered for setting:', id)
+    
+    // Parse request body for mode option
+    let mode: 'since_last' | 'last_24h' = 'since_last'
+    try {
+      const body = await request.json()
+      if (body.mode === 'last_24h') {
+        mode = 'last_24h'
+      }
+    } catch {
+      // No body or invalid JSON - use default mode
+    }
+    
+    console.log('[Notification] Manual send triggered for setting:', id, 'mode:', mode)
 
-    const result = await sendClientNotification(id)
+    const result = await sendClientNotification(id, mode)
     console.log('[Notification] Result:', JSON.stringify(result))
 
     // Always return the full result so UI can show accurate feedback

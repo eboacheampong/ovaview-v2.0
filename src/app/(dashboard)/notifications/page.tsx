@@ -73,7 +73,9 @@ export default function NotificationsPage() {
   // Modals
   const deleteModal = useModal<NotificationSetting>()
   const editModal = useModal<NotificationSetting>()
+  const sendModal = useModal<NotificationSetting>()
   const [sendingId, setSendingId] = useState<string | null>(null)
+  const [sendMode, setSendMode] = useState<'since_last' | 'last_24h'>('since_last')
 
   // Edit form state
   const [editClientId, setEditClientId] = useState('')
@@ -261,38 +263,49 @@ export default function NotificationsPage() {
     }
   }
 
-  const handleSendNow = async (setting: NotificationSetting) => {
+  const openSendModal = (setting: NotificationSetting) => {
+    setSendMode('since_last')
+    sendModal.open(setting)
+  }
+
+  const handleSendNow = async () => {
+    if (!sendModal.data) return
+    const setting = sendModal.data
+    
     setSendingId(setting.id)
+    sendModal.close()
+    
     try {
       const res = await fetch(`/api/notification-settings/${setting.id}/send`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: sendMode }),
       })
       const data = await res.json()
       
       if (!res.ok) {
-        // API returned an error
-        alert(`❌ Failed: ${data.error || 'Unknown error'}`)
+        alert(`Failed: ${data.error || 'Unknown error'}`)
         return
       }
 
       // Check what actually happened
       if (data.emailsSent === 0 && data.itemsCount === 0) {
-        alert(`ℹ️ No new media items found for ${setting.client.name} since last notification`)
+        alert(`No new media items found for ${setting.client.name}`)
       } else if (data.emailsSent === 0 && data.itemsCount > 0) {
-        alert(`⚠️ Found ${data.itemsCount} items but no emails sent - check if client has email recipients`)
+        alert(`Found ${data.itemsCount} items but no emails sent - check if client has email recipients`)
       } else if (data.emailsSent > 0) {
         // Actually sent emails - update UI
         const now = new Date().toISOString()
         setSettings(settings.map(s => 
           s.id === setting.id ? { ...s, lastSentAt: now } : s
         ))
-        alert(`✅ Successfully sent ${data.itemsCount} media items to ${data.emailsSent} recipient(s) for ${setting.client.name}`)
+        alert(`Successfully sent ${data.itemsCount} media items to ${data.emailsSent} recipient(s) for ${setting.client.name}`)
       } else {
-        alert(`⚠️ Unexpected response: ${JSON.stringify(data)}`)
+        alert(`Unexpected response: ${JSON.stringify(data)}`)
       }
     } catch (err) {
       console.error('Failed to send notification:', err)
-      alert(`❌ Network error: ${err instanceof Error ? err.message : 'Failed to connect'}`)
+      alert(`Network error: ${err instanceof Error ? err.message : 'Failed to connect'}`)
     } finally {
       setSendingId(null)
     }
@@ -392,7 +405,7 @@ export default function NotificationsPage() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => handleSendNow(row.original)}
+            onClick={() => openSendModal(row.original)}
             disabled={sendingId === row.original.id}
             className="text-green-500 hover:text-green-700 hover:bg-green-50"
             title="Send notification now"
@@ -775,6 +788,83 @@ export default function NotificationsPage() {
               onCheckedChange={(c) => setEditIsActive(!!c)}
             />
             <Label htmlFor="editIsActive" className="cursor-pointer">Active</Label>
+          </div>
+        </div>
+      </FormModal>
+
+      {/* Send Options Modal */}
+      <FormModal
+        isOpen={sendModal.isOpen}
+        onClose={sendModal.close}
+        title="Send Notification"
+        description={`Send media updates to ${sendModal.data?.client.name}`}
+        icon={<Send className="h-6 w-6" />}
+        onSubmit={handleSendNow}
+        isSubmitting={sendingId === sendModal.data?.id}
+        submitLabel="Send Now"
+        size="md"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600">
+            Choose which media updates to include in this notification:
+          </p>
+          
+          <div className="space-y-3">
+            <label 
+              className={`flex items-start gap-3 p-4 rounded-lg border cursor-pointer transition-colors ${
+                sendMode === 'since_last' 
+                  ? 'border-orange-300 bg-orange-50' 
+                  : 'border-gray-200 hover:border-gray-300'
+              }`}
+              onClick={() => setSendMode('since_last')}
+            >
+              <input
+                type="radio"
+                name="sendMode"
+                checked={sendMode === 'since_last'}
+                onChange={() => setSendMode('since_last')}
+                className="mt-1 accent-orange-500"
+              />
+              <div>
+                <p className="font-medium text-gray-900">Since last notification</p>
+                <p className="text-sm text-gray-500">
+                  Send all media items since the last notification was sent
+                  {sendModal.data?.lastSentAt && (
+                    <span className="block mt-1 text-xs text-gray-400">
+                      Last sent: {format(new Date(sendModal.data.lastSentAt), 'MMM d, yyyy HH:mm')}
+                    </span>
+                  )}
+                  {!sendModal.data?.lastSentAt && (
+                    <span className="block mt-1 text-xs text-gray-400">
+                      Never sent before - will include last 24 hours
+                    </span>
+                  )}
+                </p>
+              </div>
+            </label>
+
+            <label 
+              className={`flex items-start gap-3 p-4 rounded-lg border cursor-pointer transition-colors ${
+                sendMode === 'last_24h' 
+                  ? 'border-orange-300 bg-orange-50' 
+                  : 'border-gray-200 hover:border-gray-300'
+              }`}
+              onClick={() => setSendMode('last_24h')}
+            >
+              <input
+                type="radio"
+                name="sendMode"
+                checked={sendMode === 'last_24h'}
+                onChange={() => setSendMode('last_24h')}
+                className="mt-1 accent-orange-500"
+              />
+              <div>
+                <p className="font-medium text-gray-900">Last 24 hours</p>
+                <p className="text-sm text-gray-500">
+                  Send all media items from the past 24 hours regardless of last notification
+                </p>
+              </div>
+            </label>
           </div>
         </div>
       </FormModal>

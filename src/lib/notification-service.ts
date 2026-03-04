@@ -7,12 +7,21 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = prisma as any
 
-// Get all media items for a client since last notification
-async function getMediaItemsSinceLastNotification(
+export type SendMode = 'since_last' | 'last_24h'
+
+// Get all media items for a client based on mode
+async function getMediaItemsForClient(
   clientId: string,
-  lastSentAt: Date | null
+  lastSentAt: Date | null,
+  mode: SendMode = 'since_last'
 ): Promise<MediaItem[]> {
-  const since = lastSentAt || new Date(Date.now() - 24 * 60 * 60 * 1000) // Default to 24 hours ago
+  // Determine the "since" date based on mode
+  let since: Date
+  if (mode === 'last_24h') {
+    since = new Date(Date.now() - 24 * 60 * 60 * 1000) // Always last 24 hours
+  } else {
+    since = lastSentAt || new Date(Date.now() - 24 * 60 * 60 * 1000) // Since last sent or 24h
+  }
   
   // Get client's industries and keywords for filtering
   const client = await prisma.client.findUnique({
@@ -207,14 +216,17 @@ async function getMediaItemsSinceLastNotification(
 
 
 // Send notification for a single client
-export async function sendClientNotification(settingId: string): Promise<{
+export async function sendClientNotification(
+  settingId: string,
+  mode: SendMode = 'since_last'
+): Promise<{
   success: boolean
   emailsSent: number
   itemsCount: number
   error?: string
 }> {
   try {
-    console.log('[Notification] Fetching setting:', settingId)
+    console.log('[Notification] Fetching setting:', settingId, 'mode:', mode)
     
     const setting = await db.clientNotificationSetting.findUnique({
       where: { id: settingId },
@@ -222,8 +234,8 @@ export async function sendClientNotification(settingId: string): Promise<{
         client: {
           include: {
             users: {
-              where: { isActive: true, role: 'CLIENT_USER' },
-              select: { id: true, name: true, email: true },
+              where: { isActive: true },
+              select: { id: true, name: true, email: true, role: true },
             },
           },
         },
@@ -236,16 +248,19 @@ export async function sendClientNotification(settingId: string): Promise<{
     }
 
     console.log('[Notification] Client:', setting.client.name, 'Email enabled:', setting.emailEnabled)
+    console.log('[Notification] Client email:', setting.client.email)
+    console.log('[Notification] Client users found:', setting.client.users.length, setting.client.users.map((u: { email: string; role: string }) => `${u.email} (${u.role})`))
 
     if (!setting.emailEnabled) {
       return { success: false, emailsSent: 0, itemsCount: 0, error: 'Email notifications disabled' }
     }
 
-    // Get media items since last notification
-    console.log('[Notification] Fetching media items since:', setting.lastSentAt)
-    const mediaItems = await getMediaItemsSinceLastNotification(
+    // Get media items based on mode
+    console.log('[Notification] Fetching media items, mode:', mode, 'lastSentAt:', setting.lastSentAt)
+    const mediaItems = await getMediaItemsForClient(
       setting.clientId,
-      setting.lastSentAt
+      setting.lastSentAt,
+      mode
     )
     console.log('[Notification] Found media items:', mediaItems.length)
 
