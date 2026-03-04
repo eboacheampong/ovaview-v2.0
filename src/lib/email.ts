@@ -155,19 +155,26 @@ function generateEmailHtml(data: EmailTemplateData): string {
           <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
             <tr>
               ${item.imageUrl ? `
-              <td class="card-image" width="120" style="vertical-align: top; width: 120px; min-width: 120px;">
-                <img src="${item.imageUrl}" alt="" width="120" height="120" style="display: block; width: 120px; height: 120px; object-fit: cover;" />
+              <td class="card-image" width="120" style="width: 120px; min-width: 120px; background: url('${item.imageUrl}') center/cover no-repeat #f1f5f9;">
+                <!--[if gte mso 9]><img src="${item.imageUrl}" alt="" width="120" style="display:block;width:120px;" /><![endif]-->
+                <div style="width: 120px; font-size: 0; line-height: 0;">&nbsp;</div>
               </td>
               ` : `
-              <td class="card-image" width="120" style="vertical-align: top; background: #f1f5f9; width: 120px; min-width: 120px;">
-                <div style="width: 120px; height: 120px;"></div>
+              <td class="card-image" width="120" style="width: 120px; min-width: 120px; background: #f1f5f9;">
+                <div style="width: 120px; font-size: 0; line-height: 0;">&nbsp;</div>
               </td>
               `}
               <td style="vertical-align: top; padding: 14px 16px;">
-                <div style="margin-bottom: 6px; display: flex; align-items: center; gap: 8px;">
-                  <span style="background: #fff7ed; color: #f97316; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 3px; text-transform: uppercase; border: 1px solid #fed7aa;">${getMediaTypeLabel(item.type)}</span>
-                  ${getSentimentDot(item.sentiment)}
-                </div>
+                <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom: 6px;">
+                  <tr>
+                    <td style="vertical-align: middle;">
+                      <span style="background: #fff7ed; color: #f97316; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 3px; text-transform: uppercase; border: 1px solid #fed7aa;">${getMediaTypeLabel(item.type)}</span>
+                    </td>
+                    <td align="right" style="vertical-align: middle;">
+                      ${getSentimentDot(item.sentiment)}
+                    </td>
+                  </tr>
+                </table>
                 <div style="color: #0f172a; font-weight: 700; font-size: 15px; line-height: 1.35; margin-bottom: 6px;">
                   ${item.title.length > 80 ? item.title.substring(0, 80) + '...' : item.title}
                 </div>
