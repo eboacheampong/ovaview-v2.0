@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { sendClientNotification } from '@/lib/notification-service'
 
 export const dynamic = 'force-dynamic'
 
@@ -11,44 +11,17 @@ export async function POST(
   try {
     const { id } = await params
 
-    // Get the notification setting with client info
-    const setting = await prisma.clientNotificationSetting.findUnique({
-      where: { id },
-      include: {
-        client: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            isActive: true,
-          },
-        },
-      },
-    })
+    const result = await sendClientNotification(id)
 
-    if (!setting) {
-      return NextResponse.json({ error: 'Notification setting not found' }, { status: 404 })
+    if (!result.success) {
+      return NextResponse.json({ error: result.error }, { status: 400 })
     }
-
-    if (!setting.client.email) {
-      return NextResponse.json({ error: 'Client has no email address' }, { status: 400 })
-    }
-
-    // TODO: Implement actual notification sending logic here
-    // This is where you would:
-    // 1. Gather the news/content to send
-    // 2. Format the email
-    // 3. Send via email service (e.g., SendGrid, AWS SES, etc.)
-    
-    // For now, just update the lastSentAt timestamp
-    await prisma.clientNotificationSetting.update({
-      where: { id },
-      data: { lastSentAt: new Date() },
-    })
 
     return NextResponse.json({ 
       success: true, 
-      message: `Notification sent to ${setting.client.name}`,
+      message: `Notification sent successfully`,
+      emailsSent: result.emailsSent,
+      itemsCount: result.itemsCount,
       sentAt: new Date().toISOString(),
     })
   } catch (error) {

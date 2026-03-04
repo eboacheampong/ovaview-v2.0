@@ -267,16 +267,22 @@ export default function NotificationsPage() {
       const res = await fetch(`/api/notification-settings/${setting.id}/send`, {
         method: 'POST',
       })
+      const data = await res.json()
+      
       if (res.ok) {
         // Update lastSentAt in the UI
         const now = new Date().toISOString()
         setSettings(settings.map(s => 
           s.id === setting.id ? { ...s, lastSentAt: now } : s
         ))
-        alert(`Notification sent successfully to ${setting.client.name}`)
+        
+        if (data.itemsCount === 0) {
+          alert(`No new media items to send for ${setting.client.name}`)
+        } else {
+          alert(`✅ Sent ${data.itemsCount} media items to ${data.emailsSent} recipient(s) for ${setting.client.name}`)
+        }
       } else {
-        const error = await res.json()
-        alert(error.error || 'Failed to send notification')
+        alert(data.error || 'Failed to send notification')
       }
     } catch (err) {
       console.error('Failed to send notification:', err)

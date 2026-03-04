@@ -1,6 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // Enable instrumentation hook for cron jobs
+  experimental: {
+    instrumentationHook: true,
+  },
   // Configure webpack for @xenova/transformers (client-side Whisper)
   webpack: (config, { isServer }) => {
     // Only apply these settings for client-side bundle
