@@ -286,21 +286,24 @@ export async function sendClientNotification(
       recipients.push({ email: setting.client.email, name: setting.client.name })
     }
 
-    // Add all client users
+    // Add all active users linked to this client
     for (const user of setting.client.users) {
       if (user.email && !recipients.some((r: { email: string }) => r.email === user.email)) {
         recipients.push({ email: user.email, name: user.name })
       }
     }
 
-    console.log('[Notification] Recipients:', recipients.map((r: { email: string }) => r.email))
+    console.log('[Notification] Total recipients:', recipients.length)
+    console.log('[Notification] Recipient list:', JSON.stringify(recipients))
 
     if (recipients.length === 0) {
-      return { success: false, emailsSent: 0, itemsCount: mediaItems.length, error: 'No recipients found' }
+      return { success: false, emailsSent: 0, itemsCount: mediaItems.length, error: 'No recipients found - client has no email and no active users with emails' }
     }
 
-    // Send emails to all recipients
+    // Send one email per recipient (Resend free tier only allows single recipient per call)
     let emailsSent = 0
+    const failedRecipients: string[] = []
+    
     for (const recipient of recipients) {
       try {
         console.log('[Notification] Sending to:', recipient.email)
@@ -314,7 +317,9 @@ export async function sendClientNotification(
         emailsSent++
         console.log('[Notification] Sent successfully to:', recipient.email)
       } catch (err) {
-        console.error(`[Notification] Failed to send email to ${recipient.email}:`, err)
+        const errorMsg = err instanceof Error ? err.message : String(err)
+        console.error(`[Notification] Failed to send to ${recipient.email}:`, errorMsg)
+        failedRecipients.push(`${recipient.email}: ${errorMsg}`)
       }
     }
 
@@ -330,11 +335,25 @@ export async function sendClientNotification(
         recipient: recipients.map((r: { email: string }) => r.email).join(', '),
         subject: `Daily Media Update for ${setting.client.name}`,
         status: emailsSent > 0 ? 'sent' : 'failed',
-        errorMessage: emailsSent === 0 ? 'No emails sent' : null,
+        errorMessage: failedRecipients.length > 0 ? `Failed: ${failedRecipients.join('; ')}` : null,
       },
     })
 
-    return { success: true, emailsSent, itemsCount: mediaItems.length }
+    if (emailsSent === 0 && failedRecipients.length > 0) {
+      return { 
+        success: false, 
+        emailsSent: 0, 
+        itemsCount: mediaItems.length, 
+        error: `All emails failed: ${failedRecipients.join('; ')}` 
+      }
+    }
+
+    return { 
+      success: true, 
+      emailsSent, 
+      itemsCount: mediaItems.length,
+      ...(failedRecipients.length > 0 ? { error: `Partial failure - ${failedRecipients.length} failed: ${failedRecipients.join('; ')}` } : {}),
+    }
   } catch (error) {
     console.error('[Notification] Failed to send client notification:', error)
     return { success: false, emailsSent: 0, itemsCount: 0, error: String(error) }

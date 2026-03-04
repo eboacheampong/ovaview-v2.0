@@ -283,23 +283,25 @@ export default function NotificationsPage() {
       })
       const data = await res.json()
       
-      if (!res.ok) {
+      if (!res.ok && data.emailsSent === 0) {
         alert(`Failed: ${data.error || 'Unknown error'}`)
         return
       }
 
-      // Check what actually happened
       if (data.emailsSent === 0 && data.itemsCount === 0) {
         alert(`No new media items found for ${setting.client.name}`)
       } else if (data.emailsSent === 0 && data.itemsCount > 0) {
-        alert(`Found ${data.itemsCount} items but no emails sent - check if client has email recipients`)
+        alert(`Found ${data.itemsCount} items but no emails were delivered.\n\n${data.error || 'Check if client has email recipients and Resend is configured correctly.'}`)
       } else if (data.emailsSent > 0) {
-        // Actually sent emails - update UI
         const now = new Date().toISOString()
         setSettings(settings.map(s => 
           s.id === setting.id ? { ...s, lastSentAt: now } : s
         ))
-        alert(`Successfully sent ${data.itemsCount} media items to ${data.emailsSent} recipient(s) for ${setting.client.name}`)
+        let msg = `Sent ${data.itemsCount} media items to ${data.emailsSent} recipient(s) for ${setting.client.name}`
+        if (data.error) {
+          msg += `\n\nNote: ${data.error}`
+        }
+        alert(msg)
       } else {
         alert(`Unexpected response: ${JSON.stringify(data)}`)
       }

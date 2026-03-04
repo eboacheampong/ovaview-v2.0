@@ -74,7 +74,7 @@ export async function sendNotificationEmail(data: NotificationEmailData) {
     const { data: result, error } = await resend.emails.send({
       from: FROM_EMAIL,
       to: recipientEmail,
-      subject: `📰 Daily Media Update for ${clientName} - ${mediaItems.length} new ${mediaItems.length === 1 ? 'item' : 'items'}`,
+      subject: `Daily Media Update for ${clientName} - ${mediaItems.length} new ${mediaItems.length === 1 ? 'item' : 'items'}`,
       html,
     })
 
@@ -146,21 +146,18 @@ function generateEmailHtml(data: EmailTemplateData): string {
           <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
             <tr>
               ${item.imageUrl ? `
-              <td class="card-image" width="100" style="vertical-align: top; width: 100px; min-width: 100px;">
-                <img src="${item.imageUrl}" alt="" width="100" style="display: block; width: 100px; height: 100px; object-fit: cover;" />
+              <td class="card-image" width="110" style="vertical-align: top; width: 110px; min-width: 110px;">
+                <img src="${item.imageUrl}" alt="" width="110" style="display: block; width: 110px; height: auto; min-height: 100px; object-fit: cover;" />
               </td>
-              ` : `
-              <td class="card-image" width="100" style="vertical-align: top; background: #f1f5f9; width: 100px; min-width: 100px; height: 100px;">
-              </td>
-              `}
-              <td class="card-text" style="vertical-align: top; padding: 12px 14px;">
-                <div style="margin-bottom: 4px;">
+              ` : ''}
+              <td style="vertical-align: top; padding: 14px 16px;">
+                <div style="margin-bottom: 6px;">
                   <span style="background: #fff7ed; color: #f97316; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 3px; text-transform: uppercase; border: 1px solid #fed7aa;">${getMediaTypeLabel(item.type)}</span>
                 </div>
-                <div class="card-title" style="color: #0f172a; font-weight: 700; font-size: 14px; line-height: 1.3; margin-bottom: 6px;">
-                  ${item.title.length > 80 ? item.title.substring(0, 80) + '...' : item.title}
+                <div style="color: #0f172a; font-weight: 700; font-size: 15px; line-height: 1.35; margin-bottom: 6px;">
+                  ${item.title.length > 90 ? item.title.substring(0, 90) + '...' : item.title}
                 </div>
-                ${item.summary ? `<div class="card-summary" style="color: #64748b; font-size: 12px; line-height: 1.4; margin-bottom: 8px;">${item.summary.substring(0, 100)}${item.summary.length > 100 ? '...' : ''}</div>` : ''}
+                ${item.summary ? `<div class="card-summary" style="color: #64748b; font-size: 13px; line-height: 1.45; margin-bottom: 8px;">${item.summary.substring(0, 120)}${item.summary.length > 120 ? '...' : ''}</div>` : ''}
                 <div style="color: #94a3b8; font-size: 11px;">
                   ${item.publication ? `${item.publication} &middot; ` : ''}${formatTimeAgo(item.date)}
                 </div>
@@ -192,13 +189,11 @@ function generateEmailHtml(data: EmailTemplateData): string {
   <style>
     @media only screen and (max-width: 620px) {
       .email-container { width: 100% !important; }
-      .mobile-pad { padding-left: 14px !important; padding-right: 14px !important; }
+      .mobile-pad { padding-left: 12px !important; padding-right: 12px !important; }
       .stats-row td { display: inline-block !important; width: 30% !important; margin-bottom: 6px !important; }
-      .card-image { width: 80px !important; min-width: 80px !important; }
-      .card-image img { width: 80px !important; height: 80px !important; }
-      .card-text { padding: 10px 10px !important; }
-      .card-title { font-size: 13px !important; }
-      .card-summary { display: none !important; }
+      .card-image { width: 90px !important; min-width: 90px !important; }
+      .card-image img { width: 90px !important; min-height: 90px !important; }
+      .card-summary { font-size: 12px !important; -webkit-line-clamp: 2; display: -webkit-box !important; -webkit-box-orient: vertical; overflow: hidden; }
       .hero-title { font-size: 20px !important; }
     }
   </style>
