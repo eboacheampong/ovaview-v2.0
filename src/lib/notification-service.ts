@@ -73,6 +73,7 @@ async function getMediaItemsForClient(
       date: story.date,
       type: 'web',
       sourceUrl: story.sourceUrl,
+      internalUrl: `${APP_URL}/media/web/${story.slug}`,
       imageUrl: story.images[0]?.url || null,
       publication: story.publication?.name,
     })
@@ -105,6 +106,7 @@ async function getMediaItemsForClient(
       date: story.date,
       type: 'tv',
       sourceUrl: story.videoUrl,
+      internalUrl: `${APP_URL}/media/tv/${story.slug}`,
       imageUrl: null,
       publication: story.station?.name,
     })
@@ -137,6 +139,7 @@ async function getMediaItemsForClient(
       date: story.date,
       type: 'radio',
       sourceUrl: story.audioUrl,
+      internalUrl: `${APP_URL}/media/radio/${story.slug}`,
       imageUrl: null,
       publication: story.station?.name,
     })
@@ -172,6 +175,7 @@ async function getMediaItemsForClient(
       date: story.date,
       type: 'print',
       sourceUrl: null,
+      internalUrl: `${APP_URL}/media/print/${story.slug}`,
       imageUrl: story.images[0]?.url || null,
       publication: story.publication?.name,
     })
@@ -203,6 +207,7 @@ async function getMediaItemsForClient(
       date: post.postedAt,
       type: 'social',
       sourceUrl: post.postUrl,
+      internalUrl: `${APP_URL}/media/social/${post.id}`,
       imageUrl: post.mediaUrls?.[0] || null,
       publication: post.account ? `@${post.account.handle}` : post.authorHandle,
     })
@@ -273,7 +278,7 @@ export async function sendClientNotification(
       return { success: true, emailsSent: 0, itemsCount: 0 }
     }
 
-    const dashboardUrl = `${APP_URL}/client-portal`
+    const dashboardUrl = APP_URL
     const recipients: { email: string; name?: string }[] = []
 
     // Add client email if exists
