@@ -10,8 +10,10 @@ export async function POST(
 ) {
   try {
     const { id } = await params
+    console.log('[Notification] Manual send triggered for setting:', id)
 
     const result = await sendClientNotification(id)
+    console.log('[Notification] Result:', result)
 
     if (!result.success) {
       return NextResponse.json({ error: result.error }, { status: 400 })
@@ -25,7 +27,7 @@ export async function POST(
       sentAt: new Date().toISOString(),
     })
   } catch (error) {
-    console.error('Failed to send notification:', error)
-    return NextResponse.json({ error: 'Failed to send notification' }, { status: 500 })
+    console.error('[Notification] Failed to send notification:', error)
+    return NextResponse.json({ error: String(error) }, { status: 500 })
   }
 }

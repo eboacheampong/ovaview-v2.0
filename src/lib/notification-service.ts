@@ -35,26 +35,33 @@ async function getMediaItemsSinceLastNotification(
 
   const mediaItems: MediaItem[] = []
 
+  // Build filter conditions
+  const hasIndustries = industryIds.length > 0
+  const hasKeywords = keywordNames.length > 0
+
+  // If no industries and no keywords, fetch all recent media
+  // Otherwise filter by industries/keywords
+
   // Fetch web stories
   const webStories = await prisma.webStory.findMany({
     where: {
       createdAt: { gte: since },
-      OR: [
-        { industryId: { in: industryIds.length > 0 ? industryIds : undefined } },
-        ...(keywordNames.length > 0 ? keywordNames.map(kw => ({
-          OR: [
+      ...(hasIndustries || hasKeywords ? {
+        OR: [
+          ...(hasIndustries ? [{ industryId: { in: industryIds } }] : []),
+          ...(hasKeywords ? keywordNames.flatMap(kw => [
             { title: { contains: kw, mode: 'insensitive' as const } },
-            { content: { contains: kw, mode: 'insensitive' as const } },
             { keywords: { contains: kw, mode: 'insensitive' as const } },
-          ]
-        })) : []),
-      ].filter(Boolean),
+          ]) : []),
+        ],
+      } : {}),
     },
     include: {
       publication: { select: { name: true } },
       images: { take: 1 },
     },
     orderBy: { date: 'desc' },
+    take: 50,
   })
 
   for (const story of webStories) {
@@ -74,19 +81,19 @@ async function getMediaItemsSinceLastNotification(
   const tvStories = await prisma.tVStory.findMany({
     where: {
       createdAt: { gte: since },
-      OR: [
-        { industryId: { in: industryIds.length > 0 ? industryIds : undefined } },
-        ...(keywordNames.length > 0 ? keywordNames.map(kw => ({
-          OR: [
+      ...(hasIndustries || hasKeywords ? {
+        OR: [
+          ...(hasIndustries ? [{ industryId: { in: industryIds } }] : []),
+          ...(hasKeywords ? keywordNames.flatMap(kw => [
             { title: { contains: kw, mode: 'insensitive' as const } },
-            { content: { contains: kw, mode: 'insensitive' as const } },
             { keywords: { contains: kw, mode: 'insensitive' as const } },
-          ]
-        })) : []),
-      ].filter(Boolean),
+          ]) : []),
+        ],
+      } : {}),
     },
     include: { station: { select: { name: true } } },
     orderBy: { date: 'desc' },
+    take: 50,
   })
 
   for (const story of tvStories) {
@@ -106,19 +113,19 @@ async function getMediaItemsSinceLastNotification(
   const radioStories = await prisma.radioStory.findMany({
     where: {
       createdAt: { gte: since },
-      OR: [
-        { industryId: { in: industryIds.length > 0 ? industryIds : undefined } },
-        ...(keywordNames.length > 0 ? keywordNames.map(kw => ({
-          OR: [
+      ...(hasIndustries || hasKeywords ? {
+        OR: [
+          ...(hasIndustries ? [{ industryId: { in: industryIds } }] : []),
+          ...(hasKeywords ? keywordNames.flatMap(kw => [
             { title: { contains: kw, mode: 'insensitive' as const } },
-            { content: { contains: kw, mode: 'insensitive' as const } },
             { keywords: { contains: kw, mode: 'insensitive' as const } },
-          ]
-        })) : []),
-      ].filter(Boolean),
+          ]) : []),
+        ],
+      } : {}),
     },
     include: { station: { select: { name: true } } },
     orderBy: { date: 'desc' },
+    take: 50,
   })
 
   for (const story of radioStories) {
@@ -138,22 +145,22 @@ async function getMediaItemsSinceLastNotification(
   const printStories = await prisma.printStory.findMany({
     where: {
       createdAt: { gte: since },
-      OR: [
-        { industryId: { in: industryIds.length > 0 ? industryIds : undefined } },
-        ...(keywordNames.length > 0 ? keywordNames.map(kw => ({
-          OR: [
+      ...(hasIndustries || hasKeywords ? {
+        OR: [
+          ...(hasIndustries ? [{ industryId: { in: industryIds } }] : []),
+          ...(hasKeywords ? keywordNames.flatMap(kw => [
             { title: { contains: kw, mode: 'insensitive' as const } },
-            { content: { contains: kw, mode: 'insensitive' as const } },
             { keywords: { contains: kw, mode: 'insensitive' as const } },
-          ]
-        })) : []),
-      ].filter(Boolean),
+          ]) : []),
+        ],
+      } : {}),
     },
     include: {
       publication: { select: { name: true } },
       images: { take: 1 },
     },
     orderBy: { date: 'desc' },
+    take: 50,
   })
 
   for (const story of printStories) {
@@ -206,6 +213,8 @@ export async function sendClientNotification(settingId: string): Promise<{
   error?: string
 }> {
   try {
+    console.log('[Notification] Fetching setting:', settingId)
+    
     const setting = await prisma.clientNotificationSetting.findUnique({
       where: { id: settingId },
       include: {
@@ -221,18 +230,23 @@ export async function sendClientNotification(settingId: string): Promise<{
     })
 
     if (!setting) {
+      console.log('[Notification] Setting not found')
       return { success: false, emailsSent: 0, itemsCount: 0, error: 'Setting not found' }
     }
+
+    console.log('[Notification] Client:', setting.client.name, 'Email enabled:', setting.emailEnabled)
 
     if (!setting.emailEnabled) {
       return { success: false, emailsSent: 0, itemsCount: 0, error: 'Email notifications disabled' }
     }
 
     // Get media items since last notification
+    console.log('[Notification] Fetching media items since:', setting.lastSentAt)
     const mediaItems = await getMediaItemsSinceLastNotification(
       setting.clientId,
       setting.lastSentAt
     )
+    console.log('[Notification] Found media items:', mediaItems.length)
 
     if (mediaItems.length === 0) {
       // Update lastSentAt even if no items (to prevent re-checking same period)
@@ -258,6 +272,8 @@ export async function sendClientNotification(settingId: string): Promise<{
       }
     }
 
+    console.log('[Notification] Recipients:', recipients.map(r => r.email))
+
     if (recipients.length === 0) {
       return { success: false, emailsSent: 0, itemsCount: mediaItems.length, error: 'No recipients found' }
     }
@@ -266,6 +282,7 @@ export async function sendClientNotification(settingId: string): Promise<{
     let emailsSent = 0
     for (const recipient of recipients) {
       try {
+        console.log('[Notification] Sending to:', recipient.email)
         await sendNotificationEmail({
           clientName: setting.client.name,
           recipientEmail: recipient.email,
@@ -274,8 +291,9 @@ export async function sendClientNotification(settingId: string): Promise<{
           dashboardUrl,
         })
         emailsSent++
+        console.log('[Notification] Sent successfully to:', recipient.email)
       } catch (err) {
-        console.error(`Failed to send email to ${recipient.email}:`, err)
+        console.error(`[Notification] Failed to send email to ${recipient.email}:`, err)
       }
     }
 
@@ -297,7 +315,7 @@ export async function sendClientNotification(settingId: string): Promise<{
 
     return { success: true, emailsSent, itemsCount: mediaItems.length }
   } catch (error) {
-    console.error('Failed to send client notification:', error)
+    console.error('[Notification] Failed to send client notification:', error)
     return { success: false, emailsSent: 0, itemsCount: 0, error: String(error) }
   }
 }
