@@ -55,6 +55,29 @@ function isPreamble(text: string): boolean {
     t.startsWith('the following') || (t.endsWith(':') && t.length < 120)
 }
 
+function buildSmartDateLabel(startStr: string, endStr: string): string {
+  const start = new Date(startStr)
+  const end = new Date(endStr)
+  const diffMs = end.getTime() - start.getTime()
+  const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24)) + 1
+
+  if (start.getDate() === 1) {
+    const lastOfMonth = new Date(start.getFullYear(), start.getMonth() + 1, 0)
+    if (end.getDate() === lastOfMonth.getDate() && start.getMonth() === end.getMonth()) {
+      const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+      return `${monthNames[start.getMonth()]} ${start.getFullYear()}`
+    }
+  }
+
+  if (diffDays <= 1) return 'Daily'
+  if (diffDays >= 6 && diffDays <= 8) return 'Weekly'
+  if (diffDays >= 28 && diffDays <= 31) return 'Monthly'
+  if (diffDays >= 88 && diffDays <= 92) return 'Quarterly'
+
+  const fmtShort = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  return `${fmtShort(start)} – ${fmtShort(end)}`
+}
+
 function normalizeParas(text: string): string {
   return text
     .replace(/\.,\s*(?=[A-Z])/g, '.\n\n')
@@ -262,7 +285,9 @@ export default function AIInsightsPage() {
       {report && (
         <div ref={reportRef} className="bg-white rounded-xl shadow-sm border overflow-hidden">
           <div className="bg-gradient-to-br from-[#0f172a] via-[#1e293b] to-[#334155] p-6 sm:p-8">
-            <div className="text-xs font-bold text-orange-400 uppercase tracking-widest mb-2">🤖 AI Insights Report</div>
+            <div className="text-xs font-bold text-orange-400 uppercase tracking-widest mb-2">
+              🤖 AI Insights Report ({buildSmartDateLabel(report.dateRange.start, report.dateRange.end)})
+            </div>
             <h2 className="text-xl sm:text-2xl font-bold text-white leading-tight mb-2">{report.headline}</h2>
             <p className="text-sm text-slate-400">Project: {report.projectName}</p>
             <p className="text-xs text-slate-500 mt-1">

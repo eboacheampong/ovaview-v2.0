@@ -134,6 +134,7 @@ function statCard(emoji: string, value: string, label: string, change?: string):
 function generateWeeklyEmailHtml(data: WeeklyReportData, recipientName?: string): string {
   const { stats, comparison, aiSummary, sentimentBreakdown, topAuthors } = data
   const greeting = recipientName ? `Hi ${recipientName},` : 'Hello,'
+  const dateLabel = buildSmartDateLabel(data.dateRange.start, data.dateRange.end)
 
   const topMentionsHtml = stats.topMentions.slice(0, 6).map(m => {
     const sentColor = m.sentiment?.toLowerCase() === 'positive' ? '#22c55e' : m.sentiment?.toLowerCase() === 'negative' ? '#ef4444' : '#94a3b8'
@@ -203,7 +204,7 @@ function generateWeeklyEmailHtml(data: WeeklyReportData, recipientName?: string)
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1.0">
-  <title>Weekly Media Report</title>
+  <title>Media & AI Insights Report</title>
   <style>
     @media only screen and (max-width:620px) {
       .email-container { width:100% !important; }
@@ -223,7 +224,7 @@ function generateWeeklyEmailHtml(data: WeeklyReportData, recipientName?: string)
     <table width="100%" cellpadding="0" cellspacing="0" border="0">
       <tr>
         <td><img src="${LOGO_URL}" alt="Ovaview" height="28" style="height:28px;width:auto;" /></td>
-        <td align="right"><span style="font-size:10px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;">WEEKLY REPORT</span></td>
+        <td align="right"><span style="font-size:10px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;">${dateLabel.toUpperCase()} REPORT</span></td>
       </tr>
     </table>
   </td></tr>
@@ -232,9 +233,9 @@ function generateWeeklyEmailHtml(data: WeeklyReportData, recipientName?: string)
   <tr><td class="mobile-pad" style="padding:24px;">
     <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:linear-gradient(135deg,#1e293b 0%,#334155 100%);border-radius:12px;">
       <tr><td style="padding:24px;">
-        <div style="font-size:10px;font-weight:700;color:#f97316;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px;">Weekly Media & AI Insights</div>
+        <div style="font-size:10px;font-weight:700;color:#f97316;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px;">Media & AI Insights (${dateLabel})</div>
         <h1 style="margin:0 0 8px;font-size:20px;font-weight:700;color:#ffffff;line-height:1.3;">Top Mentions for ${data.clientName}</h1>
-        <p style="margin:0 0 4px;font-size:13px;color:#94a3b8;">${greeting} Here's your weekly media performance summary.</p>
+        <p style="margin:0 0 4px;font-size:13px;color:#94a3b8;">${greeting} Here's your media performance summary.</p>
         <p style="margin:0;font-size:12px;color:#64748b;">${formatDateRange(data.dateRange.start, data.dateRange.end)}</p>
       </td></tr>
     </table>
@@ -244,9 +245,9 @@ function generateWeeklyEmailHtml(data: WeeklyReportData, recipientName?: string)
   <tr><td class="mobile-pad" style="padding:0 24px 20px;">
     <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f8f7f5;border-radius:12px;padding:4px;">
       <tr class="stat-row">
-        ${statCard('📊', stats.total.toString(), 'Total Mentions', changeArrow(comparison.mentionChangePercent) + ' from last week')}
-        ${statCard('📡', formatNumber(stats.totalReach), 'Total Reach', changeArrow(comparison.reachChangePercent) + ' from last week')}
-        ${statCard('👍', stats.positive.toString(), 'Positive', changeArrow(comparison.previous.positive > 0 ? Math.round(((stats.positive - comparison.previous.positive) / comparison.previous.positive) * 100) : 0) + ' from last week')}
+        ${statCard('📊', stats.total.toString(), 'Total Mentions', changeArrow(comparison.mentionChangePercent) + ' vs prev')}
+        ${statCard('📡', formatNumber(stats.totalReach), 'Total Reach', changeArrow(comparison.reachChangePercent) + ' vs prev')}
+        ${statCard('👍', stats.positive.toString(), 'Positive', changeArrow(comparison.previous.positive > 0 ? Math.round(((stats.positive - comparison.previous.positive) / comparison.previous.positive) * 100) : 0) + ' vs prev')}
         ${statCard('👎', stats.negative.toString(), 'Negative', comparison.negativeChange > 0 ? `<span style="color:#ef4444;">+${comparison.negativeChange}</span>` : comparison.negativeChange < 0 ? `<span style="color:#22c55e;">${comparison.negativeChange}</span>` : '<span style="color:#94a3b8;">0</span>')}
       </tr>
     </table>
@@ -373,9 +374,7 @@ function generateWeeklyEmailHtml(data: WeeklyReportData, recipientName?: string)
 
 function generateMonthlyEmailHtml(data: MonthlyReportData, recipientName?: string): string {
   const { stats, comparison, aiInsights, aiTrends, aiRecommendations, headline, sentimentBreakdown } = data
-  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
-  const monthName = monthNames[data.dateRange.start.getMonth()]
-  const year = data.dateRange.start.getFullYear()
+  const dateLabel = buildSmartDateLabel(data.dateRange.start, data.dateRange.end)
 
   // Normalize AI text: fix ., separators and strip markdown formatting
   const normalizeParas = (text: string) => text
@@ -478,7 +477,7 @@ function generateMonthlyEmailHtml(data: MonthlyReportData, recipientName?: strin
     <table width="100%" cellpadding="0" cellspacing="0" border="0">
       <tr>
         <td><img src="${LOGO_URL}" alt="Ovaview" height="28" style="height:28px;width:auto;" /></td>
-        <td align="right"><span style="font-size:10px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;">MONTHLY AI INSIGHTS</span></td>
+        <td align="right"><span style="font-size:10px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;">${dateLabel.toUpperCase()} AI INSIGHTS</span></td>
       </tr>
     </table>
   </td></tr>
@@ -487,7 +486,7 @@ function generateMonthlyEmailHtml(data: MonthlyReportData, recipientName?: strin
   <tr><td class="mobile-pad" style="padding:24px;">
     <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:linear-gradient(135deg,#0f172a 0%,#1e293b 50%,#334155 100%);border-radius:12px;">
       <tr><td style="padding:28px 24px;">
-        <div style="font-size:10px;font-weight:700;color:#f97316;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;">🤖 ${monthName} ${year} AI Insights Report</div>
+        <div style="font-size:10px;font-weight:700;color:#f97316;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;">🤖 AI Insights Report (${dateLabel})</div>
         <h1 style="margin:0 0 10px;font-size:18px;font-weight:700;color:#ffffff;line-height:1.35;">${headline}</h1>
         <p style="margin:0 0 4px;font-size:13px;color:#94a3b8;">Project: ${data.projectName}</p>
         <p style="margin:0;font-size:12px;color:#64748b;">${formatDateRange(data.dateRange.start, data.dateRange.end)}</p>
@@ -511,7 +510,7 @@ function generateMonthlyEmailHtml(data: MonthlyReportData, recipientName?: strin
   <tr><td class="mobile-pad" style="padding:0 24px 20px;">
     <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
       <tr><td style="background:#f8f7f5;padding:14px 20px;border-bottom:1px solid #e2e8f0;">
-        <span style="font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:1px;">📈 Trends – Month over Month</span>
+        <span style="font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:1px;">📈 Trends – Period over Period</span>
       </td></tr>
       <tr><td style="padding:16px 20px;">
         <table width="100%" cellpadding="0" cellspacing="0" border="0">${trendItems}</table>
