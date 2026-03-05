@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { sendNotificationEmail, MediaItem } from '@/lib/email'
+import { cacheSentReport } from '@/lib/sent-report-cache'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 
@@ -343,6 +344,19 @@ export async function sendClientNotification(
         errorMessage: failedRecipients.length > 0 ? `Failed: ${failedRecipients.join('; ')}` : null,
       },
     })
+
+    // Cache the sent report for resend
+    if (emailsSent > 0) {
+      await cacheSentReport({
+        clientId: setting.clientId,
+        clientName: setting.client.name,
+        reportType: 'daily',
+        subject: `Daily Media Update for ${setting.client.name}`,
+        recipients: recipients.map((r: { email: string }) => r.email),
+        reportData: { mediaItems },
+        emailsSent,
+      }).catch(err => console.error('[Notification] Failed to cache sent report:', err))
+    }
 
     if (emailsSent === 0 && failedRecipients.length > 0) {
       return { 

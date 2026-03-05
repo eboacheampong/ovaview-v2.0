@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { generateWeeklyReport, generateMonthlyReport } from '@/lib/ai-report-service'
 import { sendWeeklyReportEmail, sendMonthlyReportEmail } from '@/lib/report-emails'
+import { cacheSentReport } from '@/lib/sent-report-cache'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -45,26 +46,48 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'No recipients found for this client', emailsSent: 0 })
     }
 
-    // Build custom range if dates provided
     const customRange = startDate && endDate
       ? { start: new Date(startDate), end: new Date(endDate) }
       : undefined
 
     let emailsSent = 0
     const errors: string[] = []
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let reportData: any
+    let subject = ''
 
     if (reportType === 'weekly') {
-      const data = await generateWeeklyReport(clientId, undefined, customRange)
+      reportData = await generateWeeklyReport(clientId, undefined, customRange)
+      subject = `Media & AI Insights: ${client.name}`
       for (const r of recipients) {
-        try { await sendWeeklyReportEmail(data, r.email, r.name); emailsSent++ }
+        try { await sendWeeklyReportEmail(reportData, r.email, r.name); emailsSent++ }
         catch (e) { errors.push(`${r.email}: ${e instanceof Error ? e.message : String(e)}`) }
       }
     } else {
-      const data = await generateMonthlyReport(clientId, undefined, customRange)
+      reportData = await generateMonthlyReport(clientId, undefined, customRange)
+      subject = `AI Insights Report: ${client.name}`
       for (const r of recipients) {
-        try { await sendMonthlyReportEmail(data, r.email, r.name); emailsSent++ }
+        try { await sendMonthlyReportEmail(reportData, r.email, r.name); emailsSent++ }
         catch (e) { errors.push(`${r.email}: ${e instanceof Error ? e.message : String(e)}`) }
       }
+    }
+
+    // Cache the sent report
+    if (emailsSent > 0) {
+      const cacheType = customRange
+        ? (reportType === 'weekly' ? 'custom_media' : 'custom_ai')
+        : reportType
+      await cacheSentReport({
+        clientId,
+        clientName: client.name,
+        reportType: cacheType,
+        subject,
+        recipients: recipients.map(r => r.email),
+        reportData,
+        dateRangeStart: reportData.dateRange?.start,
+        dateRangeEnd: reportData.dateRange?.end,
+        emailsSent,
+      })
     }
 
     return NextResponse.json({

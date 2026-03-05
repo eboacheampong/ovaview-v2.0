@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { generateWeeklyReport, generateMonthlyReport } from '@/lib/ai-report-service'
 import { sendWeeklyReportEmail, sendMonthlyReportEmail } from '@/lib/report-emails'
+import { cacheSentReport } from '@/lib/sent-report-cache'
 
 export const dynamic = 'force-dynamic'
-// Allow longer execution for AI report generation
 export const maxDuration = 60
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -23,7 +23,6 @@ export async function POST(
       return NextResponse.json({ error: 'Invalid report type' }, { status: 400 })
     }
 
-    // Get notification setting with client and users
     const setting = await db.clientNotificationSetting.findUnique({
       where: { id },
       include: {
@@ -42,7 +41,6 @@ export async function POST(
       return NextResponse.json({ error: 'Setting not found' }, { status: 404 })
     }
 
-    // Gather recipients
     const recipients: { email: string; name?: string }[] = []
     if (setting.client.email) {
       recipients.push({ email: setting.client.email, name: setting.client.name })
@@ -54,52 +52,55 @@ export async function POST(
     }
 
     if (recipients.length === 0) {
-      return NextResponse.json({
-        success: false,
-        error: 'No recipients found',
-        emailsSent: 0,
-      }, { status: 400 })
+      return NextResponse.json({ success: false, error: 'No recipients found', emailsSent: 0 }, { status: 400 })
     }
 
     console.log(`[Report] Generating ${reportType} report for ${setting.client.name}`)
 
-    // Generate report data with AI
     let emailsSent = 0
     const errors: string[] = []
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let reportData: any
 
     if (reportType === 'weekly') {
-      const reportData = await generateWeeklyReport(setting.clientId)
-
+      reportData = await generateWeeklyReport(setting.clientId)
       for (const recipient of recipients) {
-        try {
-          await sendWeeklyReportEmail(reportData, recipient.email, recipient.name)
-          emailsSent++
-        } catch (err) {
-          errors.push(`${recipient.email}: ${err instanceof Error ? err.message : String(err)}`)
-        }
+        try { await sendWeeklyReportEmail(reportData, recipient.email, recipient.name); emailsSent++ }
+        catch (err) { errors.push(`${recipient.email}: ${err instanceof Error ? err.message : String(err)}`) }
       }
     } else {
-      const reportData = await generateMonthlyReport(setting.clientId)
-
+      reportData = await generateMonthlyReport(setting.clientId)
       for (const recipient of recipients) {
-        try {
-          await sendMonthlyReportEmail(reportData, recipient.email, recipient.name)
-          emailsSent++
-        } catch (err) {
-          errors.push(`${recipient.email}: ${err instanceof Error ? err.message : String(err)}`)
-        }
+        try { await sendMonthlyReportEmail(reportData, recipient.email, recipient.name); emailsSent++ }
+        catch (err) { errors.push(`${recipient.email}: ${err instanceof Error ? err.message : String(err)}`) }
       }
     }
 
     // Log the email
+    const subject = `${reportType === 'weekly' ? 'Weekly' : 'Monthly AI Insights'} Report for ${setting.client.name}`
     await prisma.emailLog.create({
       data: {
         recipient: recipients.map(r => r.email).join(', '),
-        subject: `${reportType === 'weekly' ? 'Weekly' : 'Monthly AI Insights'} Report for ${setting.client.name}`,
+        subject,
         status: emailsSent > 0 ? 'sent' : 'failed',
         errorMessage: errors.length > 0 ? errors.join('; ') : null,
       },
     })
+
+    // Cache the sent report
+    if (emailsSent > 0) {
+      await cacheSentReport({
+        clientId: setting.clientId,
+        clientName: setting.client.name,
+        reportType,
+        subject,
+        recipients: recipients.map(r => r.email),
+        reportData,
+        dateRangeStart: reportData.dateRange?.start,
+        dateRangeEnd: reportData.dateRange?.end,
+        emailsSent,
+      })
+    }
 
     return NextResponse.json({
       success: emailsSent > 0,

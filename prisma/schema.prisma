@@ -721,3 +721,23 @@ model ClientNotificationSetting {
   @@index([notificationTime])
   @@index([isActive])
 }
+
+// Sent Report Cache (24h expiry for resend/view)
+model SentReport {
+  id          String   @id @default(cuid())
+  clientId    String
+  clientName  String
+  reportType  String   // 'daily', 'weekly', 'monthly', 'custom_ai', 'custom_media'
+  subject     String
+  recipients  String   // comma-separated emails
+  reportData  String   @db.Text // JSON-serialized report data
+  dateRangeStart DateTime?
+  dateRangeEnd   DateTime?
+  emailsSent  Int      @default(0)
+  sentAt      DateTime @default(now())
+  expiresAt   DateTime // sentAt + 24h
+
+  @@index([sentAt(sort: Desc)])
+  @@index([clientId])
+  @@index([expiresAt])
+}
