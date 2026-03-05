@@ -151,11 +151,12 @@ export default function ViewSentReportPage() {
     if (!reportRef.current) return
     const html2pdf = (await import('html2pdf.js')).default
     html2pdf().set({
-      margin: 0.5,
+      margin: [0.4, 0.4, 0.6, 0.4],
       filename: `${report?.clientName || 'Report'}-${report?.reportType || 'report'}.pdf`,
       image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true },
+      html2canvas: { scale: 2, useCORS: true, scrollY: 0, windowWidth: 800 },
       jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' },
+      pagebreak: { mode: ['avoid-all', 'css', 'legacy'] },
     }).from(reportRef.current).save()
   }
 
@@ -409,10 +410,10 @@ function MediaReportView({ data, report }: { data: any; report: any }) {
               const sentColor = m.sentiment?.toLowerCase() === 'positive' ? 'bg-green-500' :
                 m.sentiment?.toLowerCase() === 'negative' ? 'bg-red-500' : 'bg-gray-400'
               return (
-                <div key={i} className="flex items-start gap-2 py-2 border-b border-gray-100 last:border-0">
+                <div key={i} className="flex items-start gap-2 py-2 border-b border-gray-100 last:border-0" style={{ breakInside: 'avoid' }}>
                   <span className={`w-2 h-2 rounded-full ${sentColor} mt-1.5 flex-shrink-0`} />
                   <div className="min-w-0">
-                    <a href={m.url || '#'} className="text-sm font-semibold text-gray-900 hover:text-blue-600 line-clamp-2 leading-tight">
+                    <a href={m.url || '#'} className="text-sm font-semibold text-gray-900 hover:text-blue-600 leading-tight block">
                       {m.title.length > 90 ? m.title.substring(0, 90) + '...' : m.title}
                     </a>
                     <div className="text-xs text-gray-400 mt-0.5">

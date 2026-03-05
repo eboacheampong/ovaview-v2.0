@@ -175,11 +175,12 @@ export default function AIInsightsPage() {
     if (!reportRef.current) return
     const html2pdf = (await import('html2pdf.js')).default
     html2pdf().set({
-      margin: 0.5,
+      margin: [0.4, 0.4, 0.6, 0.4],
       filename: `AI-Insights-${report?.clientName || 'Report'}.pdf`,
       image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true },
+      html2canvas: { scale: 2, useCORS: true, scrollY: 0, windowWidth: 800 },
       jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' },
+      pagebreak: { mode: ['avoid-all', 'css', 'legacy'] },
     }).from(reportRef.current).save()
   }
 
