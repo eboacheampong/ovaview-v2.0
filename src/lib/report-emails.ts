@@ -349,15 +349,29 @@ function generateMonthlyEmailHtml(data: MonthlyReportData, recipientName?: strin
   const monthName = monthNames[data.dateRange.start.getMonth()]
   const year = data.dateRange.start.getFullYear()
 
-  // Normalize AI text that uses ., as paragraph separators instead of real newlines
+  // Normalize AI text: fix ., separators and strip markdown formatting
   const normalizeParas = (text: string) => text
     .replace(/\.,\s*(?=[A-Z])/g, '.\n\n')  // .,Capital → paragraph break
     .replace(/\.\s*,\s*(?=[A-Z])/g, '.\n\n')
+  const stripMarkdown = (text: string) => text
+    .replace(/\*\*([^*]+)\*\*/g, '$1')     // **bold** → bold
+    .replace(/\*([^*]+)\*/g, '$1')          // *italic* → italic
+    .replace(/^#+\s*/gm, '')                // # headers → plain
+    .replace(/^Recommendation\s*\d+:\s*/gi, '')  // "Recommendation 1:" prefix
+    .replace(/^Insight\s*\d+:\s*/gi, '')         // "Insight 1:" prefix
+  const isPreamble = (text: string) => {
+    const t = text.trim().toLowerCase()
+    return t.startsWith('here are') || t.startsWith('based on the data') ||
+      t.startsWith('based on the media') || t.startsWith('below are') ||
+      t.startsWith('the following') || (t.endsWith(':') && t.length < 120)
+  }
 
   // Format insights — split by double newline, render each as a paragraph
-  const insightParagraphs = normalizeParas(aiInsights).split(/\n\n+/).filter(Boolean).map(p =>
-    `<p style="margin:0 0 14px;font-size:13px;color:#374151;line-height:1.7;">${p.trim().replace(/\.,?\s*$/, '.')}</p>`
-  ).join('')
+  const insightParagraphs = normalizeParas(aiInsights).split(/\n\n+/).filter(Boolean)
+    .map(p => stripMarkdown(p).trim().replace(/\.,?\s*$/, '.'))
+    .filter(p => p.length > 20 && !isPreamble(p))
+    .map(p => `<p style="margin:0 0 14px;font-size:13px;color:#374151;line-height:1.7;">${p}</p>`)
+    .join('')
 
   // Format trends as bullet list — handle AI returning .,• or .• or ,• as separators
   const normalizedTrends = aiTrends
@@ -365,22 +379,25 @@ function generateMonthlyEmailHtml(data: MonthlyReportData, recipientName?: strin
     .replace(/\.\s*•/g, '\n•')    // .• → newline
     .replace(/,\s*•/g, '\n•')     // ,• → newline
   const trendItems = normalizedTrends.split('\n').filter(l => l.trim()).map(l => {
-    const text = l.replace(/^[•\-\*]\s*/, '').replace(/\.,?\s*$/, '').trim()
+    const text = stripMarkdown(l).replace(/^[•\-\*]\s*/, '').replace(/\.,?\s*$/, '').trim()
     if (!text) return ''
     return `<tr><td style="padding:5px 0;font-size:13px;color:#374151;line-height:1.5;">
       <span style="color:#f97316;font-weight:700;margin-right:6px;">•</span>${text}
     </td></tr>`
   }).filter(Boolean).join('')
 
-  // Format recommendations as numbered paragraphs
-  const recItems = normalizeParas(aiRecommendations).split(/\n\n+/).filter(Boolean).map((p, i) =>
+  // Format recommendations as numbered paragraphs — strip preambles and markdown
+  const recItems = normalizeParas(aiRecommendations).split(/\n\n+/).filter(Boolean)
+    .map(p => stripMarkdown(p).trim().replace(/\.,?\s*$/, '.'))
+    .filter(p => p.length > 20 && !isPreamble(p))
+    .map((p, i) =>
     `<tr><td style="padding:10px 0;${i > 0 ? 'border-top:1px solid #f1f5f9;' : ''}">
       <table cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
         <td width="28" style="vertical-align:top;padding-top:2px;">
           <div style="background:#f97316;color:#fff;font-size:10px;font-weight:700;width:20px;height:20px;border-radius:50%;text-align:center;line-height:20px;">${i + 1}</div>
         </td>
         <td style="padding-left:8px;">
-          <p style="margin:0;font-size:13px;color:#374151;line-height:1.6;">${p.trim().replace(/\.,?\s*$/, '.')}</p>
+          <p style="margin:0;font-size:13px;color:#374151;line-height:1.6;">${p}</p>
         </td>
       </tr></table>
     </td></tr>`

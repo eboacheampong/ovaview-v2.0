@@ -503,7 +503,11 @@ Top mentions: ${currentStats.topMentions.slice(0, 8).map(m => `"${m.title.substr
 - "trends": A string with 4-5 bullet points comparing this month to previous month. IMPORTANT: Each bullet must be on its own line separated by \\n. Start each line with "•". Include specific numbers: mention counts, reach changes, sentiment shifts, and peak activity days from the data provided. Do NOT say data is unavailable — use the peak activity days provided.
 - "recommendations": 3-4 actionable strategic recommendation paragraphs. THIS is where advice belongs. Each should be 2-3 sentences. Separate paragraphs with \\n\\n.
 
-CRITICAL FORMATTING: In the "trends" field, separate each bullet point with a real newline character (\\n), NOT with periods or commas. Each bullet must start with "•" on a new line.
+CRITICAL FORMATTING RULES:
+1. In "trends", separate each bullet with \\n, NOT periods or commas.
+2. In "recommendations", write ONLY the recommendation paragraphs. Do NOT include any preamble like "Here are recommendations..." or "Based on the data...". Do NOT use markdown formatting like **bold** or headers. Do NOT number them like "Recommendation 1:" — just write the actionable advice directly.
+3. In "insights", do NOT use markdown. Write plain text only. No **bold**, no headers, no numbering.
+4. All fields must contain plain text only — no markdown syntax anywhere.
 
 Data:\n${dataSummary}
 
