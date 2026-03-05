@@ -93,16 +93,23 @@ export default function MediaInsightsPage() {
     finally { setLoading(false) }
   }
 
-  const handleExport = () => {
+  const handleExportPDF = () => {
     if (!reportRef.current) return
-    const html = reportRef.current.innerHTML
-    const blob = new Blob([`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Media Insights Report</title></head><body style="font-family:sans-serif;max-width:800px;margin:0 auto;">${html}</body></html>`], { type: 'text/html' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `Media-Insights-${report?.clientName || 'Report'}-${new Date().toISOString().split('T')[0]}.html`
-    a.click()
-    URL.revokeObjectURL(url)
+    const printWindow = window.open('', '_blank')
+    if (!printWindow) { alert('Please allow popups to export PDF'); return }
+    printWindow.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
+      <title>Media Insights - ${report?.clientName || 'Report'}</title>
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 800px; margin: 0 auto; color: #1e293b; }
+        @media print {
+          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          @page { margin: 0.5in; size: A4; }
+        }
+      </style>
+    </head><body>${reportRef.current.innerHTML}</body></html>`)
+    printWindow.document.close()
+    printWindow.onload = () => { printWindow.print(); printWindow.onafterprint = () => printWindow.close() }
   }
 
   const handleSendToClient = async () => {
@@ -200,8 +207,8 @@ export default function MediaInsightsPage() {
       {/* Action Buttons */}
       {report && (
         <div className="flex items-center gap-2 mb-4">
-          <Button variant="outline" size="sm" onClick={handleExport} className="gap-1.5">
-            <Download className="h-4 w-4" /> Export HTML
+          <Button variant="outline" size="sm" onClick={handleExportPDF} className="gap-1.5">
+            <Download className="h-4 w-4" /> Export PDF
           </Button>
           <Button variant="outline" size="sm" onClick={handleSendToClient} disabled={sending || sent} className="gap-1.5">
             {sent ? <><Check className="h-4 w-4 text-green-600" /> Sent!</> :
