@@ -239,7 +239,7 @@ async function gatherMentionStats(
     const dayKey = new Date(p.postedAt).toISOString().split('T')[0]
     dailyMap.set(dayKey, (dailyMap.get(dayKey) || 0) + 1)
     topMentions.push({
-      title: (p.content?.substring(0, 100) || 'Social Post'),
+      title: (p.content?.substring(0, 200) || 'Social Post'),
       source: sourceName, sentiment: p.overallSentiment,
       date: p.postedAt, url: p.postUrl, reach,
       followers: p.account?.followersCount,
@@ -413,7 +413,7 @@ Neutral: ${currentStats.neutral}
 By type: Web=${currentStats.web}, TV=${currentStats.tv}, Radio=${currentStats.radio}, Print=${currentStats.print}, Social=${currentStats.social}
 Social by platform: ${currentStats.socialByPlatform.map(s => `${s.platform}=${s.count}(${formatNumber(s.reach)} reach)`).join(', ') || 'none'}
 Top sources: ${currentStats.bySource.slice(0, 5).map(s => `${s.name}(${s.count} mentions, ${formatNumber(s.reach)} reach)`).join('; ')}
-Top mentions: ${currentStats.topMentions.slice(0, 5).map(m => `"${m.title.substring(0, 60)}" by ${m.source} (${m.sentiment || 'neutral'})`).join('; ')}`
+Top mentions: ${currentStats.topMentions.slice(0, 5).map(m => `"${m.title}" by ${m.source} (${m.sentiment || 'neutral'})`).join('; ')}`
 
   const aiSummary = await callAI(
     `You are a media monitoring analyst. Write a concise 3-5 sentence OBSERVATIONAL summary of this week's media performance for the client. Report what happened: key changes in mentions and reach, notable stories, sentiment shifts, source distribution, and engagement patterns. Use specific numbers from the data. Do NOT give advice or recommendations — just report the facts.\n\nData:\n${dataSummary}\n\nWrite ONLY the summary paragraph, no headers or labels.`,
@@ -491,7 +491,7 @@ By type: Web=${currentStats.web}, TV=${currentStats.tv}, Radio=${currentStats.ra
 Social by platform: ${currentStats.socialByPlatform.map(s => `${s.platform}=${s.count}(${formatNumber(s.reach)} reach)`).join(', ') || 'none'}
 Peak activity days: ${peakDaysStr}
 Top sources: ${currentStats.bySource.slice(0, 8).map(s => `${s.name}(${s.count} mentions, ${formatNumber(s.reach)} reach)`).join('; ')}
-Top mentions: ${currentStats.topMentions.slice(0, 8).map(m => `"${m.title.substring(0, 80)}" by ${m.source} (${m.sentiment || 'neutral'}, reach: ${formatNumber(m.reach)})`).join('; ')}`
+Top mentions: ${currentStats.topMentions.slice(0, 8).map(m => `"${m.title}" by ${m.source} (${m.sentiment || 'neutral'}, reach: ${formatNumber(m.reach)})`).join('; ')}`
 
   // Single AI call for all monthly insights (token efficient)
   let parsed: Record<string, unknown>
