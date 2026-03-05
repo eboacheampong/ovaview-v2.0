@@ -28,6 +28,7 @@ export interface MentionStats {
   totalReach: number
   bySource: { name: string; count: number; reach: number }[]
   socialByPlatform: { platform: string; count: number; reach: number }[]
+  dailyActivity: { date: string; count: number }[]
   topMentions: {
     title: string
     source: string
@@ -171,12 +172,14 @@ async function gatherMentionStats(
   const topMentions: MentionStats['topMentions'] = []
   const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
   const platformMap = new Map<string, { count: number; reach: number }>()
-
+  const dailyMap = new Map<string, number>()
   for (const s of webStories) {
     const reach = s.publication?.reach || 0
     totalReach += reach
     countSentiment(s.overallSentiment)
     addSource(s.publication?.name || 'Unknown', reach)
+    const dayKey = s.date.toISOString().split('T')[0]
+    dailyMap.set(dayKey, (dailyMap.get(dayKey) || 0) + 1)
     topMentions.push({
       title: s.title, source: s.publication?.name || 'Web',
       sentiment: s.overallSentiment, date: s.date,
@@ -188,6 +191,8 @@ async function gatherMentionStats(
     totalReach += reach
     countSentiment(s.overallSentiment)
     addSource(s.station?.name || 'Unknown', reach)
+    const dayKey = s.date.toISOString().split('T')[0]
+    dailyMap.set(dayKey, (dailyMap.get(dayKey) || 0) + 1)
     topMentions.push({
       title: s.title, source: s.station?.name || 'TV',
       sentiment: s.overallSentiment, date: s.date,
@@ -199,6 +204,8 @@ async function gatherMentionStats(
     totalReach += reach
     countSentiment(s.overallSentiment)
     addSource(s.station?.name || 'Unknown', reach)
+    const dayKey = s.date.toISOString().split('T')[0]
+    dailyMap.set(dayKey, (dailyMap.get(dayKey) || 0) + 1)
     topMentions.push({
       title: s.title, source: s.station?.name || 'Radio',
       sentiment: s.overallSentiment, date: s.date,
@@ -210,6 +217,8 @@ async function gatherMentionStats(
     totalReach += reach
     countSentiment(s.overallSentiment)
     addSource(s.publication?.name || 'Unknown', reach)
+    const dayKey = s.date.toISOString().split('T')[0]
+    dailyMap.set(dayKey, (dailyMap.get(dayKey) || 0) + 1)
     topMentions.push({
       title: s.title, source: s.publication?.name || 'Print',
       sentiment: s.overallSentiment, date: s.date,
@@ -227,6 +236,8 @@ async function gatherMentionStats(
     const plat = p.platform || 'UNKNOWN'
     const existing = platformMap.get(plat) || { count: 0, reach: 0 }
     platformMap.set(plat, { count: existing.count + 1, reach: existing.reach + reach })
+    const dayKey = new Date(p.postedAt).toISOString().split('T')[0]
+    dailyMap.set(dayKey, (dailyMap.get(dayKey) || 0) + 1)
     topMentions.push({
       title: (p.content?.substring(0, 100) || 'Social Post'),
       source: sourceName, sentiment: p.overallSentiment,
@@ -246,6 +257,10 @@ async function gatherMentionStats(
     .map(([platform, data]) => ({ platform, ...data }))
     .sort((a, b) => b.count - a.count)
 
+  const dailyActivity = Array.from(dailyMap.entries())
+    .map(([date, count]) => ({ date, count }))
+    .sort((a, b) => a.date.localeCompare(b.date))
+
   return {
     total: webStories.length + tvStories.length + radioStories.length + printStories.length + socialPosts.length,
     web: webStories.length,
@@ -257,6 +272,7 @@ async function gatherMentionStats(
     totalReach,
     bySource,
     socialByPlatform,
+    dailyActivity,
     topMentions: topMentions.slice(0, 10),
   }
 }
@@ -455,6 +471,14 @@ export async function generateMonthlyReport(clientId: string, date?: Date): Prom
 
   const comparison = buildComparison(currentStats, previousStats)
 
+  // Compute peak activity days (top 3)
+  const peakDays = [...currentStats.dailyActivity]
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 3)
+  const peakDaysStr = peakDays.length > 0
+    ? peakDays.map(d => `${d.date} (${d.count} mentions)`).join(', ')
+    : 'no daily data'
+
   const dataSummary = `Client: ${client.name}
 Period: ${currentRange.start.toISOString().split('T')[0]} to ${currentRange.end.toISOString().split('T')[0]}
 Previous period: ${previousRange.start.toISOString().split('T')[0]} to ${previousRange.end.toISOString().split('T')[0]}
@@ -465,6 +489,7 @@ Negative: ${currentStats.negative} (prev: ${previousStats.negative})
 Neutral: ${currentStats.neutral}
 By type: Web=${currentStats.web}, TV=${currentStats.tv}, Radio=${currentStats.radio}, Print=${currentStats.print}, Social=${currentStats.social}
 Social by platform: ${currentStats.socialByPlatform.map(s => `${s.platform}=${s.count}(${formatNumber(s.reach)} reach)`).join(', ') || 'none'}
+Peak activity days: ${peakDaysStr}
 Top sources: ${currentStats.bySource.slice(0, 8).map(s => `${s.name}(${s.count} mentions, ${formatNumber(s.reach)} reach)`).join('; ')}
 Top mentions: ${currentStats.topMentions.slice(0, 8).map(m => `"${m.title.substring(0, 80)}" by ${m.source} (${m.sentiment || 'neutral'}, reach: ${formatNumber(m.reach)})`).join('; ')}`
 
@@ -474,9 +499,11 @@ Top mentions: ${currentStats.topMentions.slice(0, 8).map(m => `"${m.title.substr
     const aiResponse = await callAI(
       `You are a senior media monitoring analyst. Analyze this monthly media data and return a JSON object with these fields:
 - "headline": A compelling one-line headline summarizing the month (e.g., "A 51% Decrease in ${client.name} Mentions"). Include the percentage change.
-- "insights": 4-5 detailed OBSERVATIONAL insight paragraphs. Report ONLY what happened — key themes, campaigns, events, patterns, source distribution, sentiment shifts, and engagement data. Do NOT give advice or recommendations here. Each paragraph should be 2-3 sentences with specific numbers from the data. Separate with \\n\\n. Example style: "The main topics of discussion included X, accounting for Y% of total reach. Mentions were primarily distributed across news (X%), social (Y%), with the highest share of voice from Z."
-- "trends": 4-5 bullet points comparing this month to previous month with specific numbers. Each on a new line starting with "•". Focus on factual changes: mention counts, reach changes, sentiment shifts, peak activity days.
-- "recommendations": 3-4 actionable strategic recommendation paragraphs. THIS is where advice belongs. Each should be 2-3 sentences with specific actions the client should take. Separate with \\n\\n.
+- "insights": 4-5 detailed OBSERVATIONAL insight paragraphs. Report ONLY what happened — key themes, campaigns, events, patterns, source distribution, sentiment shifts, and engagement data. Do NOT give advice or recommendations here. Each paragraph should be 2-3 sentences with specific numbers from the data. Separate paragraphs with \\n\\n.
+- "trends": A string with 4-5 bullet points comparing this month to previous month. IMPORTANT: Each bullet must be on its own line separated by \\n. Start each line with "•". Include specific numbers: mention counts, reach changes, sentiment shifts, and peak activity days from the data provided. Do NOT say data is unavailable — use the peak activity days provided.
+- "recommendations": 3-4 actionable strategic recommendation paragraphs. THIS is where advice belongs. Each should be 2-3 sentences. Separate paragraphs with \\n\\n.
+
+CRITICAL FORMATTING: In the "trends" field, separate each bullet point with a real newline character (\\n), NOT with periods or commas. Each bullet must start with "•" on a new line.
 
 Data:\n${dataSummary}
 

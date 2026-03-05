@@ -354,13 +354,18 @@ function generateMonthlyEmailHtml(data: MonthlyReportData, recipientName?: strin
     `<p style="margin:0 0 14px;font-size:13px;color:#374151;line-height:1.7;">${p.trim()}</p>`
   ).join('')
 
-  // Format trends as bullet list
-  const trendItems = aiTrends.split('\n').filter(l => l.trim()).map(l => {
-    const text = l.replace(/^[•\-\*]\s*/, '').trim()
+  // Format trends as bullet list — handle AI returning .,• or .• or ,• as separators
+  const normalizedTrends = aiTrends
+    .replace(/\.,\s*•/g, '\n•')   // .,• → newline
+    .replace(/\.\s*•/g, '\n•')    // .• → newline
+    .replace(/,\s*•/g, '\n•')     // ,• → newline
+  const trendItems = normalizedTrends.split('\n').filter(l => l.trim()).map(l => {
+    const text = l.replace(/^[•\-\*]\s*/, '').replace(/\.,?\s*$/, '').trim()
+    if (!text) return ''
     return `<tr><td style="padding:5px 0;font-size:13px;color:#374151;line-height:1.5;">
       <span style="color:#f97316;font-weight:700;margin-right:6px;">•</span>${text}
     </td></tr>`
-  }).join('')
+  }).filter(Boolean).join('')
 
   // Format recommendations as numbered paragraphs
   const recItems = aiRecommendations.split(/\n\n+/).filter(Boolean).map((p, i) =>

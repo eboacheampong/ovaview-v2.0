@@ -142,215 +142,134 @@ interface EmailTemplateData {
 }
 
 function generateEmailHtml(data: EmailTemplateData): string {
-  const { clientName, recipientName, items, counts, hasMore, remainingCount, dashboardUrl } = data
+  const { clientName, recipientName, items, counts, hasMore, remainingCount, totalCount, dashboardUrl } = data
   const greeting = recipientName ? `Hi ${recipientName},` : 'Hello,'
 
-  // Use internalUrl (our app) for post links, fallback to dashboardUrl
   const getItemLink = (item: MediaItem) => item.internalUrl || item.sourceUrl || dashboardUrl
 
   const mediaCardsHtml = items.map(item => `
-    <tr>
-      <td style="padding: 0 0 14px 0;">
-        <a href="${getItemLink(item)}" style="text-decoration: none; display: block;">
-          <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
-            <tr>
-              ${item.imageUrl ? `
-              <td class="card-image" width="150" style="width: 150px; min-width: 150px; background: url('${item.imageUrl}') center/cover no-repeat #f1f5f9;">
-                <!--[if gte mso 9]><img src="${item.imageUrl}" alt="" width="150" style="display:block;width:150px;" /><![endif]-->
-                <div style="width: 150px; font-size: 0; line-height: 0;">&nbsp;</div>
-              </td>
-              ` : `
-              <td class="card-image" width="150" style="width: 150px; min-width: 150px; background: #f1f5f9;">
-                <div style="width: 150px; font-size: 0; line-height: 0;">&nbsp;</div>
-              </td>
-              `}
-              <td style="vertical-align: top; padding: 14px 16px;">
-                <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom: 6px;">
-                  <tr>
-                    <td style="vertical-align: middle;">
-                      <span style="background: #fff7ed; color: #f97316; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 3px; text-transform: uppercase; border: 1px solid #fed7aa;">${getMediaTypeLabel(item.type)}</span>
-                    </td>
-                    <td align="right" style="vertical-align: middle;">
-                      ${getSentimentDot(item.sentiment)}
-                    </td>
-                  </tr>
-                </table>
-                <div style="color: #0f172a; font-weight: 700; font-size: 15px; line-height: 1.35; margin-bottom: 6px;">
-                  ${item.title.length > 80 ? item.title.substring(0, 80) + '...' : item.title}
-                </div>
-                ${item.summary ? `<div class="card-summary" style="color: #64748b; font-size: 13px; line-height: 1.45; margin-bottom: 8px;">${item.summary.substring(0, 120)}${item.summary.length > 120 ? '...' : ''}</div>` : ''}
-                <div style="color: #94a3b8; font-size: 11px;">
-                  ${item.publication ? `${item.publication} &middot; ` : ''}${formatTimeAgo(item.date)}
-                </div>
-              </td>
-            </tr>
-          </table>
-        </a>
-      </td>
-    </tr>
-  `).join('')
+    <tr><td style="padding:0 0 12px;">
+      <a href="${getItemLink(item)}" style="text-decoration:none;display:block;">
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;">
+          <tr>
+            ${item.imageUrl ? `
+            <td class="card-image" width="120" style="width:120px;min-width:120px;background:url('${item.imageUrl}') center/cover no-repeat #f1f5f9;">
+              <div style="width:120px;font-size:0;line-height:0;">&nbsp;</div>
+            </td>` : ''}
+            <td style="vertical-align:top;padding:12px 14px;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:4px;">
+                <tr>
+                  <td style="vertical-align:middle;">
+                    <span style="background:#fff7ed;color:#f97316;font-size:9px;font-weight:700;padding:2px 6px;border-radius:3px;text-transform:uppercase;border:1px solid #fed7aa;">${getMediaTypeLabel(item.type)}</span>
+                  </td>
+                  <td align="right" style="vertical-align:middle;">${getSentimentDot(item.sentiment)}</td>
+                </tr>
+              </table>
+              <div style="color:#0f172a;font-weight:700;font-size:14px;line-height:1.35;margin-bottom:4px;">${item.title.length > 80 ? item.title.substring(0, 80) + '...' : item.title}</div>
+              ${item.summary ? `<div class="card-summary" style="color:#64748b;font-size:12px;line-height:1.4;margin-bottom:6px;">${item.summary.substring(0, 100)}${item.summary.length > 100 ? '...' : ''}</div>` : ''}
+              <div style="color:#94a3b8;font-size:10px;">${item.publication ? `${item.publication} · ` : ''}${formatTimeAgo(item.date)}</div>
+            </td>
+          </tr>
+        </table>
+      </a>
+    </td></tr>`).join('')
 
-  return `
-<!DOCTYPE html>
+  // Build active type pills
+  const typePills = [
+    { label: 'Web', count: counts.web, emoji: '🌐', color: '#3b82f6' },
+    { label: 'TV', count: counts.tv, emoji: '📺', color: '#8b5cf6' },
+    { label: 'Radio', count: counts.radio, emoji: '📻', color: '#f59e0b' },
+    { label: 'Print', count: counts.print, emoji: '📰', color: '#10b981' },
+    { label: 'Social', count: counts.social, emoji: '💬', color: '#ec4899' },
+  ].filter(t => t.count > 0)
+
+  const statCellsHtml = typePills.map(t => `
+    <td align="center" style="padding:4px;">
+      <table cellpadding="0" cellspacing="0" border="0" style="background:#ffffff;border:1px solid #e2e8f0;border-radius:10px;width:100%;">
+        <tr><td align="center" style="padding:12px 6px 4px;">
+          <div style="font-size:20px;font-weight:800;color:#0f172a;">${t.count}</div>
+        </td></tr>
+        <tr><td align="center" style="padding:0 6px 10px;">
+          <div style="font-size:9px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;">${t.emoji} ${t.label}</div>
+        </td></tr>
+      </table>
+    </td>`).join('')
+
+  return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
   <title>Daily Media Update</title>
-  <!--[if mso]>
-  <noscript>
-    <xml>
-      <o:OfficeDocumentSettings>
-        <o:PixelsPerInch>96</o:PixelsPerInch>
-      </o:OfficeDocumentSettings>
-    </xml>
-  </noscript>
-  <![endif]-->
   <style>
-    @media only screen and (max-width: 620px) {
-      .email-container { width: 100% !important; }
-      .mobile-pad { padding-left: 12px !important; padding-right: 12px !important; }
-      .card-image { width: 110px !important; min-width: 110px !important; }
-      .card-image img, .card-image div { width: 110px !important; }
-      .card-summary { display: none !important; }
-      .hero-title { font-size: 20px !important; }
-      .stat-cell { padding: 2px !important; }
-      .stat-inner { padding: 6px 2px !important; }
-      .stat-icon { font-size: 14px !important; }
-      .stat-num { font-size: 14px !important; }
-      .stat-label { font-size: 8px !important; }
+    @media only screen and (max-width:620px) {
+      .email-container { width:100% !important; }
+      .mobile-pad { padding-left:12px !important; padding-right:12px !important; }
+      .card-image { width:100px !important; min-width:100px !important; }
+      .card-image div { width:100px !important; }
+      .card-summary { display:none !important; }
     }
   </style>
 </head>
-<body style="margin: 0; padding: 0; background-color: #f8f7f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; -webkit-font-smoothing: antialiased;">
-  
-  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f8f7f5;">
-    <tr>
-      <td align="center" style="padding: 24px 10px;">
-        
-        <table class="email-container" width="600" cellpadding="0" cellspacing="0" border="0" style="background-color: #ffffff; max-width: 600px; width: 100%;">
-          
-          <!-- Header -->
-          <tr>
-            <td class="mobile-pad" style="padding: 20px 24px 14px 24px; border-bottom: 1px solid #f1f5f9;">
-              <table width="100%" cellpadding="0" cellspacing="0" border="0">
-                <tr>
-                  <td><img src="${LOGO_URL}" alt="Ovaview" height="28" style="height: 28px; width: auto;" /></td>
-                  <td align="right"><span style="font-size: 10px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px;">${formatDate()}</span></td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-          
-          <!-- Title Card -->
-          <tr>
-            <td class="mobile-pad" style="padding: 20px 24px;">
-              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background: #fff7ed; border: 1px solid #fed7aa; border-radius: 12px;">
-                <tr>
-                  <td style="padding: 20px;">
-                    <h1 class="hero-title" style="margin: 0 0 6px 0; font-size: 22px; font-weight: 700; color: #0f172a;">Daily Media Update</h1>
-                    <p style="margin: 0; font-size: 14px; color: #64748b;">${greeting} Here's your media update for <strong style="color: #0f172a;">${clientName}</strong></p>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
+<body style="margin:0;padding:0;background:#f8f7f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f8f7f5;">
+<tr><td align="center" style="padding:24px 10px;">
+<table class="email-container" width="600" cellpadding="0" cellspacing="0" border="0" style="background:#ffffff;max-width:600px;width:100%;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);">
 
-          <!-- Stats Bar -->
-          <tr>
-            <td class="mobile-pad" style="padding: 0 24px 20px 24px;">
-              <table width="100%" cellpadding="0" cellspacing="0" border="0">
-                <tr>
-                  <td class="stat-cell" width="20%" align="center" style="padding: 3px;">
-                    <table cellpadding="0" cellspacing="0" border="0" style="background: #f8f7f5; border: 1px solid #e2e8f0; border-radius: 8px; width: 100%;"><tr><td class="stat-inner" align="center" style="padding: 10px 4px;">
-                      <div class="stat-icon" style="font-size: 18px; margin-bottom: 2px;">🌐</div>
-                      <div class="stat-num" style="font-size: 16px; font-weight: 700; color: #0f172a;">${counts.web}</div>
-                      <div class="stat-label" style="font-size: 9px; font-weight: 600; color: #94a3b8; text-transform: uppercase;">Web</div>
-                    </td></tr></table>
-                  </td>
-                  <td class="stat-cell" width="20%" align="center" style="padding: 3px;">
-                    <table cellpadding="0" cellspacing="0" border="0" style="background: #f8f7f5; border: 1px solid #e2e8f0; border-radius: 8px; width: 100%;"><tr><td class="stat-inner" align="center" style="padding: 10px 4px;">
-                      <div class="stat-icon" style="font-size: 18px; margin-bottom: 2px;">📺</div>
-                      <div class="stat-num" style="font-size: 16px; font-weight: 700; color: #0f172a;">${counts.tv}</div>
-                      <div class="stat-label" style="font-size: 9px; font-weight: 600; color: #94a3b8; text-transform: uppercase;">TV</div>
-                    </td></tr></table>
-                  </td>
-                  <td class="stat-cell" width="20%" align="center" style="padding: 3px;">
-                    <table cellpadding="0" cellspacing="0" border="0" style="background: #f8f7f5; border: 1px solid #e2e8f0; border-radius: 8px; width: 100%;"><tr><td class="stat-inner" align="center" style="padding: 10px 4px;">
-                      <div class="stat-icon" style="font-size: 18px; margin-bottom: 2px;">📻</div>
-                      <div class="stat-num" style="font-size: 16px; font-weight: 700; color: #0f172a;">${counts.radio}</div>
-                      <div class="stat-label" style="font-size: 9px; font-weight: 600; color: #94a3b8; text-transform: uppercase;">Radio</div>
-                    </td></tr></table>
-                  </td>
-                  <td class="stat-cell" width="20%" align="center" style="padding: 3px;">
-                    <table cellpadding="0" cellspacing="0" border="0" style="background: #f8f7f5; border: 1px solid #e2e8f0; border-radius: 8px; width: 100%;"><tr><td class="stat-inner" align="center" style="padding: 10px 4px;">
-                      <div class="stat-icon" style="font-size: 18px; margin-bottom: 2px;">📰</div>
-                      <div class="stat-num" style="font-size: 16px; font-weight: 700; color: #0f172a;">${counts.print}</div>
-                      <div class="stat-label" style="font-size: 9px; font-weight: 600; color: #94a3b8; text-transform: uppercase;">Print</div>
-                    </td></tr></table>
-                  </td>
-                  <td class="stat-cell" width="20%" align="center" style="padding: 3px;">
-                    <table cellpadding="0" cellspacing="0" border="0" style="background: #f8f7f5; border: 1px solid #e2e8f0; border-radius: 8px; width: 100%;"><tr><td class="stat-inner" align="center" style="padding: 10px 4px;">
-                      <div class="stat-icon" style="font-size: 18px; margin-bottom: 2px;">💬</div>
-                      <div class="stat-num" style="font-size: 16px; font-weight: 700; color: #0f172a;">${counts.social}</div>
-                      <div class="stat-label" style="font-size: 9px; font-weight: 600; color: #94a3b8; text-transform: uppercase;">Social</div>
-                    </td></tr></table>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
+  <!-- Header -->
+  <tr><td class="mobile-pad" style="padding:20px 24px 14px;border-bottom:1px solid #f1f5f9;">
+    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+      <tr>
+        <td><img src="${LOGO_URL}" alt="Ovaview" height="28" style="height:28px;width:auto;" /></td>
+        <td align="right"><span style="font-size:10px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;">DAILY UPDATE</span></td>
+      </tr>
+    </table>
+  </td></tr>
 
-          <!-- Top Mentions Header -->
-          <tr>
-            <td class="mobile-pad" style="padding: 0 24px 12px 24px;">
-              <span style="font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px;">Top Mentions</span>
-            </td>
-          </tr>
-          
-          <!-- Media Cards -->
-          <tr>
-            <td class="mobile-pad" style="padding: 0 24px;">
-              <table width="100%" cellpadding="0" cellspacing="0" border="0">
-                ${mediaCardsHtml}
-              </table>
-            </td>
-          </tr>
-          
-          ${hasMore ? `
-          <tr>
-            <td style="padding: 24px; text-align: center; background: #fafaf9; border-top: 1px solid #e2e8f0;">
-              <p style="margin: 0 0 16px 0; font-size: 14px; color: #64748b;">+ ${remainingCount} more items available</p>
-              <a href="${dashboardUrl}" style="display: inline-block; background: #f97316; color: #ffffff; text-decoration: none; font-weight: 700; font-size: 14px; padding: 14px 32px; border-radius: 8px;">View All on Dashboard</a>
-            </td>
-          </tr>
-          ` : `
-          <tr>
-            <td style="padding: 24px; text-align: center; background: #fafaf9; border-top: 1px solid #e2e8f0;">
-              <a href="${dashboardUrl}" style="display: inline-block; background: #f97316; color: #ffffff; text-decoration: none; font-weight: 700; font-size: 14px; padding: 14px 32px; border-radius: 8px;">View All on Dashboard</a>
-            </td>
-          </tr>
-          `}
-          
-          <!-- Footer -->
-          <tr>
-            <td style="padding: 28px 24px; text-align: center; background: #f8f7f5;">
-              <p style="margin: 0 0 12px 0; font-size: 11px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px;">Powered by Ovaview Media Monitoring</p>
-              <p style="margin: 0 0 10px 0; font-size: 12px; color: #94a3b8;">
-                <a href="${dashboardUrl}" style="color: #64748b; text-decoration: underline;">Dashboard</a>
-                &nbsp;&middot;&nbsp;
-                <a href="${dashboardUrl}" style="color: #64748b; text-decoration: underline;">Manage Alerts</a>
-              </p>
-              <p style="margin: 0; font-size: 11px; color: #cbd5e1;">&copy; ${new Date().getFullYear()} Ovaview. All rights reserved.</p>
-            </td>
-          </tr>
-          
-        </table>
-      </td>
-    </tr>
-  </table>
+  <!-- Hero -->
+  <tr><td class="mobile-pad" style="padding:24px;">
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:linear-gradient(135deg,#1e293b 0%,#334155 100%);border-radius:12px;">
+      <tr><td style="padding:24px;">
+        <div style="font-size:10px;font-weight:700;color:#f97316;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px;">📰 Daily Media Update</div>
+        <h1 style="margin:0 0 6px;font-size:20px;font-weight:700;color:#ffffff;line-height:1.3;">${totalCount} New Mention${totalCount !== 1 ? 's' : ''} for ${clientName}</h1>
+        <p style="margin:0 0 4px;font-size:13px;color:#94a3b8;">${greeting} Here's your daily media update.</p>
+        <p style="margin:0;font-size:12px;color:#64748b;">${formatDate()}</p>
+      </td></tr>
+    </table>
+  </td></tr>
+
+  <!-- Stats Bar -->
+  <tr><td class="mobile-pad" style="padding:0 24px 20px;">
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f8f7f5;border-radius:12px;padding:4px;">
+      <tr>${statCellsHtml}</tr>
+    </table>
+  </td></tr>
+
+  <!-- Top Mentions Header -->
+  <tr><td class="mobile-pad" style="padding:0 24px 10px;">
+    <div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;">Top Mentions</div>
+  </td></tr>
+
+  <!-- Media Cards -->
+  <tr><td class="mobile-pad" style="padding:0 24px;">
+    <table width="100%" cellpadding="0" cellspacing="0" border="0">${mediaCardsHtml}</table>
+  </td></tr>
+
+  <!-- CTA -->
+  <tr><td style="padding:24px;text-align:center;background:#fafaf9;border-top:1px solid #e2e8f0;">
+    ${hasMore ? `<p style="margin:0 0 16px;font-size:13px;color:#64748b;">+ ${remainingCount} more items available</p>` : ''}
+    <a href="${dashboardUrl}" style="display:inline-block;background:#f97316;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;padding:14px 32px;border-radius:8px;">View Full Dashboard</a>
+  </td></tr>
+
+  <!-- Footer -->
+  <tr><td style="padding:20px 24px;text-align:center;background:#f8f7f5;">
+    <p style="margin:0 0 8px;font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;">Powered by Ovaview Media Monitoring</p>
+    <p style="margin:0;font-size:11px;color:#cbd5e1;">© ${new Date().getFullYear()} Ovaview. All rights reserved.</p>
+  </td></tr>
+
+</table>
+</td></tr>
+</table>
 </body>
-</html>
-  `
+</html>`
 }
