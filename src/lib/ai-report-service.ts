@@ -265,6 +265,7 @@ async function gatherMentionStats(
 // ─── AI Call with Fallback ───────────────────────────────────────────
 
 async function callAI(prompt: string, maxTokens: number = 1500): Promise<string> {
+  const errors: string[] = []
   for (const model of MODELS) {
     try {
       const res = await fetch(OPENROUTER_URL, {
@@ -282,22 +283,37 @@ async function callAI(prompt: string, maxTokens: number = 1500): Promise<string>
         }),
       })
 
-      if (!res.ok) continue
+      if (!res.ok) {
+        errors.push(`${model}: HTTP ${res.status}`)
+        continue
+      }
 
       const data = await res.json()
       const content = data.choices?.[0]?.message?.content
       if (content) return content.trim()
-    } catch {
+      errors.push(`${model}: empty response`)
+    } catch (e) {
+      errors.push(`${model}: ${e instanceof Error ? e.message : 'unknown error'}`)
       continue
     }
   }
-  throw new Error('All AI models failed')
+  throw new Error(`All AI models failed: ${errors.join('; ')}`)
 }
+
 
 function parseJSON(text: string): Record<string, unknown> {
   let jsonText = text.trim()
+  // Strip markdown code blocks
   const match = jsonText.match(/```(?:json)?\s*([\s\S]*?)```/)
   if (match) jsonText = match[1].trim()
+  // Try to find JSON object in the text
+  const jsonStart = jsonText.indexOf('{')
+  const jsonEnd = jsonText.lastIndexOf('}')
+  if (jsonStart !== -1 && jsonEnd > jsonStart) {
+    jsonText = jsonText.substring(jsonStart, jsonEnd + 1)
+  }
+  // Fix common AI issues: trailing commas before } or ]
+  jsonText = jsonText.replace(/,\s*([}\]])/g, '$1')
   return JSON.parse(jsonText)
 }
 
@@ -453,8 +469,10 @@ Top sources: ${currentStats.bySource.slice(0, 8).map(s => `${s.name}(${s.count} 
 Top mentions: ${currentStats.topMentions.slice(0, 8).map(m => `"${m.title.substring(0, 80)}" by ${m.source} (${m.sentiment || 'neutral'}, reach: ${formatNumber(m.reach)})`).join('; ')}`
 
   // Single AI call for all monthly insights (token efficient)
-  const aiResponse = await callAI(
-    `You are a senior media monitoring analyst. Analyze this monthly media data and return a JSON object with these fields:
+  let parsed: Record<string, unknown>
+  try {
+    const aiResponse = await callAI(
+      `You are a senior media monitoring analyst. Analyze this monthly media data and return a JSON object with these fields:
 - "headline": A compelling one-line headline summarizing the month (e.g., "A 51% Decrease in ${client.name} Mentions"). Include the percentage change.
 - "insights": 4-5 detailed OBSERVATIONAL insight paragraphs. Report ONLY what happened — key themes, campaigns, events, patterns, source distribution, sentiment shifts, and engagement data. Do NOT give advice or recommendations here. Each paragraph should be 2-3 sentences with specific numbers from the data. Separate with \\n\\n. Example style: "The main topics of discussion included X, accounting for Y% of total reach. Mentions were primarily distributed across news (X%), social (Y%), with the highest share of voice from Z."
 - "trends": 4-5 bullet points comparing this month to previous month with specific numbers. Each on a new line starting with "•". Focus on factual changes: mention counts, reach changes, sentiment shifts, peak activity days.
@@ -463,19 +481,40 @@ Top mentions: ${currentStats.topMentions.slice(0, 8).map(m => `"${m.title.substr
 Data:\n${dataSummary}
 
 Return ONLY valid JSON, no markdown.`,
-    1200
-  )
-
-  let parsed: Record<string, unknown>
-  try {
+      2000
+    )
     parsed = parseJSON(aiResponse)
   } catch {
-    // Fallback if AI doesn't return valid JSON
-    parsed = {
-      headline: `${Math.abs(comparison.mentionChangePercent)}% ${comparison.mentionChangePercent >= 0 ? 'Increase' : 'Decrease'} in ${client.name} Mentions`,
-      insights: 'Detailed insights could not be generated at this time.',
-      trends: `• Mentions changed by ${comparison.mentionChangePercent}% from ${previousStats.total} to ${currentStats.total}\n• Reach changed by ${comparison.reachChangePercent}%`,
-      recommendations: 'Continue monitoring media presence and adjust strategy based on trends.',
+    // First AI call failed or returned invalid JSON — try individual calls
+    try {
+      const [insightsText, trendsText, recsText] = await Promise.all([
+        callAI(`You are a media monitoring analyst. Write 4-5 OBSERVATIONAL insight paragraphs about this client's monthly media performance. Report ONLY what happened — themes, patterns, source distribution, sentiment. Use specific numbers. Separate paragraphs with blank lines. No advice.\n\nData:\n${dataSummary}`, 800),
+        callAI(`Write 4-5 bullet points comparing this month to previous month. Start each with "•". Include specific numbers for mention counts, reach changes, sentiment shifts.\n\nData:\n${dataSummary}`, 400),
+        callAI(`Write 3-4 actionable strategic recommendation paragraphs for this client based on their media data. Each 2-3 sentences with specific actions. Separate with blank lines.\n\nData:\n${dataSummary}`, 500),
+      ])
+      parsed = {
+        headline: `${Math.abs(comparison.mentionChangePercent)}% ${comparison.mentionChangePercent >= 0 ? 'Increase' : 'Decrease'} in ${client.name} Mentions`,
+        insights: insightsText,
+        trends: trendsText,
+        recommendations: recsText,
+      }
+    } catch {
+      // All AI calls failed — build data-driven fallback from real numbers
+      const topSources = currentStats.bySource.slice(0, 3).map(s => `${s.name} (${s.count} mentions, ${formatNumber(s.reach)} reach)`).join(', ')
+      const sourceTypes = [
+        currentStats.web > 0 ? `Web (${Math.round((currentStats.web / (currentStats.total || 1)) * 100)}%)` : '',
+        currentStats.tv > 0 ? `TV (${Math.round((currentStats.tv / (currentStats.total || 1)) * 100)}%)` : '',
+        currentStats.radio > 0 ? `Radio (${Math.round((currentStats.radio / (currentStats.total || 1)) * 100)}%)` : '',
+        currentStats.print > 0 ? `Print (${Math.round((currentStats.print / (currentStats.total || 1)) * 100)}%)` : '',
+        currentStats.social > 0 ? `Social (${Math.round((currentStats.social / (currentStats.total || 1)) * 100)}%)` : '',
+      ].filter(Boolean).join(', ')
+
+      parsed = {
+        headline: `${Math.abs(comparison.mentionChangePercent)}% ${comparison.mentionChangePercent >= 0 ? 'Increase' : 'Decrease'} in ${client.name} Mentions`,
+        insights: `During the period ${currentRange.start.toISOString().split('T')[0]} to ${currentRange.end.toISOString().split('T')[0]}, ${client.name} recorded ${currentStats.total} total mentions with a total reach of ${formatNumber(currentStats.totalReach)}. This represents a ${Math.abs(comparison.mentionChangePercent)}% ${comparison.mentionChangePercent >= 0 ? 'increase' : 'decrease'} compared to the previous month.\n\nMentions were distributed across ${sourceTypes}. The top sources were ${topSources}.\n\nSentiment analysis shows ${currentStats.positive} positive, ${currentStats.neutral} neutral, and ${currentStats.negative} negative mentions.`,
+        trends: `• Total mentions ${comparison.mentionChangePercent >= 0 ? 'increased' : 'decreased'} by ${Math.abs(comparison.mentionChangePercent)}% from ${previousStats.total} to ${currentStats.total}\n• Total reach ${comparison.reachChangePercent >= 0 ? 'increased' : 'decreased'} by ${Math.abs(comparison.reachChangePercent)}% from ${formatNumber(previousStats.totalReach)} to ${formatNumber(currentStats.totalReach)}\n• Positive mentions changed from ${previousStats.positive} to ${currentStats.positive}\n• Negative mentions changed from ${previousStats.negative} to ${currentStats.negative}`,
+        recommendations: 'Strategic recommendations require AI analysis. Please try sending the report again.',
+      }
     }
   }
 

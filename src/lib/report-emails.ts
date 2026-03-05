@@ -345,52 +345,36 @@ function generateWeeklyEmailHtml(data: WeeklyReportData, recipientName?: string)
 
 function generateMonthlyEmailHtml(data: MonthlyReportData, recipientName?: string): string {
   const { stats, comparison, aiInsights, aiTrends, aiRecommendations, headline, sentimentBreakdown } = data
-  const greeting = recipientName ? `Hi ${recipientName},` : 'Hello,'
   const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
   const monthName = monthNames[data.dateRange.start.getMonth()]
   const year = data.dateRange.start.getFullYear()
 
-  // Format insights into paragraphs
-  const insightParagraphs = aiInsights.split('\n\n').filter(Boolean).map(p =>
-    `<p style="margin:0 0 12px;font-size:13px;color:#374151;line-height:1.65;">${p.trim()}</p>`
+  // Format insights — split by double newline, render each as a paragraph
+  const insightParagraphs = aiInsights.split(/\n\n+/).filter(Boolean).map(p =>
+    `<p style="margin:0 0 14px;font-size:13px;color:#374151;line-height:1.7;">${p.trim()}</p>`
   ).join('')
 
   // Format trends as bullet list
   const trendItems = aiTrends.split('\n').filter(l => l.trim()).map(l => {
     const text = l.replace(/^[•\-\*]\s*/, '').trim()
-    return `<tr><td style="padding:4px 0;font-size:13px;color:#374151;line-height:1.5;">
+    return `<tr><td style="padding:5px 0;font-size:13px;color:#374151;line-height:1.5;">
       <span style="color:#f97316;font-weight:700;margin-right:6px;">•</span>${text}
     </td></tr>`
   }).join('')
 
-  // Format recommendations
-  const recParagraphs = aiRecommendations.split('\n\n').filter(Boolean).map((p, i) =>
-    `<tr><td style="padding:8px 0;border-bottom:1px solid #f1f5f9;">
-      <div style="display:flex;gap:8px;">
-        <span style="background:#f97316;color:#fff;font-size:10px;font-weight:700;width:20px;height:20px;border-radius:50%;display:inline-block;text-align:center;line-height:20px;flex-shrink:0;">${i + 1}</span>
-        <p style="margin:0;font-size:13px;color:#374151;line-height:1.6;">${p.trim()}</p>
-      </div>
+  // Format recommendations as numbered paragraphs
+  const recItems = aiRecommendations.split(/\n\n+/).filter(Boolean).map((p, i) =>
+    `<tr><td style="padding:10px 0;${i > 0 ? 'border-top:1px solid #f1f5f9;' : ''}">
+      <table cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
+        <td width="28" style="vertical-align:top;padding-top:2px;">
+          <div style="background:#f97316;color:#fff;font-size:10px;font-weight:700;width:20px;height:20px;border-radius:50%;text-align:center;line-height:20px;">${i + 1}</div>
+        </td>
+        <td style="padding-left:8px;">
+          <p style="margin:0;font-size:13px;color:#374151;line-height:1.6;">${p.trim()}</p>
+        </td>
+      </tr></table>
     </td></tr>`
   ).join('')
-
-  // Top mentions
-  const topMentionsHtml = stats.topMentions.slice(0, 6).map(m => {
-    const sentColor = m.sentiment?.toLowerCase() === 'positive' ? '#22c55e' : m.sentiment?.toLowerCase() === 'negative' ? '#ef4444' : '#94a3b8'
-    return `
-    <tr><td style="padding:8px 0;border-bottom:1px solid #f1f5f9;">
-      <table width="100%" cellpadding="0" cellspacing="0" border="0">
-        <tr>
-          <td width="10" style="vertical-align:top;padding-right:10px;padding-top:5px;">
-            <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${sentColor};"></span>
-          </td>
-          <td>
-            <a href="${m.url || '#'}" style="color:#0f172a;font-weight:600;font-size:13px;text-decoration:none;line-height:1.4;">${m.title.substring(0, 100)}${m.title.length > 100 ? '...' : ''}</a>
-            <div style="font-size:11px;color:#94a3b8;margin-top:2px;">${m.source} · ${formatNumber(m.reach)} reach · ${m.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
-          </td>
-        </tr>
-      </table>
-    </td></tr>`
-  }).join('')
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -402,8 +386,6 @@ function generateMonthlyEmailHtml(data: MonthlyReportData, recipientName?: strin
     @media only screen and (max-width:620px) {
       .email-container { width:100% !important; }
       .mobile-pad { padding-left:12px !important; padding-right:12px !important; }
-      .stat-cell { display:block !important; width:48% !important; float:left !important; box-sizing:border-box !important; }
-      .stat-row { display:block !important; overflow:hidden !important; }
     }
   </style>
 </head>
@@ -422,7 +404,7 @@ function generateMonthlyEmailHtml(data: MonthlyReportData, recipientName?: strin
     </table>
   </td></tr>
 
-  <!-- Hero -->
+  <!-- Hero / Headline -->
   <tr><td class="mobile-pad" style="padding:24px;">
     <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:linear-gradient(135deg,#0f172a 0%,#1e293b 50%,#334155 100%);border-radius:12px;">
       <tr><td style="padding:28px 24px;">
@@ -431,18 +413,6 @@ function generateMonthlyEmailHtml(data: MonthlyReportData, recipientName?: strin
         <p style="margin:0 0 4px;font-size:13px;color:#94a3b8;">Project: ${data.projectName}</p>
         <p style="margin:0;font-size:12px;color:#64748b;">${formatDateRange(data.dateRange.start, data.dateRange.end)}</p>
       </td></tr>
-    </table>
-  </td></tr>
-
-  <!-- Stats -->
-  <tr><td class="mobile-pad" style="padding:0 24px 20px;">
-    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f8f7f5;border-radius:12px;padding:4px;">
-      <tr class="stat-row">
-        ${statCard('📊', stats.total.toString(), 'Total Mentions', changeArrow(comparison.mentionChangePercent) + ' from last month')}
-        ${statCard('📡', formatNumber(stats.totalReach), 'Total Reach', changeArrow(comparison.reachChangePercent) + ' from last month')}
-        ${statCard('👍', stats.positive.toString(), 'Positive', changeArrow(comparison.previous.positive > 0 ? Math.round(((stats.positive - comparison.previous.positive) / comparison.previous.positive) * 100) : 0) + ' from last month')}
-        ${statCard('👎', stats.negative.toString(), 'Negative', comparison.negativeChange > 0 ? `<span style="color:#ef4444;">+${comparison.negativeChange}</span>` : comparison.negativeChange < 0 ? `<span style="color:#22c55e;">${comparison.negativeChange}</span>` : '<span style="color:#94a3b8;">0</span>')}
-      </tr>
     </table>
   </td></tr>
 
@@ -470,77 +440,6 @@ function generateMonthlyEmailHtml(data: MonthlyReportData, recipientName?: strin
     </table>
   </td></tr>
 
-  <!-- Sentiment -->
-  <tr><td class="mobile-pad" style="padding:0 24px 20px;">
-    <div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">Sentiment Breakdown</div>
-    ${sentimentBar(sentimentBreakdown.positive, sentimentBreakdown.neutral, sentimentBreakdown.negative)}
-    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:8px;">
-      <tr>
-        <td style="font-size:11px;color:#22c55e;font-weight:600;">● Positive ${sentimentBreakdown.positive}%</td>
-        <td align="center" style="font-size:11px;color:#94a3b8;font-weight:600;">● Neutral ${sentimentBreakdown.neutral}%</td>
-        <td align="right" style="font-size:11px;color:#ef4444;font-weight:600;">● Negative ${sentimentBreakdown.negative}%</td>
-      </tr>
-    </table>
-  </td></tr>
-
-  <!-- Mentions vs Reach Chart -->
-  <tr><td class="mobile-pad" style="padding:0 24px 20px;">
-    <div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">📊 Mentions vs Reach by Type</div>
-    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;">
-      <tr style="background:#f8f7f5;">
-        <td style="padding:8px 12px;font-size:10px;font-weight:700;color:#64748b;">Type</td>
-        <td style="padding:8px 12px;font-size:10px;font-weight:700;color:#64748b;" align="center">Mentions</td>
-        <td style="padding:8px 12px;font-size:10px;font-weight:700;color:#64748b;" align="right">Reach</td>
-      </tr>
-      ${[
-        { type: 'Web', count: stats.web, color: '#3b82f6' },
-        { type: 'TV', count: stats.tv, color: '#8b5cf6' },
-        { type: 'Radio', count: stats.radio, color: '#f59e0b' },
-        { type: 'Print', count: stats.print, color: '#10b981' },
-        { type: 'Social', count: stats.social, color: '#ec4899' },
-      ].filter(t => t.count > 0).map(t => {
-        const typeReach = Math.round(stats.totalReach * (t.count / (stats.total || 1)))
-        return `<tr style="border-top:1px solid #f1f5f9;">
-          <td style="padding:8px 12px;">
-            <span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${t.color};margin-right:6px;vertical-align:middle;"></span>
-            <span style="font-size:12px;font-weight:600;color:#374151;">${t.type}</span>
-          </td>
-          <td style="padding:8px 12px;" align="center"><span style="font-size:13px;font-weight:700;color:#0f172a;">${t.count}</span></td>
-          <td style="padding:8px 12px;" align="right"><span style="font-size:12px;color:#64748b;">${formatNumber(typeReach)}</span></td>
-        </tr>`
-      }).join('')}
-    </table>
-  </td></tr>
-
-  <!-- Top Mentions -->
-  <tr><td class="mobile-pad" style="padding:0 24px 20px;">
-    <div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">Top Mentions</div>
-    <table width="100%" cellpadding="0" cellspacing="0" border="0">${topMentionsHtml}</table>
-  </td></tr>
-
-  <!-- Social Platform Breakdown -->
-  ${stats.socialByPlatform.length > 0 ? `
-  <tr><td class="mobile-pad" style="padding:0 24px 20px;">
-    <div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">📱 Social Media by Platform</div>
-    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;">
-      ${stats.socialByPlatform.map(p => {
-        const platformColors: Record<string, string> = { TWITTER: '#1da1f2', YOUTUBE: '#ff0000', FACEBOOK: '#1877f2', LINKEDIN: '#0a66c2', INSTAGRAM: '#e4405f', TIKTOK: '#000000' }
-        const platformNames: Record<string, string> = { TWITTER: 'Twitter/X', YOUTUBE: 'YouTube', FACEBOOK: 'Facebook', LINKEDIN: 'LinkedIn', INSTAGRAM: 'Instagram', TIKTOK: 'TikTok' }
-        const color = platformColors[p.platform] || '#94a3b8'
-        const name = platformNames[p.platform] || p.platform
-        const pct = stats.social > 0 ? Math.round((p.count / stats.social) * 100) : 0
-        return `<tr style="border-top:1px solid #f1f5f9;">
-          <td style="padding:8px 12px;">
-            <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${color};margin-right:6px;vertical-align:middle;"></span>
-            <span style="font-size:12px;font-weight:600;color:#374151;">${name}</span>
-          </td>
-          <td style="padding:8px 12px;" align="center"><span style="font-size:13px;font-weight:700;color:#0f172a;">${p.count}</span> <span style="font-size:10px;color:#94a3b8;">(${pct}%)</span></td>
-          <td style="padding:8px 12px;" align="right"><span style="font-size:12px;color:#64748b;">${formatNumber(p.reach)} reach</span></td>
-        </tr>`
-      }).join('')}
-    </table>
-  </td></tr>` : ''}
-
   <!-- Recommendations -->
   <tr><td class="mobile-pad" style="padding:0 24px 20px;">
     <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #fde68a;border-radius:12px;overflow:hidden;">
@@ -548,7 +447,7 @@ function generateMonthlyEmailHtml(data: MonthlyReportData, recipientName?: strin
         <span style="font-size:12px;font-weight:700;color:#d97706;text-transform:uppercase;letter-spacing:1px;">💡 Recommendations</span>
       </td></tr>
       <tr><td style="padding:16px 20px;">
-        <table width="100%" cellpadding="0" cellspacing="0" border="0">${recParagraphs}</table>
+        <table width="100%" cellpadding="0" cellspacing="0" border="0">${recItems}</table>
       </td></tr>
     </table>
   </td></tr>
