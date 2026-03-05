@@ -180,6 +180,7 @@ export default function ClientInsightsPage() {
       commentsCount: String(post.commentsCount || 0),
       sharesCount: String(post.sharesCount || 0),
       viewsCount: String(post.viewsCount || 0),
+      clientId: clientId,
     })
     router.push(`/media/social/add?${params.toString()}`)
   }

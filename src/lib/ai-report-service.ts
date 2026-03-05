@@ -27,6 +27,7 @@ export interface MentionStats {
   negative: number
   totalReach: number
   bySource: { name: string; count: number; reach: number }[]
+  socialByPlatform: { platform: string; count: number; reach: number }[]
   topMentions: {
     title: string
     source: string
@@ -169,6 +170,7 @@ async function gatherMentionStats(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const topMentions: MentionStats['topMentions'] = []
   const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+  const platformMap = new Map<string, { count: number; reach: number }>()
 
   for (const s of webStories) {
     const reach = s.publication?.reach || 0
@@ -221,6 +223,10 @@ async function gatherMentionStats(
     countSentiment(p.overallSentiment)
     const sourceName = p.account ? `@${p.account.handle}` : (p.authorHandle || 'Social')
     addSource(sourceName, reach)
+    // Track by platform
+    const plat = p.platform || 'UNKNOWN'
+    const existing = platformMap.get(plat) || { count: 0, reach: 0 }
+    platformMap.set(plat, { count: existing.count + 1, reach: existing.reach + reach })
     topMentions.push({
       title: (p.content?.substring(0, 100) || 'Social Post'),
       source: sourceName, sentiment: p.overallSentiment,
@@ -236,6 +242,10 @@ async function gatherMentionStats(
     .map(([name, data]) => ({ name, ...data }))
     .sort((a, b) => b.reach - a.reach)
 
+  const socialByPlatform = Array.from(platformMap.entries())
+    .map(([platform, data]) => ({ platform, ...data }))
+    .sort((a, b) => b.count - a.count)
+
   return {
     total: webStories.length + tvStories.length + radioStories.length + printStories.length + socialPosts.length,
     web: webStories.length,
@@ -246,6 +256,7 @@ async function gatherMentionStats(
     positive, neutral, negative,
     totalReach,
     bySource,
+    socialByPlatform,
     topMentions: topMentions.slice(0, 10),
   }
 }
@@ -368,11 +379,12 @@ Positive: ${currentStats.positive} (prev: ${previousStats.positive})
 Negative: ${currentStats.negative} (prev: ${previousStats.negative})
 Neutral: ${currentStats.neutral}
 By type: Web=${currentStats.web}, TV=${currentStats.tv}, Radio=${currentStats.radio}, Print=${currentStats.print}, Social=${currentStats.social}
+Social by platform: ${currentStats.socialByPlatform.map(s => `${s.platform}=${s.count}(${formatNumber(s.reach)} reach)`).join(', ') || 'none'}
 Top sources: ${currentStats.bySource.slice(0, 5).map(s => `${s.name}(${s.count} mentions, ${formatNumber(s.reach)} reach)`).join('; ')}
 Top mentions: ${currentStats.topMentions.slice(0, 5).map(m => `"${m.title.substring(0, 60)}" by ${m.source} (${m.sentiment || 'neutral'})`).join('; ')}`
 
   const aiSummary = await callAI(
-    `You are a media monitoring analyst. Write a concise 3-4 sentence summary of this week's media performance for the client. Focus on key changes, notable mentions, and sentiment shifts. Be specific with numbers.\n\nData:\n${dataSummary}\n\nWrite ONLY the summary paragraph, no headers or labels.`,
+    `You are a media monitoring analyst. Write a concise 3-5 sentence OBSERVATIONAL summary of this week's media performance for the client. Report what happened: key changes in mentions and reach, notable stories, sentiment shifts, source distribution, and engagement patterns. Use specific numbers from the data. Do NOT give advice or recommendations — just report the facts.\n\nData:\n${dataSummary}\n\nWrite ONLY the summary paragraph, no headers or labels.`,
     400
   )
 
@@ -436,6 +448,7 @@ Positive: ${currentStats.positive} (prev: ${previousStats.positive})
 Negative: ${currentStats.negative} (prev: ${previousStats.negative})
 Neutral: ${currentStats.neutral}
 By type: Web=${currentStats.web}, TV=${currentStats.tv}, Radio=${currentStats.radio}, Print=${currentStats.print}, Social=${currentStats.social}
+Social by platform: ${currentStats.socialByPlatform.map(s => `${s.platform}=${s.count}(${formatNumber(s.reach)} reach)`).join(', ') || 'none'}
 Top sources: ${currentStats.bySource.slice(0, 8).map(s => `${s.name}(${s.count} mentions, ${formatNumber(s.reach)} reach)`).join('; ')}
 Top mentions: ${currentStats.topMentions.slice(0, 8).map(m => `"${m.title.substring(0, 80)}" by ${m.source} (${m.sentiment || 'neutral'}, reach: ${formatNumber(m.reach)})`).join('; ')}`
 
@@ -443,9 +456,9 @@ Top mentions: ${currentStats.topMentions.slice(0, 8).map(m => `"${m.title.substr
   const aiResponse = await callAI(
     `You are a senior media monitoring analyst. Analyze this monthly media data and return a JSON object with these fields:
 - "headline": A compelling one-line headline summarizing the month (e.g., "A 51% Decrease in ${client.name} Mentions"). Include the percentage change.
-- "insights": 4-5 detailed insight paragraphs analyzing key themes, campaigns, events, and patterns. Each should be 2-3 sentences with specific numbers. Separate with \\n\\n.
-- "trends": 4-5 bullet points comparing this month to previous month. Each on a new line starting with "•". Include specific numbers.
-- "recommendations": 3-4 actionable recommendation paragraphs. Each should be 2-3 sentences. Separate with \\n\\n.
+- "insights": 4-5 detailed OBSERVATIONAL insight paragraphs. Report ONLY what happened — key themes, campaigns, events, patterns, source distribution, sentiment shifts, and engagement data. Do NOT give advice or recommendations here. Each paragraph should be 2-3 sentences with specific numbers from the data. Separate with \\n\\n. Example style: "The main topics of discussion included X, accounting for Y% of total reach. Mentions were primarily distributed across news (X%), social (Y%), with the highest share of voice from Z."
+- "trends": 4-5 bullet points comparing this month to previous month with specific numbers. Each on a new line starting with "•". Focus on factual changes: mention counts, reach changes, sentiment shifts, peak activity days.
+- "recommendations": 3-4 actionable strategic recommendation paragraphs. THIS is where advice belongs. Each should be 2-3 sentences with specific actions the client should take. Separate with \\n\\n.
 
 Data:\n${dataSummary}
 

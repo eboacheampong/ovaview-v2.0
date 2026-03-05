@@ -85,17 +85,17 @@ function sentimentBar(positive: number, neutral: number, negative: number): stri
 
 function statCard(emoji: string, value: string, label: string, change?: string): string {
   return `
-    <td width="25%" align="center" style="padding:4px;">
+    <td class="stat-cell" width="25%" align="center" style="padding:4px;">
       <table cellpadding="0" cellspacing="0" border="0" style="background:#ffffff;border:1px solid #e2e8f0;border-radius:10px;width:100%;">
-        <tr><td align="center" style="padding:14px 8px 4px;">
-          <div style="font-size:24px;font-weight:800;color:#0f172a;">${value}</div>
+        <tr><td align="center" style="padding:14px 6px 4px;">
+          <div style="font-size:22px;font-weight:800;color:#0f172a;">${value}</div>
         </td></tr>
-        <tr><td align="center" style="padding:0 8px;">
-          <div style="font-size:10px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;">${label}</div>
+        <tr><td align="center" style="padding:0 6px;">
+          <div style="font-size:9px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;">${label}</div>
         </td></tr>
-        ${change ? `<tr><td align="center" style="padding:4px 8px 12px;">
-          <div style="font-size:11px;">${change}</div>
-        </td></tr>` : `<tr><td style="padding:0 0 12px;"></td></tr>`}
+        ${change ? `<tr><td align="center" style="padding:4px 4px 10px;">
+          <div style="font-size:10px;line-height:1.3;">${change}</div>
+        </td></tr>` : `<tr><td style="padding:0 0 10px;"></td></tr>`}
       </table>
     </td>`
 }
@@ -180,7 +180,8 @@ function generateWeeklyEmailHtml(data: WeeklyReportData, recipientName?: string)
     @media only screen and (max-width:620px) {
       .email-container { width:100% !important; }
       .mobile-pad { padding-left:12px !important; padding-right:12px !important; }
-      .stat-row td { display:block !important; width:50% !important; float:left !important; }
+      .stat-cell { display:block !important; width:48% !important; float:left !important; box-sizing:border-box !important; }
+      .stat-row { display:block !important; overflow:hidden !important; }
     }
   </style>
 </head>
@@ -252,11 +253,67 @@ function generateWeeklyEmailHtml(data: WeeklyReportData, recipientName?: string)
     <table width="100%" cellpadding="0" cellspacing="0" border="0">${sourceDistHtml}</table>
   </td></tr>
 
+  <!-- Mentions vs Reach Chart -->
+  <tr><td class="mobile-pad" style="padding:0 24px 20px;">
+    <div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">📊 Mentions vs Reach by Type</div>
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;">
+      <tr style="background:#f8f7f5;">
+        <td style="padding:8px 12px;font-size:10px;font-weight:700;color:#64748b;">Type</td>
+        <td style="padding:8px 12px;font-size:10px;font-weight:700;color:#64748b;" align="center">Mentions</td>
+        <td style="padding:8px 12px;font-size:10px;font-weight:700;color:#64748b;" align="right">Reach</td>
+      </tr>
+      ${[
+        { type: 'Web', count: stats.web, color: '#3b82f6' },
+        { type: 'TV', count: stats.tv, color: '#8b5cf6' },
+        { type: 'Radio', count: stats.radio, color: '#f59e0b' },
+        { type: 'Print', count: stats.print, color: '#10b981' },
+        { type: 'Social', count: stats.social, color: '#ec4899' },
+      ].filter(t => t.count > 0).map(t => {
+        const typeReach = stats.bySource.filter(s => {
+          // Rough mapping - social sources start with @
+          if (t.type === 'Social') return s.name.startsWith('@')
+          return false
+        }).reduce((sum, s) => sum + s.reach, 0) || (t.type !== 'Social' ? Math.round(stats.totalReach * (t.count / (stats.total || 1))) : 0)
+        return `<tr style="border-top:1px solid #f1f5f9;">
+          <td style="padding:8px 12px;">
+            <span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${t.color};margin-right:6px;vertical-align:middle;"></span>
+            <span style="font-size:12px;font-weight:600;color:#374151;">${t.type}</span>
+          </td>
+          <td style="padding:8px 12px;" align="center"><span style="font-size:13px;font-weight:700;color:#0f172a;">${t.count}</span></td>
+          <td style="padding:8px 12px;" align="right"><span style="font-size:12px;color:#64748b;">${formatNumber(typeReach)}</span></td>
+        </tr>`
+      }).join('')}
+    </table>
+  </td></tr>
+
   <!-- Top Mentions -->
   <tr><td class="mobile-pad" style="padding:0 24px 20px;">
     <div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">Mentions & Reach – Most Interesting</div>
     <table width="100%" cellpadding="0" cellspacing="0" border="0">${topMentionsHtml}</table>
   </td></tr>
+
+  <!-- Social Platform Breakdown -->
+  ${stats.socialByPlatform.length > 0 ? `
+  <tr><td class="mobile-pad" style="padding:0 24px 20px;">
+    <div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">📱 Social Media by Platform</div>
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;">
+      ${stats.socialByPlatform.map(p => {
+        const platformColors: Record<string, string> = { TWITTER: '#1da1f2', YOUTUBE: '#ff0000', FACEBOOK: '#1877f2', LINKEDIN: '#0a66c2', INSTAGRAM: '#e4405f', TIKTOK: '#000000' }
+        const platformNames: Record<string, string> = { TWITTER: 'Twitter/X', YOUTUBE: 'YouTube', FACEBOOK: 'Facebook', LINKEDIN: 'LinkedIn', INSTAGRAM: 'Instagram', TIKTOK: 'TikTok' }
+        const color = platformColors[p.platform] || '#94a3b8'
+        const name = platformNames[p.platform] || p.platform
+        const pct = stats.social > 0 ? Math.round((p.count / stats.social) * 100) : 0
+        return `<tr style="border-top:1px solid #f1f5f9;">
+          <td style="padding:8px 12px;">
+            <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${color};margin-right:6px;vertical-align:middle;"></span>
+            <span style="font-size:12px;font-weight:600;color:#374151;">${name}</span>
+          </td>
+          <td style="padding:8px 12px;" align="center"><span style="font-size:13px;font-weight:700;color:#0f172a;">${p.count}</span> <span style="font-size:10px;color:#94a3b8;">(${pct}%)</span></td>
+          <td style="padding:8px 12px;" align="right"><span style="font-size:12px;color:#64748b;">${formatNumber(p.reach)} reach</span></td>
+        </tr>`
+      }).join('')}
+    </table>
+  </td></tr>` : ''}
 
   <!-- Top Authors -->
   ${topAuthors.length > 0 ? `
@@ -345,7 +402,8 @@ function generateMonthlyEmailHtml(data: MonthlyReportData, recipientName?: strin
     @media only screen and (max-width:620px) {
       .email-container { width:100% !important; }
       .mobile-pad { padding-left:12px !important; padding-right:12px !important; }
-      .stat-row td { display:block !important; width:50% !important; float:left !important; }
+      .stat-cell { display:block !important; width:48% !important; float:left !important; box-sizing:border-box !important; }
+      .stat-row { display:block !important; overflow:hidden !important; }
     }
   </style>
 </head>
@@ -425,11 +483,63 @@ function generateMonthlyEmailHtml(data: MonthlyReportData, recipientName?: strin
     </table>
   </td></tr>
 
+  <!-- Mentions vs Reach Chart -->
+  <tr><td class="mobile-pad" style="padding:0 24px 20px;">
+    <div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">📊 Mentions vs Reach by Type</div>
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;">
+      <tr style="background:#f8f7f5;">
+        <td style="padding:8px 12px;font-size:10px;font-weight:700;color:#64748b;">Type</td>
+        <td style="padding:8px 12px;font-size:10px;font-weight:700;color:#64748b;" align="center">Mentions</td>
+        <td style="padding:8px 12px;font-size:10px;font-weight:700;color:#64748b;" align="right">Reach</td>
+      </tr>
+      ${[
+        { type: 'Web', count: stats.web, color: '#3b82f6' },
+        { type: 'TV', count: stats.tv, color: '#8b5cf6' },
+        { type: 'Radio', count: stats.radio, color: '#f59e0b' },
+        { type: 'Print', count: stats.print, color: '#10b981' },
+        { type: 'Social', count: stats.social, color: '#ec4899' },
+      ].filter(t => t.count > 0).map(t => {
+        const typeReach = Math.round(stats.totalReach * (t.count / (stats.total || 1)))
+        return `<tr style="border-top:1px solid #f1f5f9;">
+          <td style="padding:8px 12px;">
+            <span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${t.color};margin-right:6px;vertical-align:middle;"></span>
+            <span style="font-size:12px;font-weight:600;color:#374151;">${t.type}</span>
+          </td>
+          <td style="padding:8px 12px;" align="center"><span style="font-size:13px;font-weight:700;color:#0f172a;">${t.count}</span></td>
+          <td style="padding:8px 12px;" align="right"><span style="font-size:12px;color:#64748b;">${formatNumber(typeReach)}</span></td>
+        </tr>`
+      }).join('')}
+    </table>
+  </td></tr>
+
   <!-- Top Mentions -->
   <tr><td class="mobile-pad" style="padding:0 24px 20px;">
     <div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">Top Mentions</div>
     <table width="100%" cellpadding="0" cellspacing="0" border="0">${topMentionsHtml}</table>
   </td></tr>
+
+  <!-- Social Platform Breakdown -->
+  ${stats.socialByPlatform.length > 0 ? `
+  <tr><td class="mobile-pad" style="padding:0 24px 20px;">
+    <div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">📱 Social Media by Platform</div>
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;">
+      ${stats.socialByPlatform.map(p => {
+        const platformColors: Record<string, string> = { TWITTER: '#1da1f2', YOUTUBE: '#ff0000', FACEBOOK: '#1877f2', LINKEDIN: '#0a66c2', INSTAGRAM: '#e4405f', TIKTOK: '#000000' }
+        const platformNames: Record<string, string> = { TWITTER: 'Twitter/X', YOUTUBE: 'YouTube', FACEBOOK: 'Facebook', LINKEDIN: 'LinkedIn', INSTAGRAM: 'Instagram', TIKTOK: 'TikTok' }
+        const color = platformColors[p.platform] || '#94a3b8'
+        const name = platformNames[p.platform] || p.platform
+        const pct = stats.social > 0 ? Math.round((p.count / stats.social) * 100) : 0
+        return `<tr style="border-top:1px solid #f1f5f9;">
+          <td style="padding:8px 12px;">
+            <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${color};margin-right:6px;vertical-align:middle;"></span>
+            <span style="font-size:12px;font-weight:600;color:#374151;">${name}</span>
+          </td>
+          <td style="padding:8px 12px;" align="center"><span style="font-size:13px;font-weight:700;color:#0f172a;">${p.count}</span> <span style="font-size:10px;color:#94a3b8;">(${pct}%)</span></td>
+          <td style="padding:8px 12px;" align="right"><span style="font-size:12px;color:#64748b;">${formatNumber(p.reach)} reach</span></td>
+        </tr>`
+      }).join('')}
+    </table>
+  </td></tr>` : ''}
 
   <!-- Recommendations -->
   <tr><td class="mobile-pad" style="padding:0 24px 20px;">

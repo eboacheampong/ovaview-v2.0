@@ -6,7 +6,7 @@ import { ColumnDef } from '@tanstack/react-table'
 import { DataTable, DataTableColumnHeader } from '@/components/data-table'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Pencil, Trash2, ExternalLink, Code, RefreshCw, Loader2 } from 'lucide-react'
+import { Plus, Pencil, Trash2, ExternalLink, Code, Loader2 } from 'lucide-react'
 import { format } from 'date-fns'
 
 interface SocialPost {
@@ -39,8 +39,7 @@ export default function SocialMediaPage() {
   const router = useRouter()
   const [posts, setPosts] = useState<SocialPost[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [isScraping, setIsScraping] = useState(false)
-  const [scrapeMessage, setScrapeMessage] = useState<string | null>(null)
+  const [isClearing, setIsClearing] = useState(false)
 
   useEffect(() => {
     fetchPosts()
@@ -61,38 +60,6 @@ export default function SocialMediaPage() {
     }
   }
 
-  const handleScrape = async () => {
-    try {
-      setIsScraping(true)
-      setScrapeMessage(null)
-      
-      const res = await fetch('/api/social-posts/scrape', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          keywords: ['mining news', 'business africa', 'industry update', 'ghana news'],
-          platforms: ['youtube', 'twitter', 'tiktok', 'instagram']
-        }),
-      })
-      
-      const data = await res.json()
-      
-      if (res.ok) {
-        const platformInfo = data.platformResults 
-          ? Object.entries(data.platformResults).map(([p, c]) => `${p}: ${c}`).join(', ')
-          : ''
-        setScrapeMessage(`✓ ${data.message}${platformInfo ? ` (${platformInfo})` : ''}`)
-        await fetchPosts()
-      } else {
-        setScrapeMessage(`✗ ${data.error || 'Failed to scrape'}`)
-      }
-    } catch (error) {
-      setScrapeMessage('✗ Failed to scrape social media')
-    } finally {
-      setIsScraping(false)
-    }
-  }
-
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this post?')) return
     try {
@@ -102,6 +69,27 @@ export default function SocialMediaPage() {
       }
     } catch (error) {
       console.error('Failed to delete:', error)
+    }
+  }
+
+  const handleClearAll = async () => {
+    if (!confirm(`Are you sure you want to delete ALL ${posts.length} social posts? This cannot be undone.`)) return
+    if (!confirm('This is permanent. Type OK to confirm.')) return
+    
+    setIsClearing(true)
+    try {
+      const res = await fetch('/api/social-posts/clear', { method: 'DELETE' })
+      if (res.ok) {
+        setPosts([])
+      } else {
+        const data = await res.json()
+        alert(data.error || 'Failed to clear posts')
+      }
+    } catch (error) {
+      console.error('Failed to clear:', error)
+      alert('Failed to clear posts')
+    } finally {
+      setIsClearing(false)
     }
   }
 
@@ -207,33 +195,25 @@ export default function SocialMediaPage() {
           <p className="text-gray-500 mt-1">Manage social media posts and embeds</p>
         </div>
         <div className="flex gap-3">
-          <Button 
-            onClick={handleScrape} 
-            disabled={isScraping}
-            variant="outline"
-            className="border-purple-300 text-purple-600 hover:bg-purple-50"
-          >
-            {isScraping ? (
-              <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Scraping...</>
-            ) : (
-              <><RefreshCw className="h-4 w-4 mr-2" /> Scrape All Platforms</>
-            )}
-          </Button>
+          {posts.length > 0 && (
+            <Button 
+              onClick={handleClearAll} 
+              disabled={isClearing}
+              variant="outline"
+              className="border-red-300 text-red-600 hover:bg-red-50"
+            >
+              {isClearing ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Clearing...</>
+              ) : (
+                <><Trash2 className="h-4 w-4 mr-2" /> Clear All</>
+              )}
+            </Button>
+          )}
           <Button onClick={() => router.push('/media/social/add')} className="bg-purple-500 hover:bg-purple-600">
             <Plus className="h-4 w-4 mr-2" /> Add Post
           </Button>
         </div>
       </div>
-
-      {scrapeMessage && (
-        <div className={`mb-4 p-3 rounded-lg text-sm font-medium ${
-          scrapeMessage.startsWith('✓') 
-            ? 'bg-green-50 text-green-700 border border-green-200' 
-            : 'bg-red-50 text-red-700 border border-red-200'
-        }`}>
-          {scrapeMessage}
-        </div>
-      )}
 
       <DataTable
         columns={columns}

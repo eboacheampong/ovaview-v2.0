@@ -23,6 +23,7 @@ export default function AddSocialPostPage() {
   const searchParams = useSearchParams()
   const [isLoading, setIsLoading] = useState(false)
   const [industries, setIndustries] = useState<{ id: string; name: string }[]>([])
+  const [clients, setClients] = useState<{ id: string; name: string }[]>([])
   
   // Initialize form data from URL params (for pre-filling from insights)
   const [formData, setFormData] = useState({
@@ -40,6 +41,7 @@ export default function AddSocialPostPage() {
     viewsCount: parseInt(searchParams.get('viewsCount') || '0'),
     postedAt: new Date().toISOString().slice(0, 16),
     industryId: '',
+    clientId: searchParams.get('clientId') || '',
   })
 
   // Check if we have pre-filled data
@@ -49,6 +51,10 @@ export default function AddSocialPostPage() {
     fetch('/api/industries')
       .then(res => res.json())
       .then(data => setIndustries(data.industries || data || []))
+      .catch(() => {})
+    fetch('/api/clients')
+      .then(res => res.json())
+      .then(data => setClients(Array.isArray(data) ? data.map((c: { id: string; name: string }) => ({ id: c.id, name: c.name })) : []))
       .catch(() => {})
   }, [])
 
@@ -113,6 +119,7 @@ export default function AddSocialPostPage() {
         viewsCount: formData.viewsCount,
         postedAt: new Date(formData.postedAt).toISOString(),
         industryId: formData.industryId || null,
+        clientId: formData.clientId || null,
       }
 
       const res = await fetch('/api/social-posts', {
@@ -143,6 +150,11 @@ export default function AddSocialPostPage() {
     ...industries.map(i => ({ value: i.id, label: i.name }))
   ]
 
+  const clientOptions = [
+    { value: '', label: 'Select client (optional)' },
+    ...clients.map(c => ({ value: c.id, label: c.name }))
+  ]
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="bg-gradient-to-r from-purple-500 to-purple-600 text-white py-6 px-6 shadow-lg">
@@ -167,7 +179,7 @@ export default function AddSocialPostPage() {
               <p className="text-sm text-gray-500">Select the social platform and industry classification</p>
             </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <Label className="text-gray-600 mb-2 block">Platform</Label>
               <Select 
@@ -183,6 +195,15 @@ export default function AddSocialPostPage() {
                 options={industryOptions} 
                 value={formData.industryId} 
                 onChange={e => setFormData(p => ({ ...p, industryId: e.target.value }))} 
+                className="h-11"
+              />
+            </div>
+            <div>
+              <Label className="text-gray-600 mb-2 block">Client</Label>
+              <Select 
+                options={clientOptions} 
+                value={formData.clientId} 
+                onChange={e => setFormData(p => ({ ...p, clientId: e.target.value }))} 
                 className="h-11"
               />
             </div>
