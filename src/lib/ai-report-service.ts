@@ -288,6 +288,7 @@ async function callAI(prompt: string, maxTokens: number = 1500): Promise<string>
       try {
         if (attempt > 0) await new Promise(r => setTimeout(r, 1500)) // wait before retry
 
+        console.log(`[AI] Trying ${model} attempt ${attempt + 1}...`)
         const res = await fetch(OPENROUTER_URL, {
           method: 'POST',
           headers: {
@@ -304,7 +305,8 @@ async function callAI(prompt: string, maxTokens: number = 1500): Promise<string>
         })
 
         if (!res.ok) {
-          errors.push(`${model}[${attempt}]: HTTP ${res.status}`)
+          const statusText = await res.text().catch(() => '')
+          errors.push(`${model}[${attempt}]: HTTP ${res.status} ${statusText.substring(0, 100)}`)
           continue
         }
 
@@ -318,27 +320,19 @@ async function callAI(prompt: string, maxTokens: number = 1500): Promise<string>
 
         const content = data.choices?.[0]?.message?.content
         if (!content || typeof content !== 'string') {
-          errors.push(`${model}[${attempt}]: empty response`)
+          errors.push(`${model}[${attempt}]: empty/missing content in response`)
           continue
         }
 
         const trimmed = content.trim()
 
-        // Only reject responses that are clearly error messages from the API itself
-        // (not from the AI model generating content)
-        const lower = trimmed.toLowerCase()
-        if ((lower.startsWith('an error occurred') || lower.startsWith('error:')) && trimmed.length < 200) {
-          errors.push(`${model}[${attempt}]: API error response: "${trimmed.substring(0, 100)}"`)
-          continue
-        }
-
-        // Reject truly empty/useless responses
+        // Reject truly empty responses only
         if (trimmed.length < 5) {
           errors.push(`${model}[${attempt}]: response too short (${trimmed.length} chars)`)
           continue
         }
 
-        console.log(`[AI] ${model} responded (${trimmed.length} chars)`)
+        console.log(`[AI] ✓ ${model} responded successfully (${trimmed.length} chars)`)
         return trimmed
       } catch (e) {
         errors.push(`${model}[${attempt}]: ${e instanceof Error ? e.message : 'unknown error'}`)
@@ -357,7 +351,7 @@ function parseJSON(text: string): Record<string, unknown> {
   const match = jsonText.match(/```(?:json)?\s*([\s\S]*?)```/)
   if (match) jsonText = match[1].trim()
 
-  // Try to find JSON object in the text
+  // Try to find JSON object in the text (skip any preamble text before the JSON)
   const jsonStart = jsonText.indexOf('{')
   const jsonEnd = jsonText.lastIndexOf('}')
   if (jsonStart !== -1 && jsonEnd > jsonStart) {
@@ -369,39 +363,110 @@ function parseJSON(text: string): Record<string, unknown> {
 
   // Attempt 1: direct parse
   try {
-    return JSON.parse(jsonText)
+    const result = JSON.parse(jsonText)
+    console.log('[parseJSON] ✓ Direct parse succeeded')
+    return result
   } catch (e1) {
-    console.log('[parseJSON] Attempt 1 failed:', (e1 as Error).message?.substring(0, 80))
+    console.log('[parseJSON] Attempt 1 (direct) failed:', (e1 as Error).message?.substring(0, 80))
   }
 
-  // Attempt 2: fix unescaped newlines inside string values
-  // Walk through and escape newlines that are inside quoted strings
+  // Attempt 2: fix unescaped newlines/tabs/quotes inside JSON string values
+  // Walk character by character, tracking whether we're inside a JSON string
   try {
     let fixed = ''
     let inString = false
-    let escaped = false
-    for (let i = 0; i < jsonText.length; i++) {
+    let i = 0
+    while (i < jsonText.length) {
       const ch = jsonText[i]
-      if (escaped) { fixed += ch; escaped = false; continue }
-      if (ch === '\\') { fixed += ch; escaped = true; continue }
-      if (ch === '"') { fixed += ch; inString = !inString; continue }
-      if (inString && ch === '\n') { fixed += '\\n'; continue }
-      if (inString && ch === '\r') { fixed += ''; continue }
-      if (inString && ch === '\t') { fixed += '\\t'; continue }
+
+      if (!inString) {
+        // Outside a string — just copy and check for string start
+        if (ch === '"') { inString = true }
+        fixed += ch
+        i++
+        continue
+      }
+
+      // Inside a string
+      if (ch === '\\') {
+        // Escape sequence — copy both chars as-is (already escaped)
+        fixed += ch
+        if (i + 1 < jsonText.length) {
+          fixed += jsonText[i + 1]
+          i += 2
+        } else {
+          i++
+        }
+        continue
+      }
+
+      if (ch === '"') {
+        // End of string
+        inString = false
+        fixed += ch
+        i++
+        continue
+      }
+
+      // Unescaped special chars inside string — escape them
+      if (ch === '\n') { fixed += '\\n'; i++; continue }
+      if (ch === '\r') { i++; continue } // skip carriage returns
+      if (ch === '\t') { fixed += '\\t'; i++; continue }
+
       fixed += ch
+      i++
     }
-    return JSON.parse(fixed)
+    const result = JSON.parse(fixed)
+    console.log('[parseJSON] ✓ Attempt 2 (newline fix) succeeded')
+    return result
   } catch (e2) {
-    console.log('[parseJSON] Attempt 2 failed:', (e2 as Error).message?.substring(0, 80))
+    console.log('[parseJSON] Attempt 2 (newline fix) failed:', (e2 as Error).message?.substring(0, 80))
   }
 
-  // Attempt 3: extract individual fields with regex
+  // Attempt 3: extract fields by finding balanced quotes
+  // This handles cases where the JSON structure is broken but individual fields are readable
   try {
     const extractField = (field: string): string => {
-      // Match "field": "value" where value can span multiple lines
-      const re = new RegExp(`"${field}"\\s*:\\s*"([\\s\\S]*?)(?:"\\s*[,}])`)
-      const m = jsonText.match(re)
-      return m ? m[1].replace(/\\n/g, '\n').replace(/\\"/g, '"') : ''
+      // Find "field": " and then read until we find a closing " that's followed by , or }
+      // accounting for escaped quotes inside the value
+      const fieldPattern = `"${field}"\\s*:\\s*"`
+      const re = new RegExp(fieldPattern)
+      const m = re.exec(jsonText)
+      if (!m) return ''
+
+      const valueStart = m.index + m[0].length
+      let value = ''
+      let j = valueStart
+      while (j < jsonText.length) {
+        const c = jsonText[j]
+        if (c === '\\' && j + 1 < jsonText.length) {
+          // Escaped char — include both
+          value += c + jsonText[j + 1]
+          j += 2
+          continue
+        }
+        if (c === '"') {
+          // Check if this quote is followed by , or } or whitespace+, or whitespace+}
+          // which would indicate end of the JSON string value
+          const after = jsonText.substring(j + 1, j + 10).trimStart()
+          if (after.startsWith(',') || after.startsWith('}')) {
+            break // found the real end of the value
+          }
+          // Otherwise it's an unescaped quote inside the value — include it
+          value += c
+          j++
+          continue
+        }
+        value += c
+        j++
+      }
+
+      // Unescape the value
+      return value
+        .replace(/\\n/g, '\n')
+        .replace(/\\t/g, '\t')
+        .replace(/\\"/g, '"')
+        .replace(/\\\\/g, '\\')
     }
 
     const headline = extractField('headline')
@@ -410,11 +475,23 @@ function parseJSON(text: string): Record<string, unknown> {
     const recommendations = extractField('recommendations')
 
     if (headline || insights || trends || recommendations) {
-      console.log('[parseJSON] Attempt 3 succeeded via regex extraction')
+      console.log(`[parseJSON] ✓ Attempt 3 (field extraction) succeeded — headline:${headline.length}, insights:${insights.length}, trends:${trends.length}, recs:${recommendations.length} chars`)
       return { headline, insights, trends, recommendations }
     }
   } catch (e3) {
-    console.log('[parseJSON] Attempt 3 failed:', (e3 as Error).message?.substring(0, 80))
+    console.log('[parseJSON] Attempt 3 (field extraction) failed:', (e3 as Error).message?.substring(0, 80))
+  }
+
+  // Attempt 4: if the response is plain text (not JSON at all), the AI might have
+  // returned the content directly — treat the whole thing as insights
+  if (!jsonText.startsWith('{')) {
+    console.log('[parseJSON] Attempt 4: treating raw text as insights')
+    return {
+      headline: '',
+      insights: jsonText,
+      trends: '',
+      recommendations: '',
+    }
   }
 
   throw new Error(`Failed to parse AI JSON response. First 200 chars: ${jsonText.substring(0, 200)}`)
@@ -545,10 +622,12 @@ Top mentions: ${currentStats.topMentions.slice(0, 5).map(m => `"${m.title}" by $
   let aiSummary: string
   try {
     aiSummary = await callAI(
-      `You are a media monitoring analyst. Write a concise 3-5 sentence OBSERVATIONAL summary of ${periodDesc}'s media performance for the client. Report what happened: key changes in mentions and reach, notable stories, sentiment shifts, source distribution, and engagement patterns. Use specific numbers from the data. Do NOT give advice or recommendations — just report the facts. Do NOT say "this week" or "this month" unless the period actually matches — refer to the period as "${periodDesc}".\n\nData:\n${dataSummary}\n\nWrite ONLY the summary paragraph, no headers or labels.`,
-      400
+      `You are a media monitoring analyst. Write a concise 3-5 sentence summary of ${periodDesc}'s media performance for ${client.name}. Report what happened: key changes in mentions and reach, notable stories, sentiment shifts, source distribution. Use specific numbers. Do NOT give advice. Refer to the period as "${periodDesc}".\n\nData:\n${dataSummary}\n\nWrite ONLY the summary paragraph.`,
+      600
     )
-  } catch {
+    console.log(`[Weekly] ✓ AI summary received (${aiSummary.length} chars)`)
+  } catch (err) {
+    console.log(`[Weekly] AI summary failed: ${err instanceof Error ? err.message : 'unknown'}, using data-driven fallback`)
     // Build a comprehensive data-driven fallback summary from real numbers
     const changeDir = comparison.mentionChangePercent >= 0 ? 'increase' : 'decrease'
     const reachDir = comparison.reachChangePercent >= 0 ? 'increase' : 'decrease'
@@ -684,41 +763,46 @@ Top mentions: ${currentStats.topMentions.slice(0, 8).map(m => `"${m.title}" by $
   let parsed: Record<string, unknown>
   try {
     const aiResponse = await callAI(
-      `You are a senior media monitoring analyst. Analyze this media data for ${periodDesc} and return a JSON object with these fields:
-- "headline": A compelling one-line headline summarizing the period (e.g., "A 51% Decrease in ${client.name} Mentions"). Include the percentage change.
-- "insights": 4-5 detailed OBSERVATIONAL insight paragraphs. Report ONLY what happened — key themes, campaigns, events, patterns, source distribution, sentiment shifts, and engagement data. Do NOT give advice or recommendations here. Each paragraph should be 2-3 sentences with specific numbers from the data. Separate paragraphs with \\n\\n. Refer to the period as "${periodDesc}", NOT as "this month" or "this week" unless it actually is.
-- "trends": A string with 4-5 bullet points comparing this period to the previous equivalent period. IMPORTANT: Each bullet must be on its own line separated by \\n. Start each line with "•". Include specific numbers: mention counts, reach changes, sentiment shifts, and peak activity days from the data provided. Do NOT say data is unavailable — use the peak activity days provided.
-- "recommendations": 3-4 actionable strategic recommendation paragraphs. THIS is where advice belongs. Each should be 2-3 sentences. Separate paragraphs with \\n\\n.
+      `Analyze this media monitoring data and return a JSON object with 4 fields: "headline", "insights", "trends", "recommendations".
 
-CRITICAL FORMATTING RULES:
-1. In "trends", separate each bullet with \\n, NOT periods or commas. Do NOT include any preamble like "Here are 4-5 bullet points..." — start directly with the first "•" bullet.
-2. In "recommendations", each recommendation MUST be a single continuous paragraph combining the title and explanation into one flowing text. Do NOT separate the title from the body with a newline. WRONG: "Expand Social Media\\n\\nThe company should..." CORRECT: "Expand social media presence by developing a comprehensive strategy that..." Do NOT include any preamble like "Here are recommendations..." or "Based on the data...". Do NOT use markdown formatting like **bold** or headers. Do NOT number them like "Recommendation 1:" or use title-then-body format.
-3. In "insights", each insight MUST be a single continuous paragraph. Do NOT use a title-then-body format. Do NOT use markdown. Write plain text only. No **bold**, no headers, no numbering.
-4. All fields must contain plain text only — no markdown syntax anywhere.
-5. NEVER start any field with a preamble sentence like "Here are...", "Based on the data...", "Below are...", "The following...".
+headline: One sentence with the percentage change (e.g. "A 51% Decrease in ${client.name} Mentions").
+insights: 4-5 observation paragraphs about what happened during ${periodDesc}. Use numbers from the data. Separate with \\n\\n. No advice here.
+trends: 4-5 bullet points starting with "•", each on a new line (\\n). Compare to previous period using the numbers.
+recommendations: 3-4 action paragraphs. Each is one continuous paragraph. Separate with \\n\\n.
 
-Data:\n${dataSummary}
+Rules: No markdown. No preambles like "Here are...". No numbered prefixes. Plain text only. Refer to the period as "${periodDesc}".
 
-Return ONLY valid JSON, no markdown.`,
-      2000
+Data:
+${dataSummary}
+
+Return ONLY the JSON object.`,
+      3000
     )
+    console.log(`[Monthly] AI response received (${aiResponse.length} chars), parsing...`)
+    console.log(`[Monthly] AI response preview: ${aiResponse.substring(0, 200)}`)
     parsed = parseJSON(aiResponse)
-  } catch {
+    console.log(`[Monthly] ✓ Parsed AI response — headline: ${String(parsed.headline || '').length}ch, insights: ${String(parsed.insights || '').length}ch, trends: ${String(parsed.trends || '').length}ch, recs: ${String(parsed.recommendations || '').length}ch`)
+  } catch (err) {
+    console.log(`[Monthly] First AI call failed: ${err instanceof Error ? err.message : 'unknown'}`)
     // First AI call failed or returned invalid JSON — try individual calls
     try {
+      console.log('[Monthly] Trying individual AI calls...')
       const [insightsText, trendsText, recsText] = await Promise.all([
-        callAI(`You are a media monitoring analyst. Write 4-5 OBSERVATIONAL insight paragraphs about this client's media performance during ${periodDesc}. Report ONLY what happened — themes, patterns, source distribution, sentiment. Use specific numbers. Each insight must be a single continuous paragraph (no title-then-body format). Separate paragraphs with blank lines. No advice. No preamble. No markdown. Refer to the period as "${periodDesc}".\n\nData:\n${dataSummary}`, 800),
-        callAI(`Write 4-5 bullet points comparing ${periodDesc} to the previous equivalent period. Start each with "•". Include specific numbers for mention counts, reach changes, sentiment shifts. Do NOT include any preamble like "Here are..." — start directly with the first bullet.\n\nData:\n${dataSummary}`, 400),
-        callAI(`Write 3-4 actionable strategic recommendation paragraphs for this client based on their media data during ${periodDesc}. Each recommendation must be a single continuous paragraph combining the action and explanation (no title-then-body format). Each 2-3 sentences with specific actions. Separate with blank lines. No preamble. No markdown. No numbering.\n\nData:\n${dataSummary}`, 500),
+        callAI(`You are a media analyst. Write 4-5 observation paragraphs about this client's media performance during ${periodDesc}. Use specific numbers. Separate paragraphs with blank lines. No advice. No preamble. No markdown. Refer to the period as "${periodDesc}".\n\nData:\n${dataSummary}`, 1200),
+        callAI(`Write 4-5 bullet points comparing ${periodDesc} to the previous period. Start each with "•" on its own line. Use specific numbers.\n\nData:\n${dataSummary}`, 600),
+        callAI(`Write 3-4 actionable recommendation paragraphs for this client based on their media data during ${periodDesc}. Each recommendation is one continuous paragraph. Separate with blank lines. No preamble. No markdown.\n\nData:\n${dataSummary}`, 800),
       ])
+      console.log(`[Monthly] ✓ Individual calls succeeded — insights: ${insightsText.length}ch, trends: ${trendsText.length}ch, recs: ${recsText.length}ch`)
       parsed = {
         headline: `${Math.abs(comparison.mentionChangePercent)}% ${comparison.mentionChangePercent >= 0 ? 'Increase' : 'Decrease'} in ${client.name} Mentions`,
         insights: insightsText,
         trends: trendsText,
         recommendations: recsText,
       }
-    } catch {
+    } catch (err2) {
+      console.log(`[Monthly] Individual AI calls also failed: ${err2 instanceof Error ? err2.message : 'unknown'}`)
       // All AI calls failed — build comprehensive data-driven fallback from real numbers
+      console.log('[Monthly] Using data-driven fallback')
       parsed = buildDataDrivenReport(client.name, currentStats, previousStats, comparison, currentRange, previousRange, periodDesc, peakDaysStr)
     }
   }
@@ -726,12 +810,29 @@ Return ONLY valid JSON, no markdown.`,
   const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
   const monthName = monthNames[currentRange.start.getMonth()]
 
-  // Validate that all fields have content — if any are empty, fill from data-driven fallback
+  // Validate that all fields have content — only fill truly empty/missing fields from fallback
   const fallback = buildDataDrivenReport(client.name, currentStats, previousStats, comparison, currentRange, previousRange, periodDesc, peakDaysStr)
-  if (!parsed.insights || String(parsed.insights).trim().length < 30) parsed.insights = fallback.insights
-  if (!parsed.trends || String(parsed.trends).trim().length < 20) parsed.trends = fallback.trends
-  if (!parsed.recommendations || String(parsed.recommendations).trim().length < 30) parsed.recommendations = fallback.recommendations
-  if (!parsed.headline || String(parsed.headline).trim().length < 10) parsed.headline = fallback.headline
+  const insightsStr = String(parsed.insights || '').trim()
+  const trendsStr = String(parsed.trends || '').trim()
+  const recsStr = String(parsed.recommendations || '').trim()
+  const headlineStr = String(parsed.headline || '').trim()
+
+  if (!insightsStr || insightsStr.length < 10) {
+    console.log(`[Monthly] Insights empty/too short (${insightsStr.length}ch), using fallback`)
+    parsed.insights = fallback.insights
+  }
+  if (!trendsStr || trendsStr.length < 10) {
+    console.log(`[Monthly] Trends empty/too short (${trendsStr.length}ch), using fallback`)
+    parsed.trends = fallback.trends
+  }
+  if (!recsStr || recsStr.length < 10) {
+    console.log(`[Monthly] Recommendations empty/too short (${recsStr.length}ch), using fallback`)
+    parsed.recommendations = fallback.recommendations
+  }
+  if (!headlineStr || headlineStr.length < 5) {
+    console.log(`[Monthly] Headline empty/too short (${headlineStr.length}ch), using fallback`)
+    parsed.headline = fallback.headline
+  }
 
   const sentTotal = currentStats.positive + currentStats.neutral + currentStats.negative || 1
 
