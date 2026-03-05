@@ -11,13 +11,12 @@ const db = prisma as any
 
 export async function POST(request: NextRequest) {
   try {
-    const { clientId, reportType } = await request.json()
+    const { clientId, reportType, startDate, endDate } = await request.json()
 
     if (!clientId || !reportType || !['weekly', 'monthly'].includes(reportType)) {
       return NextResponse.json({ error: 'clientId and valid reportType required' }, { status: 400 })
     }
 
-    // Get client with users for recipients
     const client = await db.client.findUnique({
       where: { id: clientId },
       include: {
@@ -32,7 +31,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Client not found' }, { status: 404 })
     }
 
-    // Gather recipients
     const recipients: { email: string; name?: string }[] = []
     if (client.email) {
       recipients.push({ email: client.email, name: client.name })
@@ -47,17 +45,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'No recipients found for this client', emailsSent: 0 })
     }
 
+    // Build custom range if dates provided
+    const customRange = startDate && endDate
+      ? { start: new Date(startDate), end: new Date(endDate) }
+      : undefined
+
     let emailsSent = 0
     const errors: string[] = []
 
     if (reportType === 'weekly') {
-      const data = await generateWeeklyReport(clientId)
+      const data = await generateWeeklyReport(clientId, undefined, customRange)
       for (const r of recipients) {
         try { await sendWeeklyReportEmail(data, r.email, r.name); emailsSent++ }
         catch (e) { errors.push(`${r.email}: ${e instanceof Error ? e.message : String(e)}`) }
       }
     } else {
-      const data = await generateMonthlyReport(clientId)
+      const data = await generateMonthlyReport(clientId, undefined, customRange)
       for (const r of recipients) {
         try { await sendMonthlyReportEmail(data, r.email, r.name); emailsSent++ }
         catch (e) { errors.push(`${r.email}: ${e instanceof Error ? e.message : String(e)}`) }

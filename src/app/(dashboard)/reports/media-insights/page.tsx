@@ -119,7 +119,12 @@ export default function MediaInsightsPage() {
       const res = await fetch('/api/reports/send-to-client', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ clientId: selectedClient, reportType: 'weekly' }),
+        body: JSON.stringify({
+          clientId: selectedClient,
+          reportType: 'weekly',
+          startDate: report.dateRange.start,
+          endDate: report.dateRange.end,
+        }),
       })
       const data = await res.json()
       if (data.success && data.emailsSent > 0) {

@@ -6,6 +6,37 @@ const FROM_EMAIL = process.env.EMAIL_FROM || 'Ovaview <onboarding@resend.dev>'
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 const LOGO_URL = `${APP_URL}/Ovaview-Media-Monitoring-Logo.png`
 
+// ─── Smart Subject Line Builder ──────────────────────────────────────
+
+function buildSmartDateLabel(start: Date, end: Date): string {
+  const diffMs = end.getTime() - start.getTime()
+  const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24)) + 1
+
+  // Check if it's exactly a calendar month
+  if (start.getDate() === 1) {
+    const lastOfMonth = new Date(start.getFullYear(), start.getMonth() + 1, 0)
+    if (end.getDate() === lastOfMonth.getDate() && start.getMonth() === end.getMonth()) {
+      const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+      return `${monthNames[start.getMonth()]} ${start.getFullYear()}`
+    }
+  }
+
+  // Check if it's a full year
+  if (start.getMonth() === 0 && start.getDate() === 1 && end.getMonth() === 11 && end.getDate() === 31 && start.getFullYear() === end.getFullYear()) {
+    return `${start.getFullYear()} Annual`
+  }
+
+  // Check common day ranges
+  if (diffDays <= 1) return 'Daily'
+  if (diffDays >= 6 && diffDays <= 8) return 'Weekly'
+  if (diffDays >= 28 && diffDays <= 31) return 'Monthly'
+  if (diffDays >= 88 && diffDays <= 92) return 'Quarterly'
+
+  // Custom range — use readable dates
+  const fmtShort = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  return `${fmtShort(start)} - ${fmtShort(end)}`
+}
+
 // ─── Send Weekly Report Email ────────────────────────────────────────
 
 export async function sendWeeklyReportEmail(
@@ -14,11 +45,11 @@ export async function sendWeeklyReportEmail(
   recipientName?: string
 ) {
   const html = generateWeeklyEmailHtml(data, recipientName)
-  const dateStr = `${formatDateShort(data.dateRange.start)} - ${formatDateShort(data.dateRange.end)}`
   const changeDir = data.comparison.mentionChangePercent >= 0 ? '↑' : '↓'
   const changeAbs = Math.abs(data.comparison.mentionChangePercent)
+  const dateLabel = buildSmartDateLabel(data.dateRange.start, data.dateRange.end)
 
-  const subject = `Weekly Media & AI Insights: ${data.clientName} | ${changeDir}${changeAbs}% Mentions | ${dateStr}`
+  const subject = `Media & AI Insights (${dateLabel}): ${data.clientName} | ${changeDir}${changeAbs}% Mentions`
 
   const { error } = await resend.emails.send({
     from: FROM_EMAIL,
@@ -38,13 +69,11 @@ export async function sendMonthlyReportEmail(
   recipientName?: string
 ) {
   const html = generateMonthlyEmailHtml(data, recipientName)
-  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
-  const monthName = monthNames[data.dateRange.start.getMonth()]
-  const year = data.dateRange.start.getFullYear()
   const changeDir = data.comparison.mentionChangePercent >= 0 ? 'Increase' : 'Decrease'
   const changeAbs = Math.abs(data.comparison.mentionChangePercent)
+  const dateLabel = buildSmartDateLabel(data.dateRange.start, data.dateRange.end)
 
-  const subject = `${monthName} ${year} AI Insights Report | ${changeAbs}% ${changeDir} in ${data.clientName} Mentions`
+  const subject = `AI Insights Report (${dateLabel}) | ${changeAbs}% ${changeDir} in ${data.clientName} Mentions`
 
   const { error } = await resend.emails.send({
     from: FROM_EMAIL,
