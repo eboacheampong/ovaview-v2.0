@@ -523,10 +523,11 @@ Top mentions: ${currentStats.topMentions.slice(0, 8).map(m => `"${m.title}" by $
 - "recommendations": 3-4 actionable strategic recommendation paragraphs. THIS is where advice belongs. Each should be 2-3 sentences. Separate paragraphs with \\n\\n.
 
 CRITICAL FORMATTING RULES:
-1. In "trends", separate each bullet with \\n, NOT periods or commas.
-2. In "recommendations", write ONLY the recommendation paragraphs. Do NOT include any preamble like "Here are recommendations..." or "Based on the data...". Do NOT use markdown formatting like **bold** or headers. Do NOT number them like "Recommendation 1:" — just write the actionable advice directly.
-3. In "insights", do NOT use markdown. Write plain text only. No **bold**, no headers, no numbering.
+1. In "trends", separate each bullet with \\n, NOT periods or commas. Do NOT include any preamble like "Here are 4-5 bullet points..." — start directly with the first "•" bullet.
+2. In "recommendations", each recommendation MUST be a single continuous paragraph combining the title and explanation into one flowing text. Do NOT separate the title from the body with a newline. WRONG: "Expand Social Media\\n\\nThe company should..." CORRECT: "Expand social media presence by developing a comprehensive strategy that..." Do NOT include any preamble like "Here are recommendations..." or "Based on the data...". Do NOT use markdown formatting like **bold** or headers. Do NOT number them like "Recommendation 1:" or use title-then-body format.
+3. In "insights", each insight MUST be a single continuous paragraph. Do NOT use a title-then-body format. Do NOT use markdown. Write plain text only. No **bold**, no headers, no numbering.
 4. All fields must contain plain text only — no markdown syntax anywhere.
+5. NEVER start any field with a preamble sentence like "Here are...", "Based on the data...", "Below are...", "The following...".
 
 Data:\n${dataSummary}
 
@@ -538,9 +539,9 @@ Return ONLY valid JSON, no markdown.`,
     // First AI call failed or returned invalid JSON — try individual calls
     try {
       const [insightsText, trendsText, recsText] = await Promise.all([
-        callAI(`You are a media monitoring analyst. Write 4-5 OBSERVATIONAL insight paragraphs about this client's monthly media performance. Report ONLY what happened — themes, patterns, source distribution, sentiment. Use specific numbers. Separate paragraphs with blank lines. No advice.\n\nData:\n${dataSummary}`, 800),
-        callAI(`Write 4-5 bullet points comparing this month to previous month. Start each with "•". Include specific numbers for mention counts, reach changes, sentiment shifts.\n\nData:\n${dataSummary}`, 400),
-        callAI(`Write 3-4 actionable strategic recommendation paragraphs for this client based on their media data. Each 2-3 sentences with specific actions. Separate with blank lines.\n\nData:\n${dataSummary}`, 500),
+        callAI(`You are a media monitoring analyst. Write 4-5 OBSERVATIONAL insight paragraphs about this client's monthly media performance. Report ONLY what happened — themes, patterns, source distribution, sentiment. Use specific numbers. Each insight must be a single continuous paragraph (no title-then-body format). Separate paragraphs with blank lines. No advice. No preamble. No markdown.\n\nData:\n${dataSummary}`, 800),
+        callAI(`Write 4-5 bullet points comparing this month to previous month. Start each with "•". Include specific numbers for mention counts, reach changes, sentiment shifts. Do NOT include any preamble like "Here are..." — start directly with the first bullet.\n\nData:\n${dataSummary}`, 400),
+        callAI(`Write 3-4 actionable strategic recommendation paragraphs for this client based on their media data. Each recommendation must be a single continuous paragraph combining the action and explanation (no title-then-body format). Each 2-3 sentences with specific actions. Separate with blank lines. No preamble. No markdown. No numbering.\n\nData:\n${dataSummary}`, 500),
       ])
       parsed = {
         headline: `${Math.abs(comparison.mentionChangePercent)}% ${comparison.mentionChangePercent >= 0 ? 'Increase' : 'Decrease'} in ${client.name} Mentions`,

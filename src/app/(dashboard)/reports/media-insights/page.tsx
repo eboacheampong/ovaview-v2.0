@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Newspaper, Loader2, ArrowLeft } from 'lucide-react'
+import { Newspaper, Loader2, ArrowLeft, Download, Send, Check } from 'lucide-react'
 import Link from 'next/link'
 
 interface Client { id: string; name: string }
@@ -58,9 +58,12 @@ export default function MediaInsightsPage() {
   const [customStart, setCustomStart] = useState('')
   const [customEnd, setCustomEnd] = useState('')
   const [loading, setLoading] = useState(false)
+  const [sending, setSending] = useState(false)
+  const [sent, setSent] = useState(false)
   const [error, setError] = useState('')
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [report, setReport] = useState<any>(null)
+  const reportRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     fetch('/api/clients').then(r => r.json()).then(data => {
@@ -70,7 +73,7 @@ export default function MediaInsightsPage() {
 
   const handleGenerate = async () => {
     if (!selectedClient) return
-    setLoading(true); setError(''); setReport(null)
+    setLoading(true); setError(''); setReport(null); setSent(false)
     const dates = preset === 'custom'
       ? (customStart && customEnd ? { start: customStart, end: customEnd } : null)
       : getPresetDates(preset)
@@ -88,6 +91,38 @@ export default function MediaInsightsPage() {
       setReport(await res.json())
     } catch (e) { setError(e instanceof Error ? e.message : 'Failed to generate report') }
     finally { setLoading(false) }
+  }
+
+  const handleExport = () => {
+    if (!reportRef.current) return
+    const html = reportRef.current.innerHTML
+    const blob = new Blob([`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Media Insights Report</title></head><body style="font-family:sans-serif;max-width:800px;margin:0 auto;">${html}</body></html>`], { type: 'text/html' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `Media-Insights-${report?.clientName || 'Report'}-${new Date().toISOString().split('T')[0]}.html`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const handleSendToClient = async () => {
+    if (!selectedClient || !report) return
+    setSending(true)
+    try {
+      const res = await fetch('/api/reports/send-to-client', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clientId: selectedClient, reportType: 'weekly' }),
+      })
+      const data = await res.json()
+      if (data.success && data.emailsSent > 0) {
+        setSent(true)
+        setTimeout(() => setSent(false), 5000)
+      } else {
+        alert(`Failed: ${data.error || 'No recipients found'}`)
+      }
+    } catch { alert('Network error sending email') }
+    finally { setSending(false) }
   }
 
   const stats = report?.stats
@@ -162,9 +197,23 @@ export default function MediaInsightsPage() {
         </CardContent>
       </Card>
 
+      {/* Action Buttons */}
+      {report && (
+        <div className="flex items-center gap-2 mb-4">
+          <Button variant="outline" size="sm" onClick={handleExport} className="gap-1.5">
+            <Download className="h-4 w-4" /> Export HTML
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleSendToClient} disabled={sending || sent} className="gap-1.5">
+            {sent ? <><Check className="h-4 w-4 text-green-600" /> Sent!</> :
+             sending ? <><Loader2 className="h-4 w-4 animate-spin" /> Sending...</> :
+             <><Send className="h-4 w-4" /> Send to Client</>}
+          </Button>
+        </div>
+      )}
+
       {/* Report Output — matches weekly email template style */}
       {report && stats && (
-        <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+        <div ref={reportRef} className="bg-white rounded-xl shadow-sm border overflow-hidden">
           {/* Hero */}
           <div className="bg-gradient-to-br from-[#1e293b] to-[#334155] p-6 sm:p-8">
             <div className="text-xs font-bold text-orange-400 uppercase tracking-widest mb-2">Weekly Media & AI Insights</div>

@@ -359,17 +359,39 @@ function generateMonthlyEmailHtml(data: MonthlyReportData, recipientName?: strin
     .replace(/^#+\s*/gm, '')                // # headers → plain
     .replace(/^Recommendation\s*\d+:\s*/gi, '')  // "Recommendation 1:" prefix
     .replace(/^Insight\s*\d+:\s*/gi, '')         // "Insight 1:" prefix
+    .replace(/^\d+\.\s+/gm, '')                  // "1. " numbered prefix
   const isPreamble = (text: string) => {
     const t = text.trim().toLowerCase()
     return t.startsWith('here are') || t.startsWith('based on the data') ||
       t.startsWith('based on the media') || t.startsWith('below are') ||
       t.startsWith('the following') || (t.endsWith(':') && t.length < 120)
   }
+  // Merge short title-like lines with the next paragraph
+  const mergeShortTitles = (paragraphs: string[]): string[] => {
+    const merged: string[] = []
+    for (let i = 0; i < paragraphs.length; i++) {
+      const p = paragraphs[i].trim()
+      // If this is a short line (likely a title) and there's a next paragraph, merge them
+      if (p.length < 100 && !p.endsWith('.') && i + 1 < paragraphs.length) {
+        merged.push(`${p}: ${paragraphs[i + 1].trim()}`)
+        i++ // skip next since we merged it
+      } else if (p.length < 80 && i + 1 < paragraphs.length && paragraphs[i + 1].trim().length > p.length * 2) {
+        // Also catch short lines ending with period but clearly a title (next para is much longer)
+        merged.push(`${p} ${paragraphs[i + 1].trim()}`)
+        i++
+      } else {
+        merged.push(p)
+      }
+    }
+    return merged
+  }
 
-  // Format insights — split by double newline, render each as a paragraph
-  const insightParagraphs = normalizeParas(aiInsights).split(/\n\n+/).filter(Boolean)
+  // Format insights — split by double newline, merge title+body, render each as a paragraph
+  const rawInsights = normalizeParas(aiInsights).split(/\n\n+/).filter(Boolean)
     .map(p => stripMarkdown(p).trim().replace(/\.,?\s*$/, '.'))
-    .filter(p => p.length > 20 && !isPreamble(p))
+    .filter(p => p.length > 10 && !isPreamble(p))
+  const insightParagraphs = mergeShortTitles(rawInsights)
+    .filter(p => p.length > 20)
     .map(p => `<p style="margin:0 0 14px;font-size:13px;color:#374151;line-height:1.7;">${p}</p>`)
     .join('')
 
@@ -380,16 +402,18 @@ function generateMonthlyEmailHtml(data: MonthlyReportData, recipientName?: strin
     .replace(/,\s*•/g, '\n•')     // ,• → newline
   const trendItems = normalizedTrends.split('\n').filter(l => l.trim()).map(l => {
     const text = stripMarkdown(l).replace(/^[•\-\*]\s*/, '').replace(/\.,?\s*$/, '').trim()
-    if (!text) return ''
+    if (!text || text.length < 5 || isPreamble(text)) return ''
     return `<tr><td style="padding:5px 0;font-size:13px;color:#374151;line-height:1.5;">
       <span style="color:#f97316;font-weight:700;margin-right:6px;">•</span>${text}
     </td></tr>`
   }).filter(Boolean).join('')
 
-  // Format recommendations as numbered paragraphs — strip preambles and markdown
-  const recItems = normalizeParas(aiRecommendations).split(/\n\n+/).filter(Boolean)
+  // Format recommendations as numbered paragraphs — merge title+body, strip preambles and markdown
+  const rawRecs = normalizeParas(aiRecommendations).split(/\n\n+/).filter(Boolean)
     .map(p => stripMarkdown(p).trim().replace(/\.,?\s*$/, '.'))
-    .filter(p => p.length > 20 && !isPreamble(p))
+    .filter(p => p.length > 10 && !isPreamble(p))
+  const recItems = mergeShortTitles(rawRecs)
+    .filter(p => p.length > 20)
     .map((p, i) =>
     `<tr><td style="padding:10px 0;${i > 0 ? 'border-top:1px solid #f1f5f9;' : ''}">
       <table cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
