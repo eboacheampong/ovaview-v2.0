@@ -126,13 +126,7 @@ export default function ReportsPage() {
   }
 
   const getViewUrl = (report: SentReport) => {
-    if (report.reportType === 'monthly' || report.reportType === 'custom_ai') {
-      return `/reports/ai-insights?view=${report.id}`
-    }
-    if (report.reportType === 'weekly' || report.reportType === 'custom_media') {
-      return `/reports/media-insights?view=${report.id}`
-    }
-    return null // daily reports don't have a view page
+    return `/reports/view/${report.id}`
   }
 
   return (
@@ -251,9 +245,9 @@ export default function ReportsPage() {
                         </td>
                         <td className="py-3 text-right">
                           <div className="flex items-center justify-end gap-1">
-                            {viewUrl && !expired && (
-                              <Link href={viewUrl}>
-                                <Button variant="ghost" size="sm" className="h-7 px-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50">
+                            {!expired && (
+                              <Link href={getViewUrl(report)}>
+                                <Button variant="ghost" size="sm" className="h-7 px-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50" title="View sent report">
                                   <Eye className="h-3.5 w-3.5" />
                                 </Button>
                               </Link>

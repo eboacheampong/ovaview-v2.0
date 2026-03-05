@@ -93,23 +93,16 @@ export default function MediaInsightsPage() {
     finally { setLoading(false) }
   }
 
-  const handleExportPDF = () => {
+  const handleExportPDF = async () => {
     if (!reportRef.current) return
-    const printWindow = window.open('', '_blank')
-    if (!printWindow) { alert('Please allow popups to export PDF'); return }
-    printWindow.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
-      <title>Media Insights - ${report?.clientName || 'Report'}</title>
-      <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 800px; margin: 0 auto; color: #1e293b; }
-        @media print {
-          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          @page { margin: 0.5in; size: A4; }
-        }
-      </style>
-    </head><body>${reportRef.current.innerHTML}</body></html>`)
-    printWindow.document.close()
-    printWindow.onload = () => { printWindow.print(); printWindow.onafterprint = () => printWindow.close() }
+    const html2pdf = (await import('html2pdf.js')).default
+    html2pdf().set({
+      margin: 0.5,
+      filename: `Media-Insights-${report?.clientName || 'Report'}.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true },
+      jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' },
+    }).from(reportRef.current).save()
   }
 
   const handleSendToClient = async () => {

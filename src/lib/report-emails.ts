@@ -45,11 +45,10 @@ export async function sendWeeklyReportEmail(
   recipientName?: string
 ) {
   const html = generateWeeklyEmailHtml(data, recipientName)
-  const changeDir = data.comparison.mentionChangePercent >= 0 ? '↑' : '↓'
   const changeAbs = Math.abs(data.comparison.mentionChangePercent)
   const dateLabel = buildSmartDateLabel(data.dateRange.start, data.dateRange.end)
-
-  const subject = `Media & AI Insights (${dateLabel}): ${data.clientName} | ${changeDir}${changeAbs}% Mentions`
+  const changeWord = data.comparison.mentionChangePercent >= 0 ? 'Increase' : 'Decrease'
+  const subject = `Media & AI Insights (${dateLabel}): ${changeAbs}% ${changeWord} in ${data.clientName} Mentions`
 
   const { error } = await resend.emails.send({
     from: FROM_EMAIL,
