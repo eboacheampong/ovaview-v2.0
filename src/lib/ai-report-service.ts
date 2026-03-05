@@ -388,12 +388,22 @@ function buildComparison(current: MentionStats, previous: MentionStats): PeriodC
 
 // ─── Weekly Report Generation ────────────────────────────────────────
 
-export async function generateWeeklyReport(clientId: string, date?: Date): Promise<WeeklyReportData> {
+export async function generateWeeklyReport(
+  clientId: string,
+  date?: Date,
+  customRange?: { start: Date; end: Date }
+): Promise<WeeklyReportData> {
   const client = await prisma.client.findUnique({ where: { id: clientId } })
   if (!client) throw new Error('Client not found')
 
-  const currentRange = getWeekRange(date)
-  const previousRange = getPreviousWeekRange(date)
+  const currentRange = customRange
+    ? { start: new Date(customRange.start), end: new Date(customRange.end) }
+    : getWeekRange(date)
+  // Previous range = same duration before the current range
+  const durationMs = currentRange.end.getTime() - currentRange.start.getTime()
+  const previousRange = customRange
+    ? { start: new Date(currentRange.start.getTime() - durationMs - 1), end: new Date(currentRange.start.getTime() - 1) }
+    : getPreviousWeekRange(date)
 
   const [currentStats, previousStats] = await Promise.all([
     gatherMentionStats(clientId, currentRange.start, currentRange.end),
@@ -457,12 +467,21 @@ Top mentions: ${currentStats.topMentions.slice(0, 5).map(m => `"${m.title}" by $
 
 // ─── Monthly Report Generation ───────────────────────────────────────
 
-export async function generateMonthlyReport(clientId: string, date?: Date): Promise<MonthlyReportData> {
+export async function generateMonthlyReport(
+  clientId: string,
+  date?: Date,
+  customRange?: { start: Date; end: Date }
+): Promise<MonthlyReportData> {
   const client = await prisma.client.findUnique({ where: { id: clientId } })
   if (!client) throw new Error('Client not found')
 
-  const currentRange = getMonthRange(date)
-  const previousRange = getPreviousMonthRange(date)
+  const currentRange = customRange
+    ? { start: new Date(customRange.start), end: new Date(customRange.end) }
+    : getMonthRange(date)
+  const durationMs = currentRange.end.getTime() - currentRange.start.getTime()
+  const previousRange = customRange
+    ? { start: new Date(currentRange.start.getTime() - durationMs - 1), end: new Date(currentRange.start.getTime() - 1) }
+    : getPreviousMonthRange(date)
 
   const [currentStats, previousStats] = await Promise.all([
     gatherMentionStats(clientId, currentRange.start, currentRange.end),
