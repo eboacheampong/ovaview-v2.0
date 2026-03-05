@@ -30,8 +30,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid reportType' }, { status: 400 })
   } catch (error) {
     console.error('[Reports] Generate failed:', error)
+    const msg = error instanceof Error ? error.message : 'Failed to generate report'
+    // Make AI errors more user-friendly
+    const userMsg = msg.includes('not valid JSON') || msg.includes('All AI models failed')
+      ? 'AI analysis temporarily unavailable. Please try again in a moment.'
+      : msg
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to generate report' },
+      { error: userMsg },
       { status: 500 }
     )
   }

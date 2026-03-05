@@ -305,9 +305,33 @@ async function callAI(prompt: string, maxTokens: number = 1500): Promise<string>
       }
 
       const data = await res.json()
+
+      // Check for API-level errors in the response body
+      if (data.error) {
+        errors.push(`${model}: ${typeof data.error === 'string' ? data.error : data.error.message || JSON.stringify(data.error)}`)
+        continue
+      }
+
       const content = data.choices?.[0]?.message?.content
-      if (content) return content.trim()
-      errors.push(`${model}: empty response`)
+      if (!content || typeof content !== 'string') {
+        errors.push(`${model}: empty response`)
+        continue
+      }
+
+      const trimmed = content.trim()
+
+      // Detect AI returning an error message instead of actual content
+      if (trimmed.toLowerCase().startsWith('an error') ||
+          trimmed.toLowerCase().startsWith('i apologize') ||
+          trimmed.toLowerCase().startsWith('sorry,') ||
+          trimmed.toLowerCase().startsWith('i cannot') ||
+          trimmed.toLowerCase().startsWith('error:') ||
+          trimmed.length < 20) {
+        errors.push(`${model}: unhelpful response: "${trimmed.substring(0, 80)}"`)
+        continue
+      }
+
+      return trimmed
     } catch (e) {
       errors.push(`${model}: ${e instanceof Error ? e.message : 'unknown error'}`)
       continue
@@ -330,7 +354,39 @@ function parseJSON(text: string): Record<string, unknown> {
   }
   // Fix common AI issues: trailing commas before } or ]
   jsonText = jsonText.replace(/,\s*([}\]])/g, '$1')
-  return JSON.parse(jsonText)
+  // Fix unescaped newlines inside JSON string values
+  jsonText = jsonText.replace(/(?<=:\s*"[^"]*)\n(?=[^"]*")/g, '\\n')
+
+  try {
+    return JSON.parse(jsonText)
+  } catch {
+    // Second attempt: more aggressive cleanup
+    // Replace literal newlines with \\n everywhere
+    jsonText = jsonText.replace(/\n/g, '\\n')
+    // Fix double-escaped newlines
+    jsonText = jsonText.replace(/\\\\n/g, '\\n')
+    // Remove control characters
+    jsonText = jsonText.replace(/[\x00-\x1F\x7F]/g, (ch) => ch === '\t' ? '\\t' : '')
+    try {
+      return JSON.parse(jsonText)
+    } catch (e2) {
+      // Third attempt: extract individual fields with regex
+      const headline = jsonText.match(/"headline"\s*:\s*"([^"]*)"/)
+      const insights = jsonText.match(/"insights"\s*:\s*"([\s\S]*?)(?:"\s*[,}])/)
+      const trends = jsonText.match(/"trends"\s*:\s*"([\s\S]*?)(?:"\s*[,}])/)
+      const recommendations = jsonText.match(/"recommendations"\s*:\s*"([\s\S]*?)(?:"\s*[,}])/)
+
+      if (headline || insights) {
+        return {
+          headline: headline?.[1] || '',
+          insights: (insights?.[1] || '').replace(/\\n/g, '\n'),
+          trends: (trends?.[1] || '').replace(/\\n/g, '\n'),
+          recommendations: (recommendations?.[1] || '').replace(/\\n/g, '\n'),
+        }
+      }
+      throw e2
+    }
+  }
 }
 
 // ─── Period Helpers ──────────────────────────────────────────────────
@@ -455,10 +511,20 @@ Top mentions: ${currentStats.topMentions.slice(0, 5).map(m => `"${m.title}" by $
 
   const periodDesc = describePeriod(currentRange.start, currentRange.end)
 
-  const aiSummary = await callAI(
-    `You are a media monitoring analyst. Write a concise 3-5 sentence OBSERVATIONAL summary of ${periodDesc}'s media performance for the client. Report what happened: key changes in mentions and reach, notable stories, sentiment shifts, source distribution, and engagement patterns. Use specific numbers from the data. Do NOT give advice or recommendations — just report the facts. Do NOT say "this week" or "this month" unless the period actually matches — refer to the period as "${periodDesc}".\n\nData:\n${dataSummary}\n\nWrite ONLY the summary paragraph, no headers or labels.`,
-    400
-  )
+  let aiSummary: string
+  try {
+    aiSummary = await callAI(
+      `You are a media monitoring analyst. Write a concise 3-5 sentence OBSERVATIONAL summary of ${periodDesc}'s media performance for the client. Report what happened: key changes in mentions and reach, notable stories, sentiment shifts, source distribution, and engagement patterns. Use specific numbers from the data. Do NOT give advice or recommendations — just report the facts. Do NOT say "this week" or "this month" unless the period actually matches — refer to the period as "${periodDesc}".\n\nData:\n${dataSummary}\n\nWrite ONLY the summary paragraph, no headers or labels.`,
+      400
+    )
+  } catch {
+    // Build a data-driven fallback summary from real numbers
+    const changeDir = comparison.mentionChangePercent >= 0 ? 'increase' : 'decrease'
+    const topSources = currentStats.bySource.slice(0, 3).map(s => s.name).join(', ')
+    const sentTotal = currentStats.positive + currentStats.neutral + currentStats.negative || 1
+    const posPct = Math.round((currentStats.positive / sentTotal) * 100)
+    aiSummary = `During ${periodDesc}, ${client.name} recorded ${currentStats.total} total mentions with a reach of ${formatNumber(currentStats.totalReach)}, representing a ${Math.abs(comparison.mentionChangePercent)}% ${changeDir} compared to the previous period. Positive mentions accounted for ${posPct}% of coverage, with ${currentStats.positive} positive and ${currentStats.negative} negative mentions. The top sources driving coverage were ${topSources || 'various outlets'}.`
+  }
 
   // Source distribution
   const totalMentions = currentStats.total || 1
