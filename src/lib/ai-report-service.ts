@@ -324,17 +324,21 @@ async function callAI(prompt: string, maxTokens: number = 1500): Promise<string>
 
         const trimmed = content.trim()
 
-        // Detect AI returning an error message instead of actual content
-        if (trimmed.toLowerCase().startsWith('an error') ||
-            trimmed.toLowerCase().startsWith('i apologize') ||
-            trimmed.toLowerCase().startsWith('sorry,') ||
-            trimmed.toLowerCase().startsWith('i cannot') ||
-            trimmed.toLowerCase().startsWith('error:') ||
-            trimmed.length < 20) {
-          errors.push(`${model}[${attempt}]: unhelpful response: "${trimmed.substring(0, 80)}"`)
+        // Only reject responses that are clearly error messages from the API itself
+        // (not from the AI model generating content)
+        const lower = trimmed.toLowerCase()
+        if ((lower.startsWith('an error occurred') || lower.startsWith('error:')) && trimmed.length < 200) {
+          errors.push(`${model}[${attempt}]: API error response: "${trimmed.substring(0, 100)}"`)
           continue
         }
 
+        // Reject truly empty/useless responses
+        if (trimmed.length < 5) {
+          errors.push(`${model}[${attempt}]: response too short (${trimmed.length} chars)`)
+          continue
+        }
+
+        console.log(`[AI] ${model} responded (${trimmed.length} chars)`)
         return trimmed
       } catch (e) {
         errors.push(`${model}[${attempt}]: ${e instanceof Error ? e.message : 'unknown error'}`)
@@ -348,50 +352,72 @@ async function callAI(prompt: string, maxTokens: number = 1500): Promise<string>
 
 function parseJSON(text: string): Record<string, unknown> {
   let jsonText = text.trim()
+
   // Strip markdown code blocks
   const match = jsonText.match(/```(?:json)?\s*([\s\S]*?)```/)
   if (match) jsonText = match[1].trim()
+
   // Try to find JSON object in the text
   const jsonStart = jsonText.indexOf('{')
   const jsonEnd = jsonText.lastIndexOf('}')
   if (jsonStart !== -1 && jsonEnd > jsonStart) {
     jsonText = jsonText.substring(jsonStart, jsonEnd + 1)
   }
+
   // Fix common AI issues: trailing commas before } or ]
   jsonText = jsonText.replace(/,\s*([}\]])/g, '$1')
-  // Fix unescaped newlines inside JSON string values
-  jsonText = jsonText.replace(/(?<=:\s*"[^"]*)\n(?=[^"]*")/g, '\\n')
 
+  // Attempt 1: direct parse
   try {
     return JSON.parse(jsonText)
-  } catch {
-    // Second attempt: more aggressive cleanup
-    // Replace literal newlines with \\n everywhere
-    jsonText = jsonText.replace(/\n/g, '\\n')
-    // Fix double-escaped newlines
-    jsonText = jsonText.replace(/\\\\n/g, '\\n')
-    // Remove control characters
-    jsonText = jsonText.replace(/[\x00-\x1F\x7F]/g, (ch) => ch === '\t' ? '\\t' : '')
-    try {
-      return JSON.parse(jsonText)
-    } catch (e2) {
-      // Third attempt: extract individual fields with regex
-      const headline = jsonText.match(/"headline"\s*:\s*"([^"]*)"/)
-      const insights = jsonText.match(/"insights"\s*:\s*"([\s\S]*?)(?:"\s*[,}])/)
-      const trends = jsonText.match(/"trends"\s*:\s*"([\s\S]*?)(?:"\s*[,}])/)
-      const recommendations = jsonText.match(/"recommendations"\s*:\s*"([\s\S]*?)(?:"\s*[,}])/)
-
-      if (headline || insights) {
-        return {
-          headline: headline?.[1] || '',
-          insights: (insights?.[1] || '').replace(/\\n/g, '\n'),
-          trends: (trends?.[1] || '').replace(/\\n/g, '\n'),
-          recommendations: (recommendations?.[1] || '').replace(/\\n/g, '\n'),
-        }
-      }
-      throw e2
-    }
+  } catch (e1) {
+    console.log('[parseJSON] Attempt 1 failed:', (e1 as Error).message?.substring(0, 80))
   }
+
+  // Attempt 2: fix unescaped newlines inside string values
+  // Walk through and escape newlines that are inside quoted strings
+  try {
+    let fixed = ''
+    let inString = false
+    let escaped = false
+    for (let i = 0; i < jsonText.length; i++) {
+      const ch = jsonText[i]
+      if (escaped) { fixed += ch; escaped = false; continue }
+      if (ch === '\\') { fixed += ch; escaped = true; continue }
+      if (ch === '"') { fixed += ch; inString = !inString; continue }
+      if (inString && ch === '\n') { fixed += '\\n'; continue }
+      if (inString && ch === '\r') { fixed += ''; continue }
+      if (inString && ch === '\t') { fixed += '\\t'; continue }
+      fixed += ch
+    }
+    return JSON.parse(fixed)
+  } catch (e2) {
+    console.log('[parseJSON] Attempt 2 failed:', (e2 as Error).message?.substring(0, 80))
+  }
+
+  // Attempt 3: extract individual fields with regex
+  try {
+    const extractField = (field: string): string => {
+      // Match "field": "value" where value can span multiple lines
+      const re = new RegExp(`"${field}"\\s*:\\s*"([\\s\\S]*?)(?:"\\s*[,}])`)
+      const m = jsonText.match(re)
+      return m ? m[1].replace(/\\n/g, '\n').replace(/\\"/g, '"') : ''
+    }
+
+    const headline = extractField('headline')
+    const insights = extractField('insights')
+    const trends = extractField('trends')
+    const recommendations = extractField('recommendations')
+
+    if (headline || insights || trends || recommendations) {
+      console.log('[parseJSON] Attempt 3 succeeded via regex extraction')
+      return { headline, insights, trends, recommendations }
+    }
+  } catch (e3) {
+    console.log('[parseJSON] Attempt 3 failed:', (e3 as Error).message?.substring(0, 80))
+  }
+
+  throw new Error(`Failed to parse AI JSON response. First 200 chars: ${jsonText.substring(0, 200)}`)
 }
 
 // ─── Period Helpers ──────────────────────────────────────────────────
@@ -523,12 +549,51 @@ Top mentions: ${currentStats.topMentions.slice(0, 5).map(m => `"${m.title}" by $
       400
     )
   } catch {
-    // Build a data-driven fallback summary from real numbers
+    // Build a comprehensive data-driven fallback summary from real numbers
     const changeDir = comparison.mentionChangePercent >= 0 ? 'increase' : 'decrease'
-    const topSources = currentStats.bySource.slice(0, 3).map(s => s.name).join(', ')
-    const sentTotal = currentStats.positive + currentStats.neutral + currentStats.negative || 1
-    const posPct = Math.round((currentStats.positive / sentTotal) * 100)
-    aiSummary = `During ${periodDesc}, ${client.name} recorded ${currentStats.total} total mentions with a reach of ${formatNumber(currentStats.totalReach)}, representing a ${Math.abs(comparison.mentionChangePercent)}% ${changeDir} compared to the previous period. Positive mentions accounted for ${posPct}% of coverage, with ${currentStats.positive} positive and ${currentStats.negative} negative mentions. The top sources driving coverage were ${topSources || 'various outlets'}.`
+    const reachDir = comparison.reachChangePercent >= 0 ? 'increase' : 'decrease'
+    const topSources = currentStats.bySource.slice(0, 3)
+    const topSourceNames = topSources.map(s => s.name).join(', ')
+    const sentTotalCalc = currentStats.positive + currentStats.neutral + currentStats.negative || 1
+    const posPct = Math.round((currentStats.positive / sentTotalCalc) * 100)
+    const negPct = Math.round((currentStats.negative / sentTotalCalc) * 100)
+
+    // Determine dominant source type
+    const sourceRanking = [
+      { type: 'web', count: currentStats.web },
+      { type: 'TV', count: currentStats.tv },
+      { type: 'radio', count: currentStats.radio },
+      { type: 'print', count: currentStats.print },
+      { type: 'social media', count: currentStats.social },
+    ].sort((a, b) => b.count - a.count).filter(s => s.count > 0)
+    const dominantSource = sourceRanking[0]
+    const dominantPct = dominantSource ? Math.round((dominantSource.count / (currentStats.total || 1)) * 100) : 0
+
+    // Top mention titles for narrative
+    const topStories = currentStats.topMentions.slice(0, 2).map(m => `"${m.title.substring(0, 60)}"`).join(' and ')
+
+    const parts: string[] = []
+    parts.push(`During ${periodDesc}, ${client.name} saw a ${Math.abs(comparison.mentionChangePercent)}% ${changeDir} in media coverage, with a total of ${currentStats.total} mentions and a reach of ${formatNumber(currentStats.totalReach)}, representing a ${Math.abs(comparison.reachChangePercent)}% ${reachDir} from the previous period.`)
+
+    if (posPct > 50) {
+      parts.push(`The majority of the mentions were positive, with ${posPct}% positive sentiment (${currentStats.positive} mentions) and ${negPct}% negative (${currentStats.negative} mentions).`)
+    } else if (negPct > 30) {
+      parts.push(`Sentiment was mixed, with ${negPct}% of mentions being negative (${currentStats.negative}) compared to ${posPct}% positive (${currentStats.positive}), suggesting areas that may need attention.`)
+    } else {
+      parts.push(`Sentiment was largely neutral at ${100 - posPct - negPct}%, with ${currentStats.positive} positive and ${currentStats.negative} negative mentions recorded.`)
+    }
+
+    if (dominantSource) {
+      parts.push(`${dominantSource.type.charAt(0).toUpperCase() + dominantSource.type.slice(1)} coverage dominated at ${dominantPct}% of all mentions.`)
+    }
+
+    parts.push(`The top sources driving this coverage were ${topSourceNames || 'various media outlets'}${topSources.length > 0 ? `, with ${topSources[0].name} leading at ${topSources[0].count} mentions and ${formatNumber(topSources[0].reach)} reach` : ''}.`)
+
+    if (topStories) {
+      parts.push(`Notable stories included ${topStories}.`)
+    }
+
+    aiSummary = parts.join(' ')
   }
 
   // Source distribution
