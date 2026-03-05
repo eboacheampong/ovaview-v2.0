@@ -282,62 +282,67 @@ async function gatherMentionStats(
 
 async function callAI(prompt: string, maxTokens: number = 1500): Promise<string> {
   const errors: string[] = []
+  // Try each model up to 2 times before moving to the next
   for (const model of MODELS) {
-    try {
-      const res = await fetch(OPENROUTER_URL, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-          'Content-Type': 'application/json',
-          'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
-        },
-        body: JSON.stringify({
-          model,
-          messages: [{ role: 'user', content: prompt }],
-          temperature: 0.3,
-          max_tokens: maxTokens,
-        }),
-      })
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        if (attempt > 0) await new Promise(r => setTimeout(r, 1500)) // wait before retry
 
-      if (!res.ok) {
-        errors.push(`${model}: HTTP ${res.status}`)
+        const res = await fetch(OPENROUTER_URL, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+            'Content-Type': 'application/json',
+            'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+          },
+          body: JSON.stringify({
+            model,
+            messages: [{ role: 'user', content: prompt }],
+            temperature: 0.3,
+            max_tokens: maxTokens,
+          }),
+        })
+
+        if (!res.ok) {
+          errors.push(`${model}[${attempt}]: HTTP ${res.status}`)
+          continue
+        }
+
+        const data = await res.json()
+
+        // Check for API-level errors in the response body
+        if (data.error) {
+          errors.push(`${model}[${attempt}]: ${typeof data.error === 'string' ? data.error : data.error.message || JSON.stringify(data.error)}`)
+          continue
+        }
+
+        const content = data.choices?.[0]?.message?.content
+        if (!content || typeof content !== 'string') {
+          errors.push(`${model}[${attempt}]: empty response`)
+          continue
+        }
+
+        const trimmed = content.trim()
+
+        // Detect AI returning an error message instead of actual content
+        if (trimmed.toLowerCase().startsWith('an error') ||
+            trimmed.toLowerCase().startsWith('i apologize') ||
+            trimmed.toLowerCase().startsWith('sorry,') ||
+            trimmed.toLowerCase().startsWith('i cannot') ||
+            trimmed.toLowerCase().startsWith('error:') ||
+            trimmed.length < 20) {
+          errors.push(`${model}[${attempt}]: unhelpful response: "${trimmed.substring(0, 80)}"`)
+          continue
+        }
+
+        return trimmed
+      } catch (e) {
+        errors.push(`${model}[${attempt}]: ${e instanceof Error ? e.message : 'unknown error'}`)
         continue
       }
-
-      const data = await res.json()
-
-      // Check for API-level errors in the response body
-      if (data.error) {
-        errors.push(`${model}: ${typeof data.error === 'string' ? data.error : data.error.message || JSON.stringify(data.error)}`)
-        continue
-      }
-
-      const content = data.choices?.[0]?.message?.content
-      if (!content || typeof content !== 'string') {
-        errors.push(`${model}: empty response`)
-        continue
-      }
-
-      const trimmed = content.trim()
-
-      // Detect AI returning an error message instead of actual content
-      if (trimmed.toLowerCase().startsWith('an error') ||
-          trimmed.toLowerCase().startsWith('i apologize') ||
-          trimmed.toLowerCase().startsWith('sorry,') ||
-          trimmed.toLowerCase().startsWith('i cannot') ||
-          trimmed.toLowerCase().startsWith('error:') ||
-          trimmed.length < 20) {
-        errors.push(`${model}: unhelpful response: "${trimmed.substring(0, 80)}"`)
-        continue
-      }
-
-      return trimmed
-    } catch (e) {
-      errors.push(`${model}: ${e instanceof Error ? e.message : 'unknown error'}`)
-      continue
     }
   }
-  throw new Error(`All AI models failed: ${errors.join('; ')}`)
+  throw new Error(`All AI models failed after retries: ${errors.join('; ')}`)
 }
 
 
@@ -648,27 +653,20 @@ Return ONLY valid JSON, no markdown.`,
         recommendations: recsText,
       }
     } catch {
-      // All AI calls failed — build data-driven fallback from real numbers
-      const topSources = currentStats.bySource.slice(0, 3).map(s => `${s.name} (${s.count} mentions, ${formatNumber(s.reach)} reach)`).join(', ')
-      const sourceTypes = [
-        currentStats.web > 0 ? `Web (${Math.round((currentStats.web / (currentStats.total || 1)) * 100)}%)` : '',
-        currentStats.tv > 0 ? `TV (${Math.round((currentStats.tv / (currentStats.total || 1)) * 100)}%)` : '',
-        currentStats.radio > 0 ? `Radio (${Math.round((currentStats.radio / (currentStats.total || 1)) * 100)}%)` : '',
-        currentStats.print > 0 ? `Print (${Math.round((currentStats.print / (currentStats.total || 1)) * 100)}%)` : '',
-        currentStats.social > 0 ? `Social (${Math.round((currentStats.social / (currentStats.total || 1)) * 100)}%)` : '',
-      ].filter(Boolean).join(', ')
-
-      parsed = {
-        headline: `${Math.abs(comparison.mentionChangePercent)}% ${comparison.mentionChangePercent >= 0 ? 'Increase' : 'Decrease'} in ${client.name} Mentions`,
-        insights: `During the period ${currentRange.start.toISOString().split('T')[0]} to ${currentRange.end.toISOString().split('T')[0]}, ${client.name} recorded ${currentStats.total} total mentions with a total reach of ${formatNumber(currentStats.totalReach)}. This represents a ${Math.abs(comparison.mentionChangePercent)}% ${comparison.mentionChangePercent >= 0 ? 'increase' : 'decrease'} compared to the previous month.\n\nMentions were distributed across ${sourceTypes}. The top sources were ${topSources}.\n\nSentiment analysis shows ${currentStats.positive} positive, ${currentStats.neutral} neutral, and ${currentStats.negative} negative mentions.`,
-        trends: `• Total mentions ${comparison.mentionChangePercent >= 0 ? 'increased' : 'decreased'} by ${Math.abs(comparison.mentionChangePercent)}% from ${previousStats.total} to ${currentStats.total}\n• Total reach ${comparison.reachChangePercent >= 0 ? 'increased' : 'decreased'} by ${Math.abs(comparison.reachChangePercent)}% from ${formatNumber(previousStats.totalReach)} to ${formatNumber(currentStats.totalReach)}\n• Positive mentions changed from ${previousStats.positive} to ${currentStats.positive}\n• Negative mentions changed from ${previousStats.negative} to ${currentStats.negative}`,
-        recommendations: 'Strategic recommendations require AI analysis. Please try sending the report again.',
-      }
+      // All AI calls failed — build comprehensive data-driven fallback from real numbers
+      parsed = buildDataDrivenReport(client.name, currentStats, previousStats, comparison, currentRange, previousRange, periodDesc, peakDaysStr)
     }
   }
 
   const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
   const monthName = monthNames[currentRange.start.getMonth()]
+
+  // Validate that all fields have content — if any are empty, fill from data-driven fallback
+  const fallback = buildDataDrivenReport(client.name, currentStats, previousStats, comparison, currentRange, previousRange, periodDesc, peakDaysStr)
+  if (!parsed.insights || String(parsed.insights).trim().length < 30) parsed.insights = fallback.insights
+  if (!parsed.trends || String(parsed.trends).trim().length < 20) parsed.trends = fallback.trends
+  if (!parsed.recommendations || String(parsed.recommendations).trim().length < 30) parsed.recommendations = fallback.recommendations
+  if (!parsed.headline || String(parsed.headline).trim().length < 10) parsed.headline = fallback.headline
 
   const sentTotal = currentStats.positive + currentStats.neutral + currentStats.negative || 1
 
@@ -687,6 +685,103 @@ Return ONLY valid JSON, no markdown.`,
       neutral: Math.round((currentStats.neutral / sentTotal) * 100),
       negative: Math.round((currentStats.negative / sentTotal) * 100),
     },
+  }
+}
+
+// ─── Data-Driven Fallback Report (when AI is unavailable) ────────────
+
+function buildDataDrivenReport(
+  clientName: string,
+  current: MentionStats,
+  previous: MentionStats,
+  comparison: PeriodComparison,
+  currentRange: { start: Date; end: Date },
+  previousRange: { start: Date; end: Date },
+  periodDesc: string,
+  peakDaysStr: string
+): Record<string, unknown> {
+  const changeDir = comparison.mentionChangePercent >= 0 ? 'increase' : 'decrease'
+  const reachDir = comparison.reachChangePercent >= 0 ? 'increase' : 'decrease'
+  const total = current.total || 1
+  const sentTotal = current.positive + current.neutral + current.negative || 1
+  const posPct = Math.round((current.positive / sentTotal) * 100)
+  const negPct = Math.round((current.negative / sentTotal) * 100)
+  const neutPct = Math.round((current.neutral / sentTotal) * 100)
+
+  const topSources = current.bySource.slice(0, 3).map(s => `${s.name} (${s.count} mentions, ${formatNumber(s.reach)} reach)`).join(', ')
+  const topSourceNames = current.bySource.slice(0, 3).map(s => s.name).join(', ')
+
+  const sourceTypes = [
+    current.web > 0 ? `Web (${Math.round((current.web / total) * 100)}%)` : '',
+    current.tv > 0 ? `TV (${Math.round((current.tv / total) * 100)}%)` : '',
+    current.radio > 0 ? `Radio (${Math.round((current.radio / total) * 100)}%)` : '',
+    current.print > 0 ? `Print (${Math.round((current.print / total) * 100)}%)` : '',
+    current.social > 0 ? `Social (${Math.round((current.social / total) * 100)}%)` : '',
+  ].filter(Boolean).join(', ')
+
+  // Determine dominant source type
+  const sourceRanking = [
+    { type: 'Web', count: current.web },
+    { type: 'TV', count: current.tv },
+    { type: 'Radio', count: current.radio },
+    { type: 'Print', count: current.print },
+    { type: 'Social Media', count: current.social },
+  ].sort((a, b) => b.count - a.count).filter(s => s.count > 0)
+  const dominantSource = sourceRanking[0]
+  const dominantPct = dominantSource ? Math.round((dominantSource.count / total) * 100) : 0
+
+  // Top mentions for narrative
+  const topMentionTitles = current.topMentions.slice(0, 3).map(m => `"${m.title.substring(0, 60)}"`).join(', ')
+
+  // Build insights
+  const insights = [
+    `During ${periodDesc}, ${clientName} recorded ${current.total} total mentions with a combined reach of ${formatNumber(current.totalReach)}, representing a ${Math.abs(comparison.mentionChangePercent)}% ${changeDir} compared to the previous equivalent period which had ${previous.total} mentions.`,
+    `Media coverage was distributed across ${sourceTypes}. ${dominantSource ? `${dominantSource.type} was the dominant channel, accounting for ${dominantPct}% of all mentions with ${dominantSource.count} items.` : ''} The top sources driving coverage were ${topSources || 'various media outlets'}.`,
+    `Sentiment analysis reveals that ${posPct}% of mentions were positive (${current.positive}), ${neutPct}% were neutral (${current.neutral}), and ${negPct}% were negative (${current.negative}). ${current.negative > previous.negative ? `Negative mentions increased from ${previous.negative} to ${current.negative}, which warrants attention.` : current.negative < previous.negative ? `Negative mentions decreased from ${previous.negative} to ${current.negative}, indicating improved public perception.` : 'Negative sentiment remained stable compared to the previous period.'}`,
+    topMentionTitles ? `Notable stories during this period included ${topMentionTitles}. These stories contributed significantly to the overall media narrative around ${clientName}.` : `Media coverage was spread across multiple outlets without a single dominant story driving the narrative.`,
+  ].join('\n\n')
+
+  // Build trends
+  const trends = [
+    `• Total mentions ${comparison.mentionChangePercent >= 0 ? 'increased' : 'decreased'} by ${Math.abs(comparison.mentionChangePercent)}% from ${previous.total} to ${current.total}`,
+    `• Total reach ${comparison.reachChangePercent >= 0 ? 'grew' : 'declined'} by ${Math.abs(comparison.reachChangePercent)}% from ${formatNumber(previous.totalReach)} to ${formatNumber(current.totalReach)}`,
+    `• Positive mentions moved from ${previous.positive} to ${current.positive}, while negative mentions went from ${previous.negative} to ${current.negative}`,
+    peakDaysStr !== 'no daily data' ? `• Peak activity was recorded on ${peakDaysStr}` : `• Media activity was distributed evenly across the period`,
+    sourceRanking.length > 1 ? `• ${sourceRanking[0].type} led with ${sourceRanking[0].count} mentions, followed by ${sourceRanking[1].type} with ${sourceRanking[1].count}` : '',
+  ].filter(Boolean).join('\n')
+
+  // Build recommendations based on actual data patterns
+  const recommendations: string[] = []
+
+  if (comparison.mentionChangePercent < -20) {
+    recommendations.push(`Consider increasing proactive media engagement to reverse the ${Math.abs(comparison.mentionChangePercent)}% decline in mentions. This could include press releases, media briefings, or thought leadership content to maintain visibility across key outlets like ${topSourceNames || 'major publications'}.`)
+  } else if (comparison.mentionChangePercent > 20) {
+    recommendations.push(`Capitalize on the ${Math.abs(comparison.mentionChangePercent)}% increase in media mentions by amplifying positive stories through owned channels. Share key coverage from ${topSourceNames || 'top sources'} on social media and the company website to extend reach beyond the initial audience.`)
+  } else {
+    recommendations.push(`With media mentions remaining relatively stable, focus on quality over quantity by developing targeted media campaigns around key themes. Strengthen relationships with top sources like ${topSourceNames || 'key publications'} to ensure consistent and favorable coverage.`)
+  }
+
+  if (negPct > 20) {
+    recommendations.push(`Address the ${negPct}% negative sentiment by identifying the key drivers of negative coverage and developing a response strategy. Monitor negative stories closely and prepare holding statements for recurring themes to minimize reputational impact.`)
+  } else if (posPct > 60) {
+    recommendations.push(`Leverage the strong positive sentiment (${posPct}%) by creating case studies and testimonials from favorable coverage. Use positive media mentions in marketing materials and stakeholder communications to reinforce brand credibility.`)
+  } else {
+    recommendations.push(`Work on improving sentiment by proactively pitching positive stories and thought leadership content. Engage with journalists covering ${clientName} to provide context and data that supports a more favorable narrative.`)
+  }
+
+  if (current.social > 0 && current.social < current.web) {
+    recommendations.push(`Strengthen social media presence, which currently accounts for only ${Math.round((current.social / total) * 100)}% of mentions compared to ${Math.round((current.web / total) * 100)}% from web sources. Develop a content calendar that amplifies media coverage across social platforms to increase engagement and reach.`)
+  } else if (current.social === 0) {
+    recommendations.push(`Develop a social media monitoring and engagement strategy to complement traditional media coverage. Social media can significantly amplify reach and provide real-time engagement opportunities with stakeholders and the public.`)
+  } else {
+    recommendations.push(`Continue investing in the current media mix while exploring opportunities to diversify coverage across underrepresented channels. A balanced presence across ${sourceRanking.map(s => s.type).join(', ')} will ensure broader audience reach and resilience.`)
+  }
+
+  return {
+    headline: `A ${Math.abs(comparison.mentionChangePercent)}% ${comparison.mentionChangePercent >= 0 ? 'Increase' : 'Decrease'} in ${clientName} Mentions`,
+    insights,
+    trends,
+    recommendations: recommendations.join('\n\n'),
   }
 }
 
