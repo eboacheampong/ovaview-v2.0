@@ -62,6 +62,26 @@ function buildSmartDateLabel(startStr: string, endStr: string): string {
   return `${fmtShort(start)} – ${fmtShort(end)}`
 }
 
+function buildComparisonLabel(startStr: string, endStr: string): string {
+  const start = new Date(startStr)
+  const end = new Date(endStr)
+  const diffMs = end.getTime() - start.getTime()
+  const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24)) + 1
+
+  if (start.getDate() === 1) {
+    const lastOfMonth = new Date(start.getFullYear(), start.getMonth() + 1, 0)
+    if (end.getDate() === lastOfMonth.getDate() && start.getMonth() === end.getMonth()) return 'vs last month'
+  }
+  if (start.getMonth() === 0 && start.getDate() === 1 && end.getMonth() === 11 && end.getDate() === 31 && start.getFullYear() === end.getFullYear()) return 'vs previous year'
+
+  if (diffDays <= 1) return 'vs yesterday'
+  if (diffDays >= 6 && diffDays <= 8) return 'vs last week'
+  if (diffDays >= 28 && diffDays <= 31) return 'vs last month'
+  if (diffDays >= 88 && diffDays <= 92) return 'vs last quarter'
+  if (diffDays >= 360 && diffDays <= 370) return 'vs previous year'
+  return 'vs prev period'
+}
+
 function formatNumber(num: number): string {
   if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`
   if (num >= 1000) return `${(num / 1000).toFixed(1)}k`
@@ -268,7 +288,7 @@ export default function MediaInsightsPage() {
                   <div className="text-xl font-extrabold text-gray-900">{s.value}</div>
                   <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">{s.label}</div>
                   {s.change !== null && s.change !== undefined && (
-                    <div className="mt-1">{changeLabel(s.change)} <span className="text-[10px] text-gray-400">vs prev</span></div>
+                    <div className="mt-1">{changeLabel(s.change)} <span className="text-[10px] text-gray-400">{buildComparisonLabel(report.dateRange.start, report.dateRange.end)}</span></div>
                   )}
                   {s.raw !== undefined && s.raw !== null && (
                     <div className="mt-1">

@@ -37,6 +37,34 @@ function buildSmartDateLabel(start: Date, end: Date): string {
   return `${fmtShort(start)} - ${fmtShort(end)}`
 }
 
+// Returns the right comparison wording based on the date range
+// e.g. "vs last week", "vs last month", "vs previous year", "vs prev period"
+function buildComparisonLabel(start: Date, end: Date): string {
+  const diffMs = end.getTime() - start.getTime()
+  const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24)) + 1
+
+  // Calendar month
+  if (start.getDate() === 1) {
+    const lastOfMonth = new Date(start.getFullYear(), start.getMonth() + 1, 0)
+    if (end.getDate() === lastOfMonth.getDate() && start.getMonth() === end.getMonth()) {
+      return 'vs last month'
+    }
+  }
+
+  // Full year
+  if (start.getMonth() === 0 && start.getDate() === 1 && end.getMonth() === 11 && end.getDate() === 31 && start.getFullYear() === end.getFullYear()) {
+    return 'vs previous year'
+  }
+
+  if (diffDays <= 1) return 'vs yesterday'
+  if (diffDays >= 6 && diffDays <= 8) return 'vs last week'
+  if (diffDays >= 28 && diffDays <= 31) return 'vs last month'
+  if (diffDays >= 88 && diffDays <= 92) return 'vs last quarter'
+  if (diffDays >= 360 && diffDays <= 370) return 'vs previous year'
+
+  return 'vs prev period'
+}
+
 // ─── Send Weekly Report Email ────────────────────────────────────────
 
 export async function sendWeeklyReportEmail(
@@ -135,6 +163,7 @@ function generateWeeklyEmailHtml(data: WeeklyReportData, recipientName?: string)
   const { stats, comparison, aiSummary, sentimentBreakdown, topAuthors } = data
   const greeting = recipientName ? `Hi ${recipientName},` : 'Hello,'
   const dateLabel = buildSmartDateLabel(data.dateRange.start, data.dateRange.end)
+  const vsLabel = buildComparisonLabel(data.dateRange.start, data.dateRange.end)
 
   const topMentionsHtml = stats.topMentions.slice(0, 6).map(m => {
     const sentColor = m.sentiment?.toLowerCase() === 'positive' ? '#22c55e' : m.sentiment?.toLowerCase() === 'negative' ? '#ef4444' : '#94a3b8'
@@ -245,9 +274,9 @@ function generateWeeklyEmailHtml(data: WeeklyReportData, recipientName?: string)
   <tr><td class="mobile-pad" style="padding:0 24px 20px;">
     <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f8f7f5;border-radius:12px;padding:4px;">
       <tr class="stat-row">
-        ${statCard('📊', stats.total.toString(), 'Total Mentions', changeArrow(comparison.mentionChangePercent) + ' vs prev')}
-        ${statCard('📡', formatNumber(stats.totalReach), 'Total Reach', changeArrow(comparison.reachChangePercent) + ' vs prev')}
-        ${statCard('👍', stats.positive.toString(), 'Positive', changeArrow(comparison.previous.positive > 0 ? Math.round(((stats.positive - comparison.previous.positive) / comparison.previous.positive) * 100) : 0) + ' vs prev')}
+        ${statCard('📊', stats.total.toString(), 'Total Mentions', changeArrow(comparison.mentionChangePercent) + ` ${vsLabel}`)}
+        ${statCard('📡', formatNumber(stats.totalReach), 'Total Reach', changeArrow(comparison.reachChangePercent) + ` ${vsLabel}`)}
+        ${statCard('👍', stats.positive.toString(), 'Positive', changeArrow(comparison.previous.positive > 0 ? Math.round(((stats.positive - comparison.previous.positive) / comparison.previous.positive) * 100) : 0) + ` ${vsLabel}`)}
         ${statCard('👎', stats.negative.toString(), 'Negative', comparison.negativeChange > 0 ? `<span style="color:#ef4444;">+${comparison.negativeChange}</span>` : comparison.negativeChange < 0 ? `<span style="color:#22c55e;">${comparison.negativeChange}</span>` : '<span style="color:#94a3b8;">0</span>')}
       </tr>
     </table>
