@@ -5,6 +5,8 @@ declare module 'html2pdf.js' {
     image?: { type?: string; quality?: number }
     html2canvas?: Record<string, unknown>
     jsPDF?: { unit?: string; format?: string; orientation?: string }
+    pagebreak?: { mode?: string[]; before?: string[]; after?: string[]; avoid?: string[] }
+    [key: string]: unknown
   }
   interface Html2PdfInstance {
     set(options: Html2PdfOptions): Html2PdfInstance
