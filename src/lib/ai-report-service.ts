@@ -386,6 +386,34 @@ function buildComparison(current: MentionStats, previous: MentionStats): PeriodC
   }
 }
 
+// Build a human-readable period description for AI prompts
+function describePeriod(start: Date, end: Date): string {
+  const diffMs = end.getTime() - start.getTime()
+  const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24)) + 1
+
+  // Exact calendar month
+  if (start.getDate() === 1) {
+    const lastOfMonth = new Date(start.getFullYear(), start.getMonth() + 1, 0)
+    if (end.getDate() === lastOfMonth.getDate() && start.getMonth() === end.getMonth()) {
+      const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+      return `${monthNames[start.getMonth()]} ${start.getFullYear()}`
+    }
+  }
+
+  // Full calendar year
+  if (start.getMonth() === 0 && start.getDate() === 1 && end.getMonth() === 11 && end.getDate() === 31 && start.getFullYear() === end.getFullYear()) {
+    return `the year ${start.getFullYear()}`
+  }
+
+  if (diffDays >= 6 && diffDays <= 8) return 'this week'
+  if (diffDays >= 28 && diffDays <= 31) return 'this month'
+  if (diffDays >= 88 && diffDays <= 92) return 'this quarter'
+
+  // For everything else, use the actual date range
+  const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  return `the period ${fmt(start)} to ${fmt(end)}`
+}
+
 // ─── Weekly Report Generation ────────────────────────────────────────
 
 export async function generateWeeklyReport(
@@ -425,8 +453,10 @@ Social by platform: ${currentStats.socialByPlatform.map(s => `${s.platform}=${s.
 Top sources: ${currentStats.bySource.slice(0, 5).map(s => `${s.name}(${s.count} mentions, ${formatNumber(s.reach)} reach)`).join('; ')}
 Top mentions: ${currentStats.topMentions.slice(0, 5).map(m => `"${m.title}" by ${m.source} (${m.sentiment || 'neutral'})`).join('; ')}`
 
+  const periodDesc = describePeriod(currentRange.start, currentRange.end)
+
   const aiSummary = await callAI(
-    `You are a media monitoring analyst. Write a concise 3-5 sentence OBSERVATIONAL summary of this week's media performance for the client. Report what happened: key changes in mentions and reach, notable stories, sentiment shifts, source distribution, and engagement patterns. Use specific numbers from the data. Do NOT give advice or recommendations — just report the facts.\n\nData:\n${dataSummary}\n\nWrite ONLY the summary paragraph, no headers or labels.`,
+    `You are a media monitoring analyst. Write a concise 3-5 sentence OBSERVATIONAL summary of ${periodDesc}'s media performance for the client. Report what happened: key changes in mentions and reach, notable stories, sentiment shifts, source distribution, and engagement patterns. Use specific numbers from the data. Do NOT give advice or recommendations — just report the facts. Do NOT say "this week" or "this month" unless the period actually matches — refer to the period as "${periodDesc}".\n\nData:\n${dataSummary}\n\nWrite ONLY the summary paragraph, no headers or labels.`,
     400
   )
 
@@ -512,14 +542,16 @@ Peak activity days: ${peakDaysStr}
 Top sources: ${currentStats.bySource.slice(0, 8).map(s => `${s.name}(${s.count} mentions, ${formatNumber(s.reach)} reach)`).join('; ')}
 Top mentions: ${currentStats.topMentions.slice(0, 8).map(m => `"${m.title}" by ${m.source} (${m.sentiment || 'neutral'}, reach: ${formatNumber(m.reach)})`).join('; ')}`
 
+  const periodDesc = describePeriod(currentRange.start, currentRange.end)
+
   // Single AI call for all monthly insights (token efficient)
   let parsed: Record<string, unknown>
   try {
     const aiResponse = await callAI(
-      `You are a senior media monitoring analyst. Analyze this monthly media data and return a JSON object with these fields:
-- "headline": A compelling one-line headline summarizing the month (e.g., "A 51% Decrease in ${client.name} Mentions"). Include the percentage change.
-- "insights": 4-5 detailed OBSERVATIONAL insight paragraphs. Report ONLY what happened — key themes, campaigns, events, patterns, source distribution, sentiment shifts, and engagement data. Do NOT give advice or recommendations here. Each paragraph should be 2-3 sentences with specific numbers from the data. Separate paragraphs with \\n\\n.
-- "trends": A string with 4-5 bullet points comparing this month to previous month. IMPORTANT: Each bullet must be on its own line separated by \\n. Start each line with "•". Include specific numbers: mention counts, reach changes, sentiment shifts, and peak activity days from the data provided. Do NOT say data is unavailable — use the peak activity days provided.
+      `You are a senior media monitoring analyst. Analyze this media data for ${periodDesc} and return a JSON object with these fields:
+- "headline": A compelling one-line headline summarizing the period (e.g., "A 51% Decrease in ${client.name} Mentions"). Include the percentage change.
+- "insights": 4-5 detailed OBSERVATIONAL insight paragraphs. Report ONLY what happened — key themes, campaigns, events, patterns, source distribution, sentiment shifts, and engagement data. Do NOT give advice or recommendations here. Each paragraph should be 2-3 sentences with specific numbers from the data. Separate paragraphs with \\n\\n. Refer to the period as "${periodDesc}", NOT as "this month" or "this week" unless it actually is.
+- "trends": A string with 4-5 bullet points comparing this period to the previous equivalent period. IMPORTANT: Each bullet must be on its own line separated by \\n. Start each line with "•". Include specific numbers: mention counts, reach changes, sentiment shifts, and peak activity days from the data provided. Do NOT say data is unavailable — use the peak activity days provided.
 - "recommendations": 3-4 actionable strategic recommendation paragraphs. THIS is where advice belongs. Each should be 2-3 sentences. Separate paragraphs with \\n\\n.
 
 CRITICAL FORMATTING RULES:
@@ -539,9 +571,9 @@ Return ONLY valid JSON, no markdown.`,
     // First AI call failed or returned invalid JSON — try individual calls
     try {
       const [insightsText, trendsText, recsText] = await Promise.all([
-        callAI(`You are a media monitoring analyst. Write 4-5 OBSERVATIONAL insight paragraphs about this client's monthly media performance. Report ONLY what happened — themes, patterns, source distribution, sentiment. Use specific numbers. Each insight must be a single continuous paragraph (no title-then-body format). Separate paragraphs with blank lines. No advice. No preamble. No markdown.\n\nData:\n${dataSummary}`, 800),
-        callAI(`Write 4-5 bullet points comparing this month to previous month. Start each with "•". Include specific numbers for mention counts, reach changes, sentiment shifts. Do NOT include any preamble like "Here are..." — start directly with the first bullet.\n\nData:\n${dataSummary}`, 400),
-        callAI(`Write 3-4 actionable strategic recommendation paragraphs for this client based on their media data. Each recommendation must be a single continuous paragraph combining the action and explanation (no title-then-body format). Each 2-3 sentences with specific actions. Separate with blank lines. No preamble. No markdown. No numbering.\n\nData:\n${dataSummary}`, 500),
+        callAI(`You are a media monitoring analyst. Write 4-5 OBSERVATIONAL insight paragraphs about this client's media performance during ${periodDesc}. Report ONLY what happened — themes, patterns, source distribution, sentiment. Use specific numbers. Each insight must be a single continuous paragraph (no title-then-body format). Separate paragraphs with blank lines. No advice. No preamble. No markdown. Refer to the period as "${periodDesc}".\n\nData:\n${dataSummary}`, 800),
+        callAI(`Write 4-5 bullet points comparing ${periodDesc} to the previous equivalent period. Start each with "•". Include specific numbers for mention counts, reach changes, sentiment shifts. Do NOT include any preamble like "Here are..." — start directly with the first bullet.\n\nData:\n${dataSummary}`, 400),
+        callAI(`Write 3-4 actionable strategic recommendation paragraphs for this client based on their media data during ${periodDesc}. Each recommendation must be a single continuous paragraph combining the action and explanation (no title-then-body format). Each 2-3 sentences with specific actions. Separate with blank lines. No preamble. No markdown. No numbering.\n\nData:\n${dataSummary}`, 500),
       ])
       parsed = {
         headline: `${Math.abs(comparison.mentionChangePercent)}% ${comparison.mentionChangePercent >= 0 ? 'Increase' : 'Decrease'} in ${client.name} Mentions`,
