@@ -366,13 +366,33 @@ export async function POST(request: NextRequest) {
     const articlesData: any[] = scraperData.articles || []
     console.log(`[Scraper] Received ${articlesData.length} articles from scraper`)
 
+    // Filter: only accept articles from the last 24 hours (safety net)
+    const cutoff24h = new Date(Date.now() - 24 * 60 * 60 * 1000)
+    const recentArticles = articlesData.filter(a => {
+      // Check published_at or scraped_at
+      const dateStr = a.published_at || a.scraped_at
+      if (dateStr) {
+        const d = new Date(dateStr)
+        if (!isNaN(d.getTime()) && d < cutoff24h) return false
+      }
+      // Check if URL contains a date older than yesterday
+      const urlDateMatch = (a.url || '').match(/\/(\d{4})\/(\d{1,2})\/(\d{1,2})\//)
+      if (urlDateMatch) {
+        const urlDate = new Date(+urlDateMatch[1], +urlDateMatch[2] - 1, +urlDateMatch[3])
+        if (!isNaN(urlDate.getTime()) && urlDate < cutoff24h) return false
+      }
+      return true
+    })
+    const skippedOld = articlesData.length - recentArticles.length
+    if (skippedOld > 0) console.log(`[Scraper] Filtered out ${skippedOld} articles older than 24h`)
+
     // 5. PASS 1 — Quick match on title + description + URL
     let savedCount = 0
     let duplicateCount = 0
     let skippedNoMatch = 0
     const unmatchedArticles: any[] = []
 
-    for (const article of articlesData) {
+    for (const article of recentArticles) {
       try {
         const { title, url, description, source, industry, scraped_at } = article
         if (!title || !url) continue

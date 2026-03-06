@@ -5,28 +5,24 @@ import { SocialPlatform } from '@prisma/client'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
-// 24-hour cutoff — only accept posts from the last 24 hours
-const HOURS_CUTOFF = 24
+const SUPPORTED_PLATFORMS = ['twitter', 'instagram', 'facebook', 'linkedin', 'tiktok']
+const HOURS_CUTOFF = 72 // 3 days — Google News RSS indexes with delay
 
-function getCutoffDate(): Date {
-  return new Date(Date.now() - HOURS_CUTOFF * 60 * 60 * 1000)
-}
-
-// Rotating User-Agents to reduce blocking
 const USER_AGENTS = [
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0',
-  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15',
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 Edg/124.0.0.0',
 ]
 
 function randomUA(): string {
   return USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)]
 }
 
-// Helper to make requests with browser-like headers + timeout
-async function fetchPage(url: string, timeoutMs = 10000, extra: Record<string, string> = {}): Promise<Response> {
+function getCutoffDate(): Date {
+  return new Date(Date.now() - HOURS_CUTOFF * 60 * 60 * 1000)
+}
+
+async function fetchWithTimeout(url: string, timeoutMs = 12000, extra: Record<string, string> = {}): Promise<Response> {
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), timeoutMs)
   try {
@@ -48,188 +44,125 @@ async function fetchPage(url: string, timeoutMs = 10000, extra: Record<string, s
   }
 }
 
-function isRecent(date: Date | null): boolean {
-  if (!date) return false
-  return date >= getCutoffDate()
+
+// ============ PLATFORM DETECTION ============
+
+const PLATFORM_DOMAINS: Record<string, string[]> = {
+  TWITTER: ['x.com/', 'twitter.com/'],
+  INSTAGRAM: ['instagram.com/'],
+  FACEBOOK: ['facebook.com/', 'fb.com/'],
+  LINKEDIN: ['linkedin.com/'],
+  TIKTOK: ['tiktok.com/'],
 }
 
-function formatDateParam(date: Date): string {
-  return date.toISOString().split('T')[0]
+function detectPlatform(url: string, title: string, filter?: string): string | null {
+  const urlLower = url.toLowerCase()
+  const titleLower = (title || '').toLowerCase()
+
+  for (const [platform, domains] of Object.entries(PLATFORM_DOMAINS)) {
+    if (domains.some(d => urlLower.includes(d))) {
+      if (filter && filter.toUpperCase() !== platform) continue
+      return platform
+    }
+  }
+
+  // Title-based hints
+  const hints: Record<string, string[]> = {
+    TWITTER: ['tweet', 'twitter', 'x.com', 'elon musk'],
+    INSTAGRAM: ['instagram', 'insta'],
+    FACEBOOK: ['facebook', 'meta'],
+    LINKEDIN: ['linkedin'],
+    TIKTOK: ['tiktok'],
+  }
+
+  if (filter) {
+    const pf = filter.toUpperCase()
+    for (const hint of hints[pf] || []) {
+      if (titleLower.includes(hint)) return pf
+    }
+  } else {
+    for (const [platform, hintList] of Object.entries(hints)) {
+      if (hintList.some(h => titleLower.includes(h))) return platform
+    }
+  }
+
+  return null
 }
 
-
-// ============ SEARCH ENGINE HELPERS ============
-
-/**
- * Search via Bing with 24h filter. Returns raw HTML.
- * Uses ex1:"ez1" for past 24 hours.
- */
-async function searchBing(query: string): Promise<string> {
+function extractAuthor(url: string, platform: string, title: string = ''): string {
   try {
-    const url = `https://www.bing.com/search?q=${encodeURIComponent(query)}&filters=ex1%3a%22ez1%22&count=15`
-    const res = await fetchPage(url, 10000)
-    if (!res.ok) return ''
-    return await res.text()
-  } catch {
-    return ''
-  }
+    if (platform === 'TWITTER') {
+      const m = url.match(/(?:x\.com|twitter\.com)\/([\w]+)/)
+      if (m && !['search', 'hashtag', 'i', 'intent', 'home'].includes(m[1].toLowerCase())) return m[1]
+    } else if (platform === 'INSTAGRAM') {
+      const m = title.match(/^(.+?)\s+on\s+Instagram/i)
+      if (m) return m[1].trim()
+      const m2 = url.match(/instagram\.com\/([^/?#]+)/)
+      if (m2 && !['p', 'reel', 'explore', 'accounts'].includes(m2[1].toLowerCase())) return m2[1]
+    } else if (platform === 'FACEBOOK') {
+      const m = url.match(/facebook\.com\/([^/?#]+)/)
+      if (m && !['login', 'help', 'policies', 'watch', 'marketplace', 'groups'].includes(m[1].toLowerCase())) {
+        return m[1].replace(/[.-]/g, ' ')
+      }
+    } else if (platform === 'LINKEDIN') {
+      const m = url.match(/linkedin\.com\/posts\/([^_/?#\s]+)/)
+      if (m) return m[1].replace(/[-_]/g, ' ')
+      const m2 = url.match(/linkedin\.com\/in\/([^/?#]+)/)
+      if (m2) return m2[1].replace(/[-_]/g, ' ')
+    } else if (platform === 'TIKTOK') {
+      const m = url.match(/tiktok\.com\/@([^/?#]+)/)
+      if (m) return m[1]
+    }
+  } catch {}
+  return ''
 }
 
-/**
- * Search via DuckDuckGo HTML (fallback — more lenient with server IPs).
- * DDG doesn't have a strict 24h filter but we filter results ourselves.
- */
-async function searchDDG(query: string): Promise<string> {
+function extractPostId(url: string, platform: string): string {
   try {
-    const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`
-    const res = await fetchPage(url, 10000, {
-      'Accept': 'text/html',
-    })
-    if (!res.ok) return ''
-    return await res.text()
-  } catch {
-    return ''
-  }
+    if (platform === 'TWITTER') {
+      const m = url.match(/\/status\/(\d+)/)
+      if (m) return m[1]
+    } else if (platform === 'INSTAGRAM') {
+      const m = url.match(/\/(?:p|reel)\/([A-Za-z0-9_-]+)/)
+      if (m) return m[1]
+    } else if (platform === 'TIKTOK') {
+      const m = url.match(/\/video\/(\d+)/)
+      if (m) return m[1]
+    } else if (platform === 'LINKEDIN') {
+      const m = url.match(/activity-(\d+)/)
+      if (m) return `li_${m[1]}`
+    }
+  } catch {}
+  return `${platform.toLowerCase().substring(0, 2)}_${Buffer.from(url).toString('base64').substring(0, 16)}`
 }
 
-/**
- * Extract URLs and titles from Bing HTML results.
- * Handles multiple Bing HTML layouts.
- */
-function extractBingResults(html: string): Array<{ url: string; title: string; snippet: string }> {
-  const results: Array<{ url: string; title: string; snippet: string }> = []
-  if (!html) return results
-
-  // Strategy 1: b_algo blocks (standard Bing)
-  const blocks = html.split(/class="b_algo"/).slice(1, 15)
-  for (const block of blocks) {
-    const urlMatch = block.match(/href="(https?:\/\/[^"]+)"/)
-    if (!urlMatch) continue
-    const url = urlMatch[1].split('&amp;')[0].split('?')[0]
-
-    const titleMatch = block.match(/<a[^>]*>([\s\S]*?)<\/a>/)
-    const title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, '').trim() : ''
-
-    const snippetMatch = block.match(/<p[^>]*>([\s\S]*?)<\/p>/)
-    const snippet = snippetMatch ? snippetMatch[1].replace(/<[^>]+>/g, '').trim() : ''
-
-    if (url && (title || snippet)) {
-      results.push({ url, title, snippet })
-    }
+function buildEmbed(url: string, platform: string): string {
+  if (platform === 'TWITTER') {
+    return `<blockquote class="twitter-tweet"><a href="${url}">Tweet</a></blockquote><script async src="https://platform.twitter.com/widgets.js"></script>`
+  } else if (platform === 'INSTAGRAM') {
+    const clean = url.replace(/\/$/, '') + '/'
+    return `<iframe src="${clean}embed/" width="100%" height="500" frameborder="0" scrolling="no" allowtransparency="true"></iframe>`
+  } else if (platform === 'FACEBOOK') {
+    return `<iframe src="https://www.facebook.com/plugins/post.php?href=${encodeURIComponent(url)}&show_text=true&width=500" width="100%" height="400" style="border:none;overflow:hidden" scrolling="no" frameborder="0" allowfullscreen="true"></iframe>`
+  } else if (platform === 'TIKTOK') {
+    const m = url.match(/\/video\/(\d+)/)
+    if (m) return `<iframe src="https://www.tiktok.com/embed/v2/${m[1]}" width="100%" height="750" frameborder="0" allowfullscreen></iframe>`
   }
-
-  // Strategy 2: If no b_algo found, try generic link extraction
-  if (results.length === 0) {
-    const linkRegex = /href="(https?:\/\/(?:www\.)?(?:x\.com|twitter\.com|tiktok\.com|instagram\.com|linkedin\.com|facebook\.com)[^"]+)"/g
-    let m
-    while ((m = linkRegex.exec(html)) !== null) {
-      const url = m[1].split('&amp;')[0].split('?')[0]
-      if (!results.find(r => r.url === url)) {
-        results.push({ url, title: '', snippet: '' })
-      }
-    }
-  }
-
-  return results
+  return ''
 }
 
-/**
- * Extract URLs from DuckDuckGo HTML results.
- */
-function extractDDGResults(html: string): Array<{ url: string; title: string; snippet: string }> {
-  const results: Array<{ url: string; title: string; snippet: string }> = []
-  if (!html) return results
-
-  // DDG result blocks
-  const blocks = html.split(/class="result__body"/).slice(1, 15)
-  for (const block of blocks) {
-    const urlMatch = block.match(/href="(https?:\/\/[^"]+)"/)
-    if (!urlMatch) continue
-    // DDG sometimes wraps URLs in redirects
-    let url = urlMatch[1]
-    const uddgMatch = url.match(/uddg=(https?[^&]+)/)
-    if (uddgMatch) url = decodeURIComponent(uddgMatch[1])
-    url = url.split('?')[0]
-
-    const titleMatch = block.match(/class="result__a"[^>]*>([\s\S]*?)<\/a>/)
-    const title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, '').trim() : ''
-
-    const snippetMatch = block.match(/class="result__snippet"[^>]*>([\s\S]*?)<\//)
-    const snippet = snippetMatch ? snippetMatch[1].replace(/<[^>]+>/g, '').trim() : ''
-
-    if (url) results.push({ url, title, snippet })
-  }
-
-  // Fallback: generic social URL extraction
-  if (results.length === 0) {
-    const linkRegex = /href="[^"]*uddg=(https?%3A%2F%2F(?:www\.)?(?:x\.com|twitter\.com|tiktok\.com|instagram\.com|linkedin\.com|facebook\.com)[^&"]+)/g
-    let m
-    while ((m = linkRegex.exec(html)) !== null) {
-      const url = decodeURIComponent(m[1]).split('?')[0]
-      if (!results.find(r => r.url === url)) {
-        results.push({ url, title: '', snippet: '' })
-      }
-    }
-  }
-
-  return results
-}
-
-/**
- * Combined search: try Bing first, fall back to DuckDuckGo.
- * Returns deduplicated results from both.
- */
-async function searchSocial(siteQuery: string): Promise<Array<{ url: string; title: string; snippet: string }>> {
-  // Run Bing and DDG in parallel for speed
-  const [bingHtml, ddgHtml] = await Promise.all([
-    searchBing(siteQuery),
-    searchDDG(siteQuery),
-  ])
-
-  const bingResults = extractBingResults(bingHtml)
-  const ddgResults = extractDDGResults(ddgHtml)
-
-  // Merge and deduplicate by URL
-  const seen = new Set<string>()
-  const merged: Array<{ url: string; title: string; snippet: string }> = []
-
-  for (const r of [...bingResults, ...ddgResults]) {
-    const normalized = r.url.replace(/\/$/, '').toLowerCase()
-    if (!seen.has(normalized)) {
-      seen.add(normalized)
-      merged.push(r)
-    }
-  }
-
-  return merged
-}
-
-
-// ============ PLATFORM SCRAPERS ============
-
-function buildPost(
-  platform: SocialPlatform,
-  postId: string,
-  content: string,
-  keyword: string,
-  opts: {
-    authorName?: string
-    authorHandle?: string
-    postUrl: string
-    embedHtml?: string
-    mediaType?: string
-    hashtags?: string[]
-  }
-): any {
+function buildPost(platform: string, postId: string, content: string, keyword: string, postUrl: string, opts: {
+  authorName?: string; authorHandle?: string; embedHtml?: string; mediaType?: string; hashtags?: string[]; postedAt?: Date
+} = {}) {
   return {
-    platform,
+    platform: platform as SocialPlatform,
     postId,
     content: content.substring(0, 500),
     summary: '',
     authorHandle: opts.authorHandle || '',
     authorName: opts.authorName || '',
-    postUrl: opts.postUrl,
-    embedUrl: opts.postUrl,
+    postUrl,
+    embedUrl: postUrl,
     embedHtml: opts.embedHtml || '',
     mediaUrls: [],
     mediaType: opts.mediaType || 'text',
@@ -240,251 +173,163 @@ function buildPost(
     hashtags: opts.hashtags || [],
     mentions: [],
     keywords: keyword,
-    postedAt: new Date(),
+    postedAt: opts.postedAt || new Date(),
   }
 }
 
-// ---- TWITTER ----
-async function scrapeTwitter(keyword: string): Promise<any[]> {
+
+// ============ RSS PARSING ============
+
+function parseRSSItems(xml: string): Array<{ title: string; link: string; pubDate: string }> {
+  const items: Array<{ title: string; link: string; pubDate: string }> = []
+  const itemBlocks = xml.split('<item>').slice(1)
+  for (const block of itemBlocks) {
+    const titleMatch = block.match(/<title>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/)
+    const linkMatch = block.match(/<link>([\s\S]*?)<\/link>/)
+    const pubDateMatch = block.match(/<pubDate>([\s\S]*?)<\/pubDate>/)
+    if (titleMatch && linkMatch) {
+      items.push({
+        title: titleMatch[1].trim(),
+        link: linkMatch[1].trim(),
+        pubDate: pubDateMatch ? pubDateMatch[1].trim() : '',
+      })
+    }
+  }
+  return items
+}
+
+function isWithinCutoff(dateStr: string): boolean {
+  if (!dateStr) return true // No date = assume recent
+  try {
+    const d = new Date(dateStr)
+    if (isNaN(d.getTime())) return true
+    return d >= getCutoffDate()
+  } catch {
+    return true
+  }
+}
+
+// ============ SOURCE 1: Google News RSS (per-platform, site-filtered) ============
+
+async function scrapeGoogleNewsRSS(keyword: string, platformFilter: string): Promise<any[]> {
+  const posts: any[] = []
+  const siteMap: Record<string, string> = {
+    twitter: 'site:x.com OR site:twitter.com',
+    instagram: 'site:instagram.com',
+    facebook: 'site:facebook.com',
+    linkedin: 'site:linkedin.com',
+    tiktok: 'site:tiktok.com',
+  }
+  const siteQ = siteMap[platformFilter] || ''
+  const query = `${keyword} ${siteQ}`.trim()
+
+  try {
+    const url = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=en&gl=US&ceid=US:en`
+    const res = await fetchWithTimeout(url, 12000)
+    if (!res.ok) return posts
+    const xml = await res.text()
+    const items = parseRSSItems(xml)
+
+    for (const item of items.slice(0, 15)) {
+      if (!isWithinCutoff(item.pubDate)) continue
+
+      const platform = detectPlatform(item.link, item.title, platformFilter)
+      if (!platform) continue
+
+      const postId = extractPostId(item.link, platform)
+      const author = extractAuthor(item.link, platform, item.title)
+
+      posts.push(buildPost(platform, postId, item.title, keyword, item.link, {
+        authorName: author,
+        embedHtml: buildEmbed(item.link, platform),
+        postedAt: item.pubDate ? new Date(item.pubDate) : undefined,
+      }))
+    }
+    if (posts.length > 0) console.log(`[Google News RSS] Found ${posts.length} ${platformFilter} posts for "${keyword}"`)
+  } catch (e) {
+    console.log(`[Google News RSS] Error for "${keyword}":`, e instanceof Error ? e.message : 'unknown')
+  }
+  return posts
+}
+
+// ============ SOURCE 2: Google News RSS (general — no site filter) ============
+
+async function scrapeGoogleNewsGeneral(keyword: string): Promise<any[]> {
   const posts: any[] = []
   try {
-    console.log(`[Twitter] Searching for: ${keyword}`)
+    const url = `https://news.google.com/rss/search?q=${encodeURIComponent(keyword)}+when:3d&hl=en&gl=US&ceid=US:en`
+    const res = await fetchWithTimeout(url, 12000)
+    if (!res.ok) return posts
+    const xml = await res.text()
+    const items = parseRSSItems(xml)
 
-    // Strategy 1: Nitter instances (quick try, 5s timeout each)
-    const nitterInstances = [
-      'https://nitter.privacydev.net',
-      'https://nitter.poast.org',
-    ]
+    for (const item of items.slice(0, 25)) {
+      if (!isWithinCutoff(item.pubDate)) continue
 
-    for (const instance of nitterInstances) {
-      if (posts.length > 0) break
-      try {
-        const url = `${instance}/search?f=tweets&q=${encodeURIComponent(keyword)}&since=${formatDateParam(getCutoffDate())}`
-        const res = await fetchPage(url, 5000)
-        if (!res.ok) continue
-        const html = await res.text()
+      let platform = detectPlatform(item.link, item.title)
+      if (!platform) continue // Only keep items we can tag to a social platform
 
-        const tweetBlocks = html.split('class="timeline-item"').slice(1, 8)
-        for (const block of tweetBlocks) {
-          const linkMatch = block.match(/href="\/([^/]+)\/status\/(\d+)"/)
-          if (!linkMatch) continue
-          const username = linkMatch[1]
-          const tweetId = linkMatch[2]
+      const postId = extractPostId(item.link, platform)
+      const author = extractAuthor(item.link, platform, item.title)
 
-          const contentMatch = block.match(/class="tweet-content[^"]*"[^>]*>([\s\S]*?)<\/div>/)
-          const content = contentMatch ? contentMatch[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() : ''
-          if (content.length < 5) continue
-
-          const nameMatch = block.match(/class="fullname"[^>]*>([^<]+)</)
-          const tweetUrl = `https://x.com/${username}/status/${tweetId}`
-
-          posts.push(buildPost('TWITTER' as SocialPlatform, tweetId, content, keyword, {
-            authorName: nameMatch ? nameMatch[1].trim() : username,
-            authorHandle: `@${username}`,
-            postUrl: tweetUrl,
-            embedHtml: `<blockquote class="twitter-tweet"><a href="${tweetUrl}">Tweet</a></blockquote><script async src="https://platform.twitter.com/widgets.js"></script>`,
-            hashtags: content.match(/#\w+/g) || [],
-          }))
-        }
-        if (posts.length > 0) console.log(`[Twitter] Nitter (${instance}) found ${posts.length} tweets`)
-      } catch { continue }
+      posts.push(buildPost(platform, postId, item.title, keyword, item.link, {
+        authorName: author,
+        embedHtml: buildEmbed(item.link, platform),
+        postedAt: item.pubDate ? new Date(item.pubDate) : undefined,
+      }))
     }
+    if (posts.length > 0) console.log(`[Google News General] Found ${posts.length} social posts for "${keyword}"`)
+  } catch (e) {
+    console.log(`[Google News General] Error:`, e instanceof Error ? e.message : 'unknown')
+  }
+  return posts
+}
 
-    // Strategy 2: Search engines
-    if (posts.length === 0) {
-      const results = await searchSocial(`site:x.com OR site:twitter.com ${keyword}`)
-      for (const r of results.slice(0, 8)) {
-        const m = r.url.match(/(?:x\.com|twitter\.com)\/(\w+)\/status\/(\d+)/)
-        if (!m) continue
-        const [, username, tweetId] = m
-        if (username === 'search' || username === 'hashtag') continue
-        const tweetUrl = `https://x.com/${username}/status/${tweetId}`
-        posts.push(buildPost('TWITTER' as SocialPlatform, tweetId, r.title || r.snippet || `Tweet about ${keyword}`, keyword, {
-          authorName: username,
-          authorHandle: `@${username}`,
-          postUrl: tweetUrl,
-          embedHtml: `<blockquote class="twitter-tweet"><a href="${tweetUrl}">Tweet</a></blockquote><script async src="https://platform.twitter.com/widgets.js"></script>`,
+// ============ SOURCE 3: Google News RSS (social media keyword boost) ============
+
+async function scrapeGoogleNewsSocialBoost(keyword: string): Promise<any[]> {
+  const posts: any[] = []
+  // Search for keyword + social media platform names to catch news articles about social posts
+  const boostQueries = [
+    `"${keyword}" (twitter OR "x.com" OR tweet)`,
+    `"${keyword}" (instagram OR facebook OR tiktok OR linkedin)`,
+  ]
+
+  for (const query of boostQueries) {
+    try {
+      const url = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=en&gl=US&ceid=US:en`
+      const res = await fetchWithTimeout(url, 10000)
+      if (!res.ok) continue
+      const xml = await res.text()
+      const items = parseRSSItems(xml)
+
+      for (const item of items.slice(0, 10)) {
+        if (!isWithinCutoff(item.pubDate)) continue
+
+        let platform = detectPlatform(item.link, item.title)
+        if (!platform) continue
+
+        const postId = extractPostId(item.link, platform)
+        const author = extractAuthor(item.link, platform, item.title)
+
+        posts.push(buildPost(platform, postId, item.title, keyword, item.link, {
+          authorName: author,
+          embedHtml: buildEmbed(item.link, platform),
+          postedAt: item.pubDate ? new Date(item.pubDate) : undefined,
         }))
       }
-      if (posts.length > 0) console.log(`[Twitter] Search engines found ${posts.length} tweets`)
-    }
-
-    console.log(`[Twitter] Total: ${posts.length} for "${keyword}"`)
-  } catch (error) {
-    console.error('[Twitter] Scrape error:', error)
+    } catch {}
   }
-  return posts
-}
-
-// ---- TIKTOK ----
-async function scrapeTikTok(keyword: string): Promise<any[]> {
-  const posts: any[] = []
-  try {
-    console.log(`[TikTok] Searching for: ${keyword}`)
-    const results = await searchSocial(`site:tiktok.com ${keyword}`)
-
-    for (const r of results.slice(0, 8)) {
-      const videoMatch = r.url.match(/tiktok\.com\/@([^/]+)\/video\/(\d+)/)
-      if (!videoMatch) continue
-      const [, username, videoId] = videoMatch
-
-      posts.push(buildPost('TIKTOK' as SocialPlatform, videoId, r.title || r.snippet || `TikTok about ${keyword}`, keyword, {
-        authorName: username,
-        authorHandle: `@${username}`,
-        postUrl: r.url,
-        embedHtml: `<iframe src="https://www.tiktok.com/embed/v2/${videoId}" width="100%" height="750" frameborder="0" allowfullscreen></iframe>`,
-        mediaType: 'video',
-      }))
-    }
-    console.log(`[TikTok] Found ${posts.length} videos for "${keyword}"`)
-  } catch (error) {
-    console.error('[TikTok] Scrape error:', error)
-  }
-  return posts
-}
-
-// ---- INSTAGRAM ----
-async function scrapeInstagram(keyword: string): Promise<any[]> {
-  const posts: any[] = []
-  try {
-    console.log(`[Instagram] Searching for: ${keyword}`)
-    const results = await searchSocial(`site:instagram.com ${keyword}`)
-
-    for (const r of results.slice(0, 8)) {
-      const codeMatch = r.url.match(/instagram\.com\/(?:p|reel)\/([A-Za-z0-9_-]+)/)
-      if (!codeMatch) continue
-
-      const title = r.title || r.snippet || ''
-      const authorMatch = title.match(/^(.+?)\s+on\s+Instagram/i)
-      const authorName = authorMatch ? authorMatch[1].trim() : ''
-      const postUrl = r.url.replace(/\/$/, '') + '/'
-
-      posts.push(buildPost('INSTAGRAM' as SocialPlatform, codeMatch[1], title || `Instagram post about ${keyword}`, keyword, {
-        authorName,
-        authorHandle: authorName ? `@${authorName.toLowerCase().replace(/\s+/g, '')}` : '',
-        postUrl,
-        embedHtml: `<iframe src="${postUrl}embed/" width="100%" height="500" frameborder="0" scrolling="no" allowtransparency="true"></iframe>`,
-        mediaType: r.url.includes('/reel/') ? 'video' : 'image',
-        hashtags: title.match(/#\w+/g) || [],
-      }))
-    }
-    console.log(`[Instagram] Found ${posts.length} posts for "${keyword}"`)
-  } catch (error) {
-    console.error('[Instagram] Scrape error:', error)
-  }
-  return posts
-}
-
-// ---- LINKEDIN ----
-async function scrapeLinkedIn(keyword: string): Promise<any[]> {
-  const posts: any[] = []
-  try {
-    console.log(`[LinkedIn] Searching for: ${keyword}`)
-    const results = await searchSocial(`site:linkedin.com/posts ${keyword}`)
-
-    for (const r of results.slice(0, 8)) {
-      const authorMatch = r.url.match(/linkedin\.com\/posts\/([^_/\s]+)/)
-      if (!authorMatch) continue
-      const authorRaw = authorMatch[1]
-      const authorName = authorRaw.replace(/[-_.]/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
-      const postId = `li_${Buffer.from(r.url).toString('base64').substring(0, 20)}`
-
-      posts.push(buildPost('LINKEDIN' as SocialPlatform, postId, r.title || r.snippet || `LinkedIn post about ${keyword}`, keyword, {
-        authorName,
-        authorHandle: authorRaw,
-        postUrl: r.url,
-      }))
-    }
-    console.log(`[LinkedIn] Found ${posts.length} posts for "${keyword}"`)
-  } catch (error) {
-    console.error('[LinkedIn] Scrape error:', error)
-  }
-  return posts
-}
-
-// ---- FACEBOOK ----
-async function scrapeFacebook(keyword: string): Promise<any[]> {
-  const posts: any[] = []
-  try {
-    console.log(`[Facebook] Searching for: ${keyword}`)
-    const results = await searchSocial(`site:facebook.com ${keyword}`)
-
-    for (const r of results.slice(0, 8)) {
-      // Accept posts, permalinks, and page URLs
-      if (!r.url.includes('facebook.com')) continue
-      const authorMatch = r.url.match(/facebook\.com\/([^/\s?]+)/)
-      const authorRaw = authorMatch ? authorMatch[1] : ''
-      if (['login', 'help', 'policies', 'watch', 'marketplace', 'groups'].includes(authorRaw.toLowerCase())) continue
-
-      const postId = `fb_${Buffer.from(r.url).toString('base64').substring(0, 20)}`
-      const authorName = authorRaw.replace(/[.-]/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
-
-      posts.push(buildPost('FACEBOOK' as SocialPlatform, postId, r.title || r.snippet || `Facebook post about ${keyword}`, keyword, {
-        authorName,
-        authorHandle: authorRaw,
-        postUrl: r.url,
-        embedHtml: `<iframe src="https://www.facebook.com/plugins/post.php?href=${encodeURIComponent(r.url)}&show_text=true&width=500" width="100%" height="400" style="border:none;overflow:hidden" scrolling="no" frameborder="0" allowfullscreen="true"></iframe>`,
-      }))
-    }
-    console.log(`[Facebook] Found ${posts.length} posts for "${keyword}"`)
-  } catch (error) {
-    console.error('[Facebook] Scrape error:', error)
-  }
+  if (posts.length > 0) console.log(`[Google News Boost] Found ${posts.length} social posts for "${keyword}"`)
   return posts
 }
 
 
-// ============ PYTHON SCRAPER FALLBACK ============
-async function tryPythonScraper(keywords: string[], platforms: string[]): Promise<any[]> {
-  const scraperApi = process.env.NEXT_PUBLIC_SCRAPER_API
-  if (!scraperApi) return []
+// ============ CLIENT KEYWORDS ============
 
-  try {
-    const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), 15000)
-    const response = await fetch(`${scraperApi}/api/scrape/social`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'User-Agent': randomUA() },
-      body: JSON.stringify({ keywords, platforms, save: false }),
-      signal: controller.signal,
-    })
-    clearTimeout(timeout)
-
-    if (!response.ok) return []
-    const data = await response.json()
-    // Map Python format to our format
-    return (data.posts || []).map((p: any) => ({
-      platform: p.platform as SocialPlatform,
-      postId: p.post_id || p.postId || '',
-      content: (p.content || '').substring(0, 500),
-      summary: '',
-      authorHandle: p.author_handle || p.authorHandle || '',
-      authorName: p.author_name || p.authorName || '',
-      postUrl: p.post_url || p.postUrl || '',
-      embedUrl: p.embed_url || p.embedUrl || '',
-      embedHtml: p.embed_html || p.embedHtml || '',
-      mediaUrls: p.media_urls || p.mediaUrls || [],
-      mediaType: p.media_type || p.mediaType || 'text',
-      viewsCount: p.views_count || p.viewsCount || 0,
-      likesCount: p.likes_count || p.likesCount || 0,
-      commentsCount: p.comments_count || p.commentsCount || 0,
-      sharesCount: p.shares_count || p.sharesCount || 0,
-      hashtags: p.hashtags || [],
-      mentions: p.mentions || [],
-      keywords: p.keywords || '',
-      postedAt: p.posted_at ? new Date(p.posted_at) : new Date(),
-    }))
-  } catch (e) {
-    console.log('[Social Scraper] Python fallback unavailable:', e instanceof Error ? e.message : 'unknown')
-    return []
-  }
-}
-
-
-// ============ GET CLIENT KEYWORDS ============
 async function getClientKeywords(clientId: string): Promise<string[]> {
   try {
-    const client = await (prisma as any).client.findUnique({
+    const client = await prisma.client.findUnique({
       where: { id: clientId },
       select: { name: true, newsKeywords: true },
     })
@@ -504,82 +349,55 @@ async function getClientKeywords(clientId: string): Promise<string[]> {
   }
 }
 
+// ============ MAIN POST HANDLER ============
 
-// ============ MAIN SCRAPE ENDPOINT ============
 export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json().catch(() => ({}))
-    const { clientId, keywords: providedKeywords, platforms: providedPlatforms, save = true } = body
+  const startTime = Date.now()
 
+  try {
+    const body = await request.json()
+    const { clientId, platforms: requestedPlatforms } = body
+
+    // Get keywords for this client
     let keywords: string[] = []
     if (clientId) {
       keywords = await getClientKeywords(clientId)
-      console.log(`[Social Scraper] Client keywords: ${keywords.join(', ')}`)
-    }
-    if (providedKeywords?.length > 0) {
-      keywords = Array.from(new Set([...keywords, ...providedKeywords]))
     }
     if (keywords.length === 0) {
-      keywords = ['news', 'business']
+      return NextResponse.json({
+        success: true,
+        message: 'No keywords configured for this client',
+        postsFound: 0,
+        postsSaved: 0,
+        duplicates: 0,
+      })
     }
 
-    const platforms = providedPlatforms?.length > 0
-      ? providedPlatforms
-      : ['twitter', 'tiktok', 'instagram', 'linkedin', 'facebook']
+    const platforms = (requestedPlatforms || SUPPORTED_PLATFORMS)
+      .map((p: string) => p.toLowerCase())
+      .filter((p: string) => SUPPORTED_PLATFORMS.includes(p))
 
-    console.log(`[Social Scraper] Keywords: ${keywords.join(', ')} | Platforms: ${platforms.join(', ')}`)
+    console.log(`[Social Scraper] Client: ${clientId} | Keywords: ${keywords.join(', ')} | Platforms: ${platforms.join(', ')}`)
 
-    // Use first 3 keywords to stay within time limits
-    const keywordsToUse = keywords.slice(0, 3)
+    // Run all Google News RSS queries in parallel
+    const scrapePromises: Promise<any[]>[] = []
 
-    // PARALLEL scraping: run all platforms concurrently for each keyword
-    const platformResults: Record<string, { found: number; errors: string[] }> = {}
-    platforms.forEach((p: string) => { platformResults[p.toLowerCase()] = { found: 0, errors: [] } })
-
-    const scraperFns: Record<string, (kw: string) => Promise<any[]>> = {
-      twitter: scrapeTwitter,
-      x: scrapeTwitter,
-      tiktok: scrapeTikTok,
-      instagram: scrapeInstagram,
-      linkedin: scrapeLinkedIn,
-      facebook: scrapeFacebook,
-    }
-
-    // Build all scrape tasks and run in parallel
-    const tasks: Array<{ platform: string; keyword: string; promise: Promise<any[]> }> = []
-    for (const keyword of keywordsToUse) {
-      for (const platform of platforms) {
-        const pl = platform.toLowerCase()
-        const fn = scraperFns[pl]
-        if (fn) {
-          tasks.push({ platform: pl, keyword, promise: fn(keyword) })
-        }
+    for (const keyword of keywords.slice(0, 5)) {
+      // Per-platform site-filtered searches
+      for (const plat of platforms) {
+        scrapePromises.push(scrapeGoogleNewsRSS(keyword, plat))
       }
+      // General search (catches cross-platform mentions)
+      scrapePromises.push(scrapeGoogleNewsGeneral(keyword))
+      // Social boost search (catches news articles mentioning social platforms)
+      scrapePromises.push(scrapeGoogleNewsSocialBoost(keyword))
     }
 
-    // Execute all tasks in parallel (this is the key speedup)
-    const results = await Promise.allSettled(tasks.map(t => t.promise))
-
-    let allPosts: any[] = []
-    results.forEach((result, i) => {
-      const task = tasks[i]
+    const results = await Promise.allSettled(scrapePromises)
+    const allPosts: any[] = []
+    for (const result of results) {
       if (result.status === 'fulfilled' && result.value.length > 0) {
-        platformResults[task.platform].found += result.value.length
         allPosts.push(...result.value)
-      } else if (result.status === 'rejected') {
-        const msg = result.reason instanceof Error ? result.reason.message : 'Unknown error'
-        platformResults[task.platform].errors.push(`${task.keyword}: ${msg}`)
-      }
-    })
-
-
-    // If TS scrapers found nothing, try Python scraper as fallback
-    if (allPosts.length === 0) {
-      console.log('[Social Scraper] No results from TS scrapers, trying Python fallback...')
-      const pythonPosts = await tryPythonScraper(keywordsToUse, platforms)
-      if (pythonPosts.length > 0) {
-        allPosts.push(...pythonPosts)
-        console.log(`[Social Scraper] Python fallback found ${pythonPosts.length} posts`)
       }
     }
 
@@ -589,95 +407,62 @@ export async function POST(request: NextRequest) {
       const key = `${post.platform}_${post.postId}`
       if (seen.has(key)) return false
       seen.add(key)
-      return true
+      // Only keep posts for requested platforms
+      return platforms.includes(post.platform.toLowerCase())
     })
 
-    console.log(`[Social Scraper] Total unique posts: ${uniquePosts.length}`)
+    console.log(`[Social Scraper] Found ${uniquePosts.length} unique posts (from ${allPosts.length} raw)`)
 
     // Save to database
     let savedCount = 0
     let duplicateCount = 0
 
-    if (save && uniquePosts.length > 0) {
-      const db = prisma as any
-      for (const post of uniquePosts) {
-        try {
-          const existing = await db.socialPost.findFirst({
-            where: {
-              platform: post.platform,
-              postId: post.postId,
-              clientId: clientId || null,
-            },
-          })
-          if (existing) { duplicateCount++; continue }
-
-          await db.socialPost.create({
-            data: {
-              platform: post.platform,
-              postId: post.postId,
-              content: post.content,
-              summary: post.summary || '',
-              authorHandle: post.authorHandle,
-              authorName: post.authorName,
-              postUrl: post.postUrl,
-              embedUrl: post.embedUrl,
-              embedHtml: post.embedHtml,
-              mediaUrls: post.mediaUrls || [],
-              mediaType: post.mediaType,
-              likesCount: post.likesCount || 0,
-              commentsCount: post.commentsCount || 0,
-              sharesCount: post.sharesCount || 0,
-              viewsCount: post.viewsCount || 0,
-              hashtags: post.hashtags || [],
-              mentions: post.mentions || [],
-              keywords: post.keywords,
-              postedAt: post.postedAt,
-              ...(clientId ? { clientId } : {}),
-            },
-          })
-          savedCount++
-        } catch (saveError) {
-          console.error('[Social Scraper] Save error:', saveError)
+    for (const post of uniquePosts) {
+      try {
+        const existing = await prisma.socialPost.findFirst({
+          where: {
+            platform: post.platform,
+            postId: post.postId,
+            clientId: clientId || null,
+          },
+        })
+        if (existing) {
+          duplicateCount++
+          continue
         }
+
+        await prisma.socialPost.create({
+          data: {
+            ...post,
+            clientId: clientId || null,
+          },
+        })
+        savedCount++
+      } catch (error) {
+        // Skip individual save errors (e.g. unique constraint violations)
+        console.log(`[Social Scraper] Save error:`, error instanceof Error ? error.message : 'unknown')
       }
     }
 
-
-    const platformSummary = Object.entries(platformResults)
-      .map(([p, r]) => `${p}: ${r.found}`)
-      .join(', ')
-
-    const message = save
-      ? `Found ${uniquePosts.length} posts (${platformSummary}), saved ${savedCount} new, ${duplicateCount} duplicates`
-      : `Found ${uniquePosts.length} posts (${platformSummary})`
-
+    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1)
+    const message = `Found ${uniquePosts.length} posts, saved ${savedCount} new, ${duplicateCount} duplicates (${elapsed}s)`
     console.log(`[Social Scraper] ${message}`)
 
     return NextResponse.json({
       success: true,
       message,
-      posts: uniquePosts,
       postsFound: uniquePosts.length,
       postsSaved: savedCount,
       duplicates: duplicateCount,
-      platformResults,
-      keywords: keywordsToUse,
+      keywords,
       platforms,
+      elapsed: `${elapsed}s`,
     })
   } catch (error) {
     console.error('[Social Scraper] Fatal error:', error)
     return NextResponse.json(
-      { success: false, error: 'Failed to scrape social media', details: error instanceof Error ? error.message : 'Unknown error' },
+      { error: error instanceof Error ? error.message : 'Failed to scrape social media' },
       { status: 500 }
     )
   }
-}
-
-// GET endpoint to check status
-export async function GET() {
-  return NextResponse.json({
-    status: 'ready',
-    supportedPlatforms: ['twitter', 'tiktok', 'instagram', 'linkedin', 'facebook'],
-    note: 'All scrapers use 24h time window via Bing+DDG dual search. Pass clientId to use client keywords.',
-  })
 }
