@@ -332,7 +332,7 @@ export default function ClientsPage() {
                   </div>
                 )}
               </div>
-              <p className="text-xs text-gray-400">Recommended: 300 × 150px (2:1 landscape) for best results in reports</p>
+              <p className="text-xs text-gray-400">Recommended: 300 x 150px (2:1 landscape) for best results in reports</p>
               <div className="flex items-center gap-2"><Checkbox id="active" checked={formData.isActive} onCheckedChange={(checked) => setFormData({ ...formData, isActive: checked as boolean })} /><Label htmlFor="active" className="cursor-pointer">Active</Label></div>
             </div>
           </div>
@@ -466,7 +466,7 @@ export default function ClientsPage() {
               </div>
             )}
           </div>
-          <p className="text-xs text-gray-400 -mt-2">Recommended: 300 × 150px (2:1 landscape) for best results in reports</p>
+          <p className="text-xs text-gray-400 -mt-2">Recommended: 300 x 150px (2:1 landscape) for best results in reports</p>
             <div className="flex items-center gap-2"><Checkbox id="editActive" checked={editFormData.isActive} onCheckedChange={(checked) => setEditFormData({ ...editFormData, isActive: checked as boolean })} /><Label htmlFor="editActive" className="cursor-pointer">Active</Label></div>
           </div>
 
