@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
   Loader2, RefreshCw, ChevronRight, Share2,
-  Clock, Trash2, Youtube, MessageCircle
+  Clock, Trash2, MessageCircle, Instagram
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -69,7 +69,7 @@ export default function SocialInsightsPage() {
   const handleRunScraper = async () => {
     try {
       setIsScraperRunning(true)
-      setScraperMessage('🔄 Scraping all platforms for all clients...')
+      setScraperMessage('Scraping all platforms for all clients...')
 
       const res = await fetch('/api/social-insights/scrape-all', {
         method: 'POST',
@@ -172,14 +172,14 @@ export default function SocialInsightsPage() {
         </Card>
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-red-100"><Youtube className="h-5 w-5 text-red-600" /></div>
-            <div><p className="text-2xl font-bold text-gray-800">{allPlatforms['YOUTUBE'] || 0}</p><p className="text-sm text-gray-500">YouTube</p></div>
+            <div className="p-2 rounded-lg bg-pink-100"><Instagram className="h-5 w-5 text-pink-600" /></div>
+            <div><p className="text-2xl font-bold text-gray-800">{(allPlatforms['INSTAGRAM'] || 0) + (allPlatforms['FACEBOOK'] || 0)}</p><p className="text-sm text-gray-500">Meta Platforms</p></div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
             <div className="p-2 rounded-lg bg-sky-100"><MessageCircle className="h-5 w-5 text-sky-600" /></div>
-            <div><p className="text-2xl font-bold text-gray-800">{(allPlatforms['TWITTER'] || 0) + (allPlatforms['FACEBOOK'] || 0) + (allPlatforms['INSTAGRAM'] || 0) + (allPlatforms['TIKTOK'] || 0) + (allPlatforms['LINKEDIN'] || 0)}</p><p className="text-sm text-gray-500">Other Social</p></div>
+            <div><p className="text-2xl font-bold text-gray-800">{(allPlatforms['TWITTER'] || 0) + (allPlatforms['TIKTOK'] || 0) + (allPlatforms['LINKEDIN'] || 0)}</p><p className="text-sm text-gray-500">Other Social</p></div>
           </CardContent>
         </Card>
       </div>
@@ -227,7 +227,7 @@ export default function SocialInsightsPage() {
             <CardContent className="p-12 text-center">
               <Share2 className="h-10 w-10 text-gray-300 mx-auto mb-3" />
               <p className="text-gray-500 mb-1">No social posts yet</p>
-              <p className="text-sm text-gray-400">Click "Run Social Scraper" to fetch posts from YouTube, Twitter, TikTok, Instagram & LinkedIn</p>
+              <p className="text-sm text-gray-400">Click "Run Social Scraper" to fetch posts from Twitter, TikTok, Instagram, LinkedIn & Facebook</p>
             </CardContent>
           </Card>
         )}

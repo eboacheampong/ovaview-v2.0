@@ -44,7 +44,7 @@ export async function POST() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             clientId: client.id,
-            platforms: ['youtube', 'twitter', 'tiktok', 'instagram', 'linkedin', 'facebook'],
+            platforms: ['twitter', 'tiktok', 'instagram', 'linkedin', 'facebook'],
           }),
           signal: controller.signal,
         })

@@ -40,122 +40,6 @@ function isRecent(date: Date | null): boolean {
   return date >= getCutoffDate()
 }
 
-// ============ YOUTUBE — RSS feed approach (reliable, no API key) ============
-async function scrapeYouTube(keyword: string): Promise<any[]> {
-  const posts: any[] = []
-  try {
-    console.log(`[YouTube] Searching for: ${keyword}`)
-
-    // Strategy 1: YouTube RSS search via Invidious instances (public, no auth)
-    const invidiousInstances = [
-      'https://vid.puffyan.us',
-      'https://invidious.fdn.fr',
-      'https://y.com.sb',
-      'https://invidious.nerdvpn.de',
-    ]
-
-    let found = false
-    for (const instance of invidiousInstances) {
-      if (found) break
-      try {
-        const apiUrl = `${instance}/api/v1/search?q=${encodeURIComponent(keyword)}&sort_by=upload_date&date=today&type=video`
-        const res = await fetchPage(apiUrl, { 'Accept': 'application/json' })
-        if (!res.ok) continue
-        const data = await res.json()
-        if (!Array.isArray(data) || data.length === 0) continue
-
-        for (const video of data.slice(0, 10)) {
-          if (!video.videoId) continue
-          const publishedDate = video.published ? new Date(video.published * 1000) : null
-          if (publishedDate && !isRecent(publishedDate)) continue
-
-          posts.push({
-            platform: 'YOUTUBE' as SocialPlatform,
-            postId: video.videoId,
-            content: (video.title || '').substring(0, 500),
-            summary: (video.description || '').substring(0, 300),
-            authorHandle: video.authorId || '',
-            authorName: video.author || '',
-            postUrl: `https://www.youtube.com/watch?v=${video.videoId}`,
-            embedUrl: `https://www.youtube.com/embed/${video.videoId}`,
-            embedHtml: `<iframe width="100%" height="315" src="https://www.youtube.com/embed/${video.videoId}" frameborder="0" allowfullscreen></iframe>`,
-            mediaUrls: video.videoThumbnails?.[0]?.url ? [video.videoThumbnails[0].url] : [],
-            mediaType: 'video',
-            viewsCount: video.viewCount || 0,
-            likesCount: 0,
-            commentsCount: 0,
-            sharesCount: 0,
-            hashtags: [],
-            mentions: [],
-            keywords: keyword,
-            postedAt: publishedDate || new Date(),
-          })
-        }
-        if (posts.length > 0) found = true
-        console.log(`[YouTube] Invidious (${instance}) found ${posts.length} recent videos`)
-      } catch { continue }
-    }
-
-    // Strategy 2: Fallback — scrape YouTube directly
-    if (posts.length === 0) {
-      // sp=EgIIAQ== means "Upload date: Today"
-      const searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(keyword)}&sp=EgIIAQ%253D%253D`
-      const response = await fetchPage(searchUrl)
-      if (response.ok) {
-        const html = await response.text()
-        let data: any = null
-        const match = html.match(/var ytInitialData = ({.*?});/)
-        if (match) { try { data = JSON.parse(match[1]) } catch {} }
-
-        if (data) {
-          const contents = data?.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer?.contents || []
-          for (const section of contents) {
-            const items = section?.itemSectionRenderer?.contents || []
-            for (const item of items.slice(0, 10)) {
-              const video = item?.videoRenderer
-              if (!video?.videoId) continue
-              const title = video.title?.runs?.[0]?.text || ''
-              const channel = video.ownerText?.runs?.[0]?.text || ''
-              let views = 0
-              const viewsText = video.viewCountText?.simpleText || '0'
-              const vm = viewsText.match(/([\d,\.]+)/)
-              if (vm) views = parseInt(vm[1].replace(/,/g, '')) || 0
-              const thumbnails = video.thumbnail?.thumbnails || []
-              const thumb = thumbnails[thumbnails.length - 1]?.url || ''
-
-              posts.push({
-                platform: 'YOUTUBE' as SocialPlatform,
-                postId: video.videoId,
-                content: title.substring(0, 500),
-                summary: '',
-                authorHandle: '',
-                authorName: channel,
-                postUrl: `https://www.youtube.com/watch?v=${video.videoId}`,
-                embedUrl: `https://www.youtube.com/embed/${video.videoId}`,
-                embedHtml: `<iframe width="100%" height="315" src="https://www.youtube.com/embed/${video.videoId}" frameborder="0" allowfullscreen></iframe>`,
-                mediaUrls: thumb ? [thumb] : [],
-                mediaType: 'video',
-                viewsCount: views,
-                likesCount: 0,
-                commentsCount: 0,
-                sharesCount: 0,
-                hashtags: [],
-                mentions: [],
-                keywords: keyword,
-                postedAt: new Date(), // YouTube direct doesn't give exact date, but filter is "today"
-              })
-            }
-          }
-        }
-      }
-    }
-
-    console.log(`[YouTube] Total: ${posts.length} recent videos for "${keyword}"`)
-  } catch (error) {
-    console.error('[YouTube] Scrape error:', error)
-  }
-  return posts
-}
 
 
 // ============ TWITTER/X — Multiple fallback strategies ============
@@ -588,7 +472,7 @@ export async function POST(request: NextRequest) {
 
     const platforms = providedPlatforms?.length > 0
       ? providedPlatforms
-      : ['youtube', 'twitter', 'tiktok', 'instagram', 'linkedin', 'facebook']
+      : ['twitter', 'tiktok', 'instagram', 'linkedin', 'facebook']
 
     console.log(`[Social Scraper] Keywords: ${keywords.join(', ')} | Platforms: ${platforms.join(', ')}`)
 
@@ -606,7 +490,6 @@ export async function POST(request: NextRequest) {
         try {
           let posts: any[] = []
           switch (pl) {
-            case 'youtube': posts = await scrapeYouTube(keyword); break
             case 'twitter': case 'x': posts = await scrapeTwitter(keyword); break
             case 'tiktok': posts = await scrapeTikTok(keyword); break
             case 'instagram': posts = await scrapeInstagram(keyword); break
@@ -717,7 +600,7 @@ export async function POST(request: NextRequest) {
 export async function GET() {
   return NextResponse.json({
     status: 'ready',
-    supportedPlatforms: ['youtube', 'twitter', 'tiktok', 'instagram', 'linkedin', 'facebook'],
+    supportedPlatforms: ['twitter', 'tiktok', 'instagram', 'linkedin', 'facebook'],
     note: 'All scrapers use 24h time window. Pass clientId to use client keywords.',
   })
 }

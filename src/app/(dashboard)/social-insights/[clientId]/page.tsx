@@ -141,7 +141,7 @@ export default function ClientSocialInsightsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           clientId,
-          platforms: ['youtube', 'twitter', 'tiktok', 'instagram', 'linkedin', 'facebook'],
+          platforms: ['twitter', 'tiktok', 'instagram', 'linkedin', 'facebook'],
         }),
       })
 
@@ -259,7 +259,7 @@ export default function ClientSocialInsightsPage() {
     },
   ]
 
-  const platforms = ['all', 'YOUTUBE', 'TWITTER', 'TIKTOK', 'INSTAGRAM', 'LINKEDIN', 'FACEBOOK']
+  const platforms = ['all', 'TWITTER', 'TIKTOK', 'INSTAGRAM', 'LINKEDIN', 'FACEBOOK']
 
   return (
     <div className="p-4 sm:p-6 space-y-6">
