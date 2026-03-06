@@ -18,13 +18,29 @@ const BLUE = '3B82F6'
 
 type SlideType = ReturnType<PptxGenJS['addSlide']>
 
+/** Fetch an image URL and return base64 data URI, or null on failure */
+async function fetchImageAsBase64(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(10000) })
+    if (!res.ok) return null
+    const buffer = await res.arrayBuffer()
+    const contentType = res.headers.get('content-type') || 'image/png'
+    const base64 = Buffer.from(buffer).toString('base64')
+    return `data:${contentType};base64,${base64}`
+  } catch {
+    return null
+  }
+}
+
 // Helper: Add gold header bar with title
-function addSlideHeader(pptx: PptxGenJS, slide: SlideType, title: string, clientName?: string) {
+function addSlideHeader(pptx: PptxGenJS, slide: SlideType, title: string, clientName?: string, logoBase64?: string | null) {
   // Gold header bar
   slide.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: '100%', h: 0.6, fill: { color: GOLD } })
   slide.addText(title, { x: 0.4, y: 0.08, w: 7, h: 0.45, fontSize: 22, color: WHITE, fontFace: 'Arial' })
-  // Client name top-right
-  if (clientName) {
+  // Client logo or name top-right
+  if (logoBase64) {
+    slide.addImage({ data: logoBase64, x: 9.0, y: 0.05, h: 0.5, w: 0.8, sizing: { type: 'contain', w: 0.8, h: 0.5 } })
+  } else if (clientName) {
     slide.addText(clientName, { x: 7.5, y: 0.08, w: 2.3, h: 0.45, fontSize: 10, color: WHITE, align: 'right', fontFace: 'Arial', bold: true })
   }
   // Ovaview footer
@@ -32,11 +48,13 @@ function addSlideHeader(pptx: PptxGenJS, slide: SlideType, title: string, client
 }
 
 // Helper: Section divider slide (gold background)
-function addSectionDivider(pptx: PptxGenJS, title: string, clientName?: string) {
+function addSectionDivider(pptx: PptxGenJS, title: string, clientName?: string, logoBase64?: string | null) {
   const slide = pptx.addSlide()
   slide.background = { fill: GOLD }
   slide.addText(title, { x: 0.5, y: 1.8, w: 9, h: 1.2, fontSize: 36, color: WHITE, bold: true, align: 'center', fontFace: 'Arial' })
-  if (clientName) {
+  if (logoBase64) {
+    slide.addImage({ data: logoBase64, x: 8.8, y: 0.15, h: 0.5, w: 0.8, sizing: { type: 'contain', w: 0.8, h: 0.5 } })
+  } else if (clientName) {
     slide.addText(clientName, { x: 7.5, y: 0.2, w: 2.3, h: 0.4, fontSize: 10, color: WHITE, align: 'right', fontFace: 'Arial', bold: true })
   }
 }
@@ -60,6 +78,9 @@ export async function POST(request: NextRequest) {
     pptx.company = 'Ovaview Media Monitoring'
     pptx.layout = 'LAYOUT_WIDE'
 
+    // Fetch client logo as base64 for embedding in slides
+    const logoBase64 = clientLogo ? await fetchImageAsBase64(clientLogo) : null
+
     // Chart type references
     const CHART_BAR = pptx.ChartType.bar
     const CHART_PIE = pptx.ChartType.pie
@@ -77,10 +98,13 @@ export async function POST(request: NextRequest) {
     if (clientName) {
       slide1.addText(clientName, { x: 7, y: 0.2, w: 2.8, h: 0.5, fontSize: 12, color: WHITE, align: 'right', fontFace: 'Arial', bold: true })
     }
+    if (logoBase64) {
+      slide1.addImage({ data: logoBase64, x: 8.5, y: 0.15, h: 0.7, w: 1.2, sizing: { type: 'contain', w: 1.2, h: 0.7 } })
+    }
 
     // ===== SLIDE 2: BRIEF =====
     const slide2 = pptx.addSlide()
-    addSlideHeader(pptx, slide2, 'Brief')
+    addSlideHeader(pptx, slide2, 'Brief', clientName, logoBase64)
     slide2.addText(
       `This report is an analysis of the PR presence for\n${clientName}\nThe data was captured from ${dateRangeLabel}.`,
       { x: 1, y: 1.5, w: 7.5, h: 2, fontSize: 20, color: GRAY_TEXT, fontFace: 'Arial', lineSpacingMultiple: 1.5 }
@@ -89,11 +113,11 @@ export async function POST(request: NextRequest) {
     slide2.addText(clientName, { x: 1, y: 2.15, w: 7.5, h: 0.5, fontSize: 20, color: DARK_TEXT, bold: true, fontFace: 'Arial' })
 
     // ===== SLIDE 3: SECTION DIVIDER - Industry =====
-    addSectionDivider(pptx, `MEDIA PRESENCE ANALYSIS\nIndustry`, clientName)
+    addSectionDivider(pptx, `MEDIA PRESENCE ANALYSIS\nIndustry`, clientName, logoBase64)
 
     // ===== SLIDE 4: SCOPE OF COVERAGE - OVERALL =====
     const slide4 = pptx.addSlide()
-    addSlideHeader(pptx, slide4, 'Scope of Coverage - Overall', clientName)
+    addSlideHeader(pptx, slide4, 'Scope of Coverage - Overall', clientName, logoBase64)
 
     const scopeItems = [
       { label: 'News Website', count: scopeOfCoverage.newsWebsite.count, desc: scopeOfCoverage.newsWebsite.description },
@@ -147,7 +171,7 @@ export async function POST(request: NextRequest) {
 
     // ===== SLIDE 5: MEDIA SOURCES - INDUSTRY (Pie chart) =====
     const slide5 = pptx.addSlide()
-    addSlideHeader(pptx, slide5, 'Media Sources - Industry', clientName)
+    addSlideHeader(pptx, slide5, 'Media Sources - Industry', clientName, logoBase64)
 
     // Pie chart data
     slide5.addChart(CHART_PIE, [
@@ -192,7 +216,7 @@ export async function POST(request: NextRequest) {
 
     // ===== SLIDE 6: MEDIA SOURCES - MONTHLY TREND =====
     const slide6 = pptx.addSlide()
-    addSlideHeader(pptx, slide6, 'Media Sources – Monthly Trend (Industry)', clientName)
+    addSlideHeader(pptx, slide6, 'Media Sources – Monthly Trend (Industry)', clientName, logoBase64)
 
     if (monthlyTrend && monthlyTrend.length > 0) {
       slide6.addChart(CHART_BAR, [
@@ -218,7 +242,7 @@ export async function POST(request: NextRequest) {
 
     // ===== SLIDE 7: THEMATIC AREAS / WORD CLOUD =====
     const slide7 = pptx.addSlide()
-    addSlideHeader(pptx, slide7, 'Thematic Areas of Coverage - Industry', clientName)
+    addSlideHeader(pptx, slide7, 'Thematic Areas of Coverage - Industry', clientName, logoBase64)
 
     if (thematicAreas && thematicAreas.length > 0) {
       const cloudItems = thematicAreas.slice(0, 20)
@@ -256,21 +280,21 @@ export async function POST(request: NextRequest) {
     // ===== SLIDE 8: KEY PERSONALITIES (INDUSTRY) - TOP 5 =====
     // Note: We don't have personality photos in the DB, so we'll use a card layout
     const slide8 = pptx.addSlide()
-    addSlideHeader(pptx, slide8, 'Key Personalities (Industry) – Top 5', clientName)
+    addSlideHeader(pptx, slide8, 'Key Personalities (Industry) – Top 5', clientName, logoBase64)
     slide8.addText('Key personalities data is populated from story mentions. Photos can be added manually.', {
       x: 0.5, y: 1.5, w: 9, h: 0.5, fontSize: 11, color: LIGHT_GRAY, fontFace: 'Arial', italic: true,
     })
 
     // ===== SLIDE 9: KEY PERSONALITIES (CLIENT) - TOP 5 =====
     const slide9 = pptx.addSlide()
-    addSlideHeader(pptx, slide9, `Key Personalities (${clientName}) – Top 5`, clientName)
+    addSlideHeader(pptx, slide9, `Key Personalities (${clientName}) – Top 5`, clientName, logoBase64)
     slide9.addText('Key personalities data is populated from story mentions. Photos can be added manually.', {
       x: 0.5, y: 1.5, w: 9, h: 0.5, fontSize: 11, color: LIGHT_GRAY, fontFace: 'Arial', italic: true,
     })
 
     // ===== SLIDE 10: KEY JOURNALISTS - TOP 5 =====
     const slide10 = pptx.addSlide()
-    addSlideHeader(pptx, slide10, 'Key Journalists – Top 5', clientName)
+    addSlideHeader(pptx, slide10, 'Key Journalists – Top 5', clientName, logoBase64)
 
     if (topJournalists && topJournalists.length > 0) {
       const top5 = topJournalists.slice(0, 5)
@@ -305,11 +329,11 @@ export async function POST(request: NextRequest) {
     }
 
     // ===== SLIDE 11: SECTION DIVIDER - Visibility of Client =====
-    addSectionDivider(pptx, `Visibility of ${clientName}`, clientName)
+    addSectionDivider(pptx, `Visibility of ${clientName}`, clientName, logoBase64)
 
     // ===== SLIDE 12: CLIENT VISIBILITY (Donut + Sources + Trend) =====
     const slide12 = pptx.addSlide()
-    addSlideHeader(pptx, slide12, 'Media Sources - Industry', clientName)
+    addSlideHeader(pptx, slide12, 'Media Sources - Industry', clientName, logoBase64)
 
     // Organization visibility donut chart (left side)
     if (orgVisibility && orgVisibility.length > 0) {
@@ -365,7 +389,7 @@ export async function POST(request: NextRequest) {
 
     // ===== SLIDE 13: MAJOR STORIES - CLIENT =====
     const slide13 = pptx.addSlide()
-    addSlideHeader(pptx, slide13, `Major Stories – ${clientName}`, clientName)
+    addSlideHeader(pptx, slide13, `Major Stories – ${clientName}`, clientName, logoBase64)
 
     if (clientMajorStories && clientMajorStories.length > 0) {
       const leftStories = clientMajorStories.slice(0, 3)
@@ -387,11 +411,11 @@ export async function POST(request: NextRequest) {
     }
 
     // ===== SLIDE 14: SECTION DIVIDER - Visibility of Mining Companies =====
-    addSectionDivider(pptx, 'Visibility of\nCompetitors', clientName)
+    addSectionDivider(pptx, 'Visibility of\nCompetitors', clientName, logoBase64)
 
     // ===== SLIDE 15: COMPETITOR PRESENCE - TOP 5 SECTOR PLAYERS =====
     const slide15 = pptx.addSlide()
-    addSlideHeader(pptx, slide15, 'Competitor Presence – Top 5 Sector Players', clientName)
+    addSlideHeader(pptx, slide15, 'Competitor Presence – Top 5 Sector Players', clientName, logoBase64)
 
     if (competitorAnalysis && competitorAnalysis.length > 0) {
       const topCompetitors = competitorAnalysis.slice(0, 5)
@@ -426,7 +450,7 @@ export async function POST(request: NextRequest) {
       competitorAnalysis.slice(0, 5).forEach((competitor: any) => {
         if (competitor.majorStories && competitor.majorStories.length > 0) {
           const compSlide = pptx.addSlide()
-          addSlideHeader(pptx, compSlide, `Major Stories – ${competitor.name}`, clientName)
+          addSlideHeader(pptx, compSlide, `Major Stories – ${competitor.name}`, clientName, logoBase64)
 
           const leftStories = competitor.majorStories.slice(0, 3)
           const rightStories = competitor.majorStories.slice(3, 6)
@@ -450,7 +474,7 @@ export async function POST(request: NextRequest) {
 
     // ===== SLIDE 21: STORY ORIENTATION - SENTIMENTS =====
     const slide21 = pptx.addSlide()
-    addSlideHeader(pptx, slide21, 'Story Orientation - Sentiments', clientName)
+    addSlideHeader(pptx, slide21, 'Story Orientation - Sentiments', clientName, logoBase64)
 
     if (industrySentiment) {
       // Sentiment pie chart (left)

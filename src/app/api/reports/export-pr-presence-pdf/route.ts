@@ -233,7 +233,7 @@ function drawPieChart(
 }
 
 // Helper: Add slide header
-function addSlideHeader(doc: jsPDF, title: string, clientName?: string) {
+function addSlideHeader(doc: jsPDF, title: string, clientName?: string, logoBase64?: string | null) {
   // Gold header bar
   doc.setFillColor(GOLD[0], GOLD[1], GOLD[2])
   doc.rect(0, 0, SLIDE_WIDTH, 50, 'F')
@@ -243,8 +243,10 @@ function addSlideHeader(doc: jsPDF, title: string, clientName?: string) {
   doc.setTextColor(WHITE[0], WHITE[1], WHITE[2])
   doc.text(title, 30, 32)
   
-  // Client name
-  if (clientName) {
+  // Client logo or name top-right
+  if (logoBase64) {
+    try { doc.addImage(logoBase64, 'PNG', SLIDE_WIDTH - 100, 5, 70, 40) } catch {}
+  } else if (clientName) {
     doc.setFontSize(10)
     doc.text(clientName, SLIDE_WIDTH - 30, 32, { align: 'right' })
   }
@@ -264,13 +266,26 @@ export async function POST(request: NextRequest) {
   try {
     const data = await request.json()
     const {
-      clientName, dateRangeLabel,
+      clientName, clientLogo, dateRangeLabel,
       scopeOfCoverage, mediaSourcesIndustry, monthlyTrend, thematicAreas,
       topJournalists, totalClientMentions, clientSourcesOfMentions,
       clientMonthlyTrend, orgVisibility, clientMajorStories,
       competitorAnalysis, industrySentiment, clientSentiment,
       keyTakeouts, totalIndustryStories,
     } = data
+
+    // Fetch client logo as base64 for embedding in PDF
+    let logoBase64: string | null = null
+    if (clientLogo) {
+      try {
+        const res = await fetch(clientLogo, { signal: AbortSignal.timeout(10000) })
+        if (res.ok) {
+          const buffer = await res.arrayBuffer()
+          const contentType = res.headers.get('content-type') || 'image/png'
+          logoBase64 = `data:${contentType};base64,${Buffer.from(buffer).toString('base64')}`
+        }
+      } catch {}
+    }
 
     const doc = new jsPDF({
       orientation: 'landscape',
@@ -294,10 +309,13 @@ export async function POST(request: NextRequest) {
       doc.setFontSize(12)
       doc.text(clientName, SLIDE_WIDTH - 40, 30, { align: 'right' })
     }
+    if (logoBase64) {
+      try { doc.addImage(logoBase64, 'PNG', SLIDE_WIDTH - 120, 10, 90, 50) } catch {}
+    }
 
     // ===== SLIDE 2: BRIEF =====
     addNewSlide(doc)
-    addSlideHeader(doc, 'Brief')
+    addSlideHeader(doc, 'Brief', clientName, logoBase64)
     
     doc.setFontSize(16)
     doc.setTextColor(GRAY_TEXT[0], GRAY_TEXT[1], GRAY_TEXT[2])
@@ -324,7 +342,7 @@ export async function POST(request: NextRequest) {
 
     // ===== SLIDE 4: SCOPE OF COVERAGE =====
     addNewSlide(doc)
-    addSlideHeader(doc, 'Scope of Coverage - Overall', clientName)
+    addSlideHeader(doc, 'Scope of Coverage - Overall', clientName, logoBase64)
     
     const scopeItems = [
       { label: 'News Website', count: scopeOfCoverage?.newsWebsite?.count || 0, desc: scopeOfCoverage?.newsWebsite?.description || 'Monitoring covered major news websites locally and internationally' },
@@ -367,7 +385,7 @@ export async function POST(request: NextRequest) {
 
     // ===== SLIDE 5: MEDIA SOURCES - INDUSTRY =====
     addNewSlide(doc)
-    addSlideHeader(doc, 'Media Sources - Industry', clientName)
+    addSlideHeader(doc, 'Media Sources - Industry', clientName, logoBase64)
     
     const mediaPieData = [
       { label: 'News Website', value: mediaSourcesIndustry?.newsWebsite?.count || 0, percentage: mediaSourcesIndustry?.newsWebsite?.percentage || 0 },
@@ -414,7 +432,7 @@ export async function POST(request: NextRequest) {
 
     // ===== SLIDE 6: MONTHLY TREND =====
     addNewSlide(doc)
-    addSlideHeader(doc, 'Media Sources – Monthly Trend (Industry)', clientName)
+    addSlideHeader(doc, 'Media Sources – Monthly Trend (Industry)', clientName, logoBase64)
     
     if (monthlyTrend && monthlyTrend.length > 0) {
       const trendData = monthlyTrend.map((m: any) => ({
@@ -441,7 +459,7 @@ export async function POST(request: NextRequest) {
 
     // ===== SLIDE 7: THEMATIC AREAS =====
     addNewSlide(doc)
-    addSlideHeader(doc, 'Thematic Areas of Coverage - Industry', clientName)
+    addSlideHeader(doc, 'Thematic Areas of Coverage - Industry', clientName, logoBase64)
     
     if (thematicAreas && thematicAreas.length > 0) {
       const maxWeight = Math.max(...thematicAreas.map((a: any) => a.weight), 1)
@@ -476,7 +494,7 @@ export async function POST(request: NextRequest) {
 
     // ===== SLIDE 8: KEY JOURNALISTS =====
     addNewSlide(doc)
-    addSlideHeader(doc, 'Key Journalists – Top 5', clientName)
+    addSlideHeader(doc, 'Key Journalists – Top 5', clientName, logoBase64)
     
     if (topJournalists && topJournalists.length > 0) {
       const top5 = topJournalists.slice(0, 5)
@@ -528,7 +546,7 @@ export async function POST(request: NextRequest) {
 
     // ===== SLIDE 10: CLIENT VISIBILITY =====
     addNewSlide(doc)
-    addSlideHeader(doc, `Client Visibility — ${clientName}`, clientName)
+    addSlideHeader(doc, `Client Visibility — ${clientName}`, clientName, logoBase64)
     
     if (orgVisibility && orgVisibility.length > 0) {
       const visData = orgVisibility.map((o: any) => ({ label: o.name, value: o.mentions }))
@@ -549,7 +567,7 @@ export async function POST(request: NextRequest) {
     // ===== SLIDE 11: MAJOR STORIES =====
     if (clientMajorStories && clientMajorStories.length > 0) {
       addNewSlide(doc)
-      addSlideHeader(doc, `Major Stories – ${clientName}`, clientName)
+      addSlideHeader(doc, `Major Stories – ${clientName}`, clientName, logoBase64)
       
       clientMajorStories.slice(0, 6).forEach((story: any, i: number) => {
         const col = i % 2
@@ -586,7 +604,7 @@ export async function POST(request: NextRequest) {
 
     // ===== SLIDE 13: COMPETITOR PRESENCE =====
     addNewSlide(doc)
-    addSlideHeader(doc, 'Competitor Presence – Top 5 Sector Players', clientName)
+    addSlideHeader(doc, 'Competitor Presence – Top 5 Sector Players', clientName, logoBase64)
     
     if (competitorAnalysis && competitorAnalysis.length > 0) {
       const compData: { label: string; value: number }[] = competitorAnalysis.slice(0, 5).map((c: any) => ({ label: c.name, value: c.mentions }))
@@ -604,7 +622,7 @@ export async function POST(request: NextRequest) {
 
     // ===== SLIDE 14: SENTIMENTS =====
     addNewSlide(doc)
-    addSlideHeader(doc, 'Story Orientation - Sentiments', clientName)
+    addSlideHeader(doc, 'Story Orientation - Sentiments', clientName, logoBase64)
     
     if (industrySentiment) {
       const sentimentData = [
