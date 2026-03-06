@@ -159,7 +159,7 @@ export async function POST(request: NextRequest) {
     ], {
       x: 0.3, y: 0.8, w: 4.5, h: 3.5,
       showLegend: true, legendPos: 'b', legendFontSize: 9,
-      showValue: true, showPercent: false,
+      showValue: true, showPercent: true,
       dataLabelPosition: 'outEnd', dataLabelFontSize: 10,
       chartColors: [ORANGE, BLACK, PURPLE, GRAY_TEXT],
     })
@@ -175,14 +175,14 @@ export async function POST(request: NextRequest) {
     const introText = `The ${industryName || 'sector'} continued to receive substantial media publicity during the period under review.`
     const totalText = `Total Coverage – ${totalIndustryStories.toLocaleString()} news stories from four media sources (print media, news website, radio and television).`
     const bulletPoints = mediaSources.map((source, i) => {
-      if (i === 0) return `${source.name} – highest (${source.percentage}%)`
-      if (i === mediaSources.length - 1) return `${source.name} – lowest (${source.percentage}%)`
-      return `${source.name} (${source.percentage}%)`
+      if (i === 0) return `${source.name} – highest: ${source.count} (${source.percentage}%)`
+      if (i === mediaSources.length - 1) return `${source.name} – lowest: ${source.count} (${source.percentage}%)`
+      return `${source.name}: ${source.count} (${source.percentage}%)`
     })
 
-    slide5.addText(introText, { x: 5.2, y: 0.9, w: 4.5, h: 0.8, fontSize: 11, color: DARK_TEXT, fontFace: 'Arial', lineSpacingMultiple: 1.4 })
-    slide5.addText(totalText, { x: 5.2, y: 1.7, w: 4.5, h: 0.8, fontSize: 11, color: DARK_TEXT, fontFace: 'Arial', lineSpacingMultiple: 1.4 })
-    slide5.addText(bulletPoints.map(b => `•   ${b}`).join('\n'), { x: 5.2, y: 2.6, w: 4.5, h: 1.8, fontSize: 11, color: DARK_TEXT, fontFace: 'Arial', lineSpacingMultiple: 1.5 })
+    slide5.addText(introText, { x: 5.0, y: 0.8, w: 4.8, h: 0.8, fontSize: 12, color: DARK_TEXT, fontFace: 'Arial', lineSpacingMultiple: 1.4 })
+    slide5.addText(totalText, { x: 5.0, y: 1.6, w: 4.8, h: 0.8, fontSize: 12, color: DARK_TEXT, fontFace: 'Arial', lineSpacingMultiple: 1.4 })
+    slide5.addText(bulletPoints.map(b => `•   ${b}`).join('\n'), { x: 5.0, y: 2.5, w: 4.8, h: 2.0, fontSize: 12, color: DARK_TEXT, fontFace: 'Arial', lineSpacingMultiple: 1.5 })
 
     // ===== SLIDE 6: MEDIA SOURCES - MONTHLY TREND (Clustered bar chart) =====
     const slide6 = pptx.addSlide()
@@ -212,26 +212,52 @@ export async function POST(request: NextRequest) {
       slide6.addText('(Lowest)', { x: 5.5, y: 3.0, w: 4.2, h: 0.3, fontSize: 10, color: GRAY_TEXT, fontFace: 'Arial' })
     }
 
-    // ===== SLIDE 7: THEMATIC AREAS / WORD CLOUD =====
+    // ===== SLIDE 7: THEMATIC AREAS / TAG CLOUD (Grid layout) =====
     const slide7 = pptx.addSlide()
     addSlideHeader(pptx, slide7, 'Thematic Areas of Coverage - Industry', clientName, logoBase64)
 
     if (thematicAreas && thematicAreas.length > 0) {
       const cloudItems = thematicAreas.slice(0, 20)
       const maxWeight = Math.max(...cloudItems.map((item: any) => item.weight), 1)
-      const positions = [
-        { x: 4.5, y: 1.2 }, { x: 3.0, y: 1.8 }, { x: 6.0, y: 1.5 }, { x: 1.5, y: 2.2 },
-        { x: 4.5, y: 2.5 }, { x: 7.0, y: 2.2 }, { x: 2.5, y: 3.0 }, { x: 5.0, y: 3.3 },
-        { x: 6.5, y: 3.0 }, { x: 3.5, y: 3.8 }, { x: 5.5, y: 4.0 }, { x: 2.0, y: 4.0 },
-        { x: 7.5, y: 3.8 }, { x: 4.0, y: 4.5 }, { x: 1.0, y: 3.2 }, { x: 8.0, y: 2.8 },
-        { x: 3.0, y: 4.8 }, { x: 6.0, y: 4.6 }, { x: 4.5, y: 2.0 }, { x: 7.0, y: 4.3 },
-      ]
-      cloudItems.forEach((item: any, i: number) => {
+
+      // Render as a flowing grid of pill-shaped tags
+      let curX = 0.5
+      let curY = 0.85
+      const maxRowWidth = 9.2
+      const tagGap = 0.15
+      const rowGap = 0.12
+
+      cloudItems.forEach((item: any) => {
         const ratio = item.weight / maxWeight
-        const fontSize = Math.max(10, Math.min(36, 10 + Math.round(ratio * 26)))
-        const color = ratio > 0.6 ? GOLD : ratio > 0.3 ? DARK_TEXT : GRAY_TEXT
-        const pos = positions[i] || { x: 4.5, y: 2.8 }
-        slide7.addText(item.keyword, { x: pos.x, y: pos.y, w: 3, h: 0.5, fontSize, color, fontFace: 'Arial', bold: ratio > 0.5, align: 'center' })
+        const fontSize = Math.max(9, Math.min(18, Math.round(9 + ratio * 9)))
+        // Estimate text width: ~0.07 inches per character at fontSize 12
+        const charWidth = fontSize * 0.006
+        const textW = item.keyword.length * charWidth
+        const boxW = textW + 0.4
+        const boxH = 0.35 + (fontSize > 14 ? 0.08 : 0)
+
+        // Wrap to next row
+        if (curX + boxW > 0.5 + maxRowWidth) {
+          curX = 0.5
+          curY += boxH + rowGap
+        }
+
+        const bgColor = ratio > 0.6 ? GOLD : ratio > 0.3 ? 'E5E7EB' : 'F3F4F6'
+        const textColor = ratio > 0.6 ? WHITE : ratio > 0.3 ? DARK_TEXT : GRAY_TEXT
+
+        // Pill background
+        slide7.addShape(pptx.ShapeType.roundRect, {
+          x: curX, y: curY, w: boxW, h: boxH,
+          fill: { color: bgColor }, rectRadius: 0.15,
+        })
+        // Tag text
+        slide7.addText(item.keyword, {
+          x: curX, y: curY, w: boxW, h: boxH,
+          fontSize, color: textColor, fontFace: 'Arial',
+          align: 'center', valign: 'middle', bold: ratio > 0.5,
+        })
+
+        curX += boxW + tagGap
       })
     }
 
@@ -274,7 +300,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Sources of Mentions bar chart (top-right)
-    slide10.addText(`Sources of Mentions - ${clientName}`, { x: 5, y: 0.7, w: 4.8, h: 0.3, fontSize: 10, color: DARK_TEXT, fontFace: 'Arial', bold: true })
+    slide10.addText(`Sources of Mentions - ${clientName}`, { x: 5, y: 0.7, w: 4.8, h: 0.35, fontSize: 12, color: DARK_TEXT, fontFace: 'Arial', bold: true })
     if (clientSourcesOfMentions) {
       slide10.addChart(CHART_BAR, [
         { name: 'Mentions', labels: ['Print Media', 'News Website', 'TV', 'Radio'], values: [clientSourcesOfMentions.printMedia, clientSourcesOfMentions.newsWebsite, clientSourcesOfMentions.tv, clientSourcesOfMentions.radio] }
@@ -287,7 +313,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Trend of Mentions bar chart (bottom-right)
-    slide10.addText(`Trend of Mentions - ${clientName}`, { x: 5, y: 3.0, w: 4.8, h: 0.3, fontSize: 10, color: DARK_TEXT, fontFace: 'Arial', bold: true })
+    slide10.addText(`Trend of Mentions - ${clientName}`, { x: 5, y: 3.0, w: 4.8, h: 0.35, fontSize: 12, color: DARK_TEXT, fontFace: 'Arial', bold: true })
     if (clientMonthlyTrend && clientMonthlyTrend.length > 0) {
       slide10.addChart(CHART_BAR, [
         { name: 'Mentions', labels: clientMonthlyTrend.map((m: any) => m.month), values: clientMonthlyTrend.map((m: any) => m.count) }

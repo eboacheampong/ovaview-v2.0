@@ -179,7 +179,7 @@ function drawPieChart(
     doc.line(centerX + radius * Math.cos(a1), centerY + radius * Math.sin(a1), centerX + radius * Math.cos(a2), centerY + radius * Math.sin(a2))
   }
 
-  // Percentage labels inside slices
+  // Labels inside slices: count + percentage
   startAngle = -Math.PI / 2
   data.forEach((item) => {
     const sliceAngle = (item.value / total) * 2 * Math.PI
@@ -189,9 +189,11 @@ function drawPieChart(
     const labelY = centerY + labelRadius * Math.sin(midAngle)
     const percentage = Math.round((item.value / total) * 100)
     if (percentage > 5) {
-      doc.setFontSize(12)
+      doc.setFontSize(11)
       doc.setTextColor(WHITE[0], WHITE[1], WHITE[2])
-      doc.text(`${percentage}%`, labelX, labelY + 4, { align: 'center' })
+      doc.text(`${item.value}`, labelX, labelY - 2, { align: 'center' })
+      doc.setFontSize(9)
+      doc.text(`(${percentage}%)`, labelX, labelY + 12, { align: 'center' })
     }
     startAngle += sliceAngle
   })
@@ -356,25 +358,25 @@ export async function POST(request: NextRequest) {
     const sortedSources = [...mediaPieData].sort((a, b) => b.value - a.value)
     const industryLabel = data.industryName || 'sector'
 
-    doc.setFontSize(13)
+    doc.setFontSize(14)
     doc.setTextColor(DARK_TEXT[0], DARK_TEXT[1], DARK_TEXT[2])
     const introText = `The ${industryLabel} continued to receive substantial media publicity during the period under review.`
-    const introLines = doc.splitTextToSize(introText, 380)
-    doc.text(introLines, 520, 100)
-
-    doc.setFontSize(13)
-    const totalText = `Total Coverage – ${(totalIndustryStories || 0).toLocaleString()} news stories from four media sources (print media, news website, radio and television).`
-    const totalLines = doc.splitTextToSize(totalText, 380)
-    doc.text(totalLines, 520, 170)
+    const introLines = doc.splitTextToSize(introText, 400)
+    doc.text(introLines, 500, 90)
 
     doc.setFontSize(14)
-    let bulletY = 270
+    const totalText = `Total Coverage – ${(totalIndustryStories || 0).toLocaleString()} news stories from four media sources (print media, news website, radio and television).`
+    const totalLines = doc.splitTextToSize(totalText, 400)
+    doc.text(totalLines, 500, 160)
+
+    doc.setFontSize(15)
+    let bulletY = 260
     sortedSources.forEach((source, i) => {
       let bulletText = ''
-      if (i === 0) bulletText = `•   ${source.label} – highest (${source.percentage}%)`
-      else if (i === sortedSources.length - 1) bulletText = `•   ${source.label} – lowest (${source.percentage}%)`
-      else bulletText = `•   ${source.label} (${source.percentage}%)`
-      doc.text(bulletText, 520, bulletY + i * 35)
+      if (i === 0) bulletText = `•   ${source.label} – highest: ${source.value} (${source.percentage}%)`
+      else if (i === sortedSources.length - 1) bulletText = `•   ${source.label} – lowest: ${source.value} (${source.percentage}%)`
+      else bulletText = `•   ${source.label}: ${source.value} (${source.percentage}%)`
+      doc.text(bulletText, 500, bulletY + i * 38)
     })
 
     // ===== SLIDE 6: MONTHLY TREND (Clustered bar chart per media type) =====
@@ -414,28 +416,60 @@ export async function POST(request: NextRequest) {
       doc.text('(Lowest)', 620, 290)
     }
 
-    // ===== SLIDE 7: THEMATIC AREAS =====
+    // ===== SLIDE 7: THEMATIC AREAS (Tag cloud as grid) =====
     addNewSlide(doc)
     addSlideHeader(doc, 'Thematic Areas of Coverage - Industry', clientName, logoBase64)
 
     if (thematicAreas && thematicAreas.length > 0) {
       const maxWeight = Math.max(...thematicAreas.map((a: any) => a.weight), 1)
-      const positions = [
-        { x: 480, y: 140 }, { x: 280, y: 180 }, { x: 680, y: 160 }, { x: 380, y: 220 },
-        { x: 580, y: 240 }, { x: 200, y: 260 }, { x: 760, y: 220 }, { x: 320, y: 300 },
-        { x: 520, y: 320 }, { x: 420, y: 360 }, { x: 620, y: 380 }, { x: 180, y: 340 },
-        { x: 800, y: 300 }, { x: 480, y: 420 }, { x: 280, y: 400 }, { x: 700, y: 360 },
-        { x: 380, y: 460 }, { x: 580, y: 460 }, { x: 480, y: 200 }, { x: 150, y: 200 },
-      ]
-      thematicAreas.slice(0, 20).forEach((item: any, i: number) => {
+      const tags = thematicAreas.slice(0, 20)
+
+      // Grid layout: render tags in rows with padding, wrapping to next row
+      const gridLeft = 60
+      const gridTop = 80
+      const gridMaxWidth = SLIDE_WIDTH - 120
+      const tagPadX = 20 // horizontal padding inside tag
+      const tagPadY = 8  // vertical padding inside tag
+      const tagGap = 12  // gap between tags
+      const rowGap = 14  // gap between rows
+
+      let curX = gridLeft
+      let curY = gridTop
+
+      tags.forEach((item: any) => {
         const ratio = item.weight / maxWeight
-        const fontSize = Math.round(16 + ratio * 32)
-        const pos = positions[i] || { x: 480, y: 280 }
-        if (ratio > 0.6) doc.setTextColor(GOLD[0], GOLD[1], GOLD[2])
-        else if (ratio > 0.3) doc.setTextColor(DARK_TEXT[0], DARK_TEXT[1], DARK_TEXT[2])
-        else doc.setTextColor(GRAY_TEXT[0], GRAY_TEXT[1], GRAY_TEXT[2])
+        const fontSize = Math.max(12, Math.min(28, Math.round(12 + ratio * 16)))
         doc.setFontSize(fontSize)
-        doc.text(item.keyword, pos.x, pos.y, { align: 'center' })
+        const textWidth = doc.getTextWidth(item.keyword)
+        const boxW = textWidth + tagPadX * 2
+        const boxH = fontSize + tagPadY * 2
+
+        // Wrap to next row if needed
+        if (curX + boxW > gridLeft + gridMaxWidth) {
+          curX = gridLeft
+          curY += boxH + rowGap
+        }
+
+        // Background pill
+        if (ratio > 0.6) {
+          doc.setFillColor(GOLD[0], GOLD[1], GOLD[2])
+          doc.setTextColor(WHITE[0], WHITE[1], WHITE[2])
+        } else if (ratio > 0.3) {
+          doc.setFillColor(240, 240, 240)
+          doc.setTextColor(DARK_TEXT[0], DARK_TEXT[1], DARK_TEXT[2])
+        } else {
+          doc.setFillColor(245, 245, 245)
+          doc.setTextColor(GRAY_TEXT[0], GRAY_TEXT[1], GRAY_TEXT[2])
+        }
+
+        // Rounded rect (pill shape)
+        doc.roundedRect(curX, curY, boxW, boxH, 4, 4, 'F')
+
+        // Tag text centered in pill
+        doc.setFontSize(fontSize)
+        doc.text(item.keyword, curX + boxW / 2, curY + boxH / 2 + fontSize * 0.3, { align: 'center' })
+
+        curX += boxW + tagGap
       })
     }
 
@@ -496,9 +530,11 @@ export async function POST(request: NextRequest) {
 
     // Sources bar chart (right side)
     if (clientSourcesOfMentions) {
-      doc.setFontSize(11)
+      doc.setFontSize(14)
+      doc.setFont('helvetica', 'bold')
       doc.setTextColor(DARK_TEXT[0], DARK_TEXT[1], DARK_TEXT[2])
-      doc.text(`Sources of Mentions - ${clientName}`, 550, 80)
+      doc.text(`Sources of Mentions - ${clientName}`, 500, 80)
+      doc.setFont('helvetica', 'normal')
       const sourceData = [
         { label: 'Print', value: clientSourcesOfMentions.printMedia || 0 },
         { label: 'Web', value: clientSourcesOfMentions.newsWebsite || 0 },
@@ -510,9 +546,11 @@ export async function POST(request: NextRequest) {
 
     // Client monthly trend (bottom-right)
     if (clientMonthlyTrend && clientMonthlyTrend.length > 0) {
-      doc.setFontSize(11)
+      doc.setFontSize(14)
+      doc.setFont('helvetica', 'bold')
       doc.setTextColor(DARK_TEXT[0], DARK_TEXT[1], DARK_TEXT[2])
-      doc.text(`Trend of Mentions - ${clientName}`, 550, 310)
+      doc.text(`Trend of Mentions - ${clientName}`, 500, 310)
+      doc.setFont('helvetica', 'normal')
       const trendData = clientMonthlyTrend.map((m: any) => ({ label: m.month, value: m.count }))
       drawBarChart(doc, trendData, 450, 330, 450, 160, [RED])
     }
