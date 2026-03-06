@@ -135,6 +135,7 @@ export default function ClientSocialInsightsPage() {
     try {
       setIsScraperRunning(true)
       setScraperMessage('🔄 Scraping social media platforms...')
+
       const res = await fetch('/api/social-posts/scrape', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -143,7 +144,14 @@ export default function ClientSocialInsightsPage() {
           platforms: ['youtube', 'twitter', 'tiktok', 'instagram', 'linkedin', 'facebook'],
         }),
       })
-      const data = await res.json()
+
+      let data: any
+      try {
+        data = await res.json()
+      } catch {
+        throw new Error('Server returned an invalid response — request may have timed out')
+      }
+
       if (!res.ok) throw new Error(data.error || 'Failed')
 
       const platformInfo = data.platformResults
@@ -159,10 +167,11 @@ export default function ClientSocialInsightsPage() {
       } else {
         setScraperMessage(`⚠️ No posts found. Keywords: ${clientKeywords.slice(0, 3).join(', ')}`)
       }
+
+      setIsScraperRunning(false)
       await fetchPosts()
     } catch (err) {
       setScraperMessage(err instanceof Error ? `✗ ${err.message}` : '✗ Failed')
-    } finally {
       setIsScraperRunning(false)
     }
   }

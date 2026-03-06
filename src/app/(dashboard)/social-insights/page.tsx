@@ -70,17 +70,27 @@ export default function SocialInsightsPage() {
     try {
       setIsScraperRunning(true)
       setScraperMessage('🔄 Scraping all platforms for all clients...')
+
       const res = await fetch('/api/social-insights/scrape-all', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       })
-      const data = await res.json()
+
+      let data: any
+      try {
+        data = await res.json()
+      } catch {
+        throw new Error('Server returned an invalid response — the request may have timed out')
+      }
+
       if (!res.ok) throw new Error(data.error || 'Failed to run scraper')
+
       setScraperMessage(`✓ ${data.message}`)
+      setIsScraperRunning(false)
       await fetchSummary()
     } catch (err) {
-      setScraperMessage(err instanceof Error ? `✗ ${err.message}` : '✗ Failed to run scraper')
-    } finally {
+      const msg = err instanceof Error ? err.message : 'Failed to run scraper'
+      setScraperMessage(`✗ ${msg}`)
       setIsScraperRunning(false)
     }
   }
@@ -139,8 +149,8 @@ export default function SocialInsightsPage() {
       {scraperMessage && (
         <div className={`p-3 rounded-lg text-sm font-medium ${
           scraperMessage.startsWith('✓') ? 'bg-green-50 text-green-700 border border-green-200'
-            : scraperMessage.startsWith('🔄') ? 'bg-purple-50 text-purple-700 border border-purple-200'
-            : 'bg-red-50 text-red-700 border border-red-200'
+            : scraperMessage.startsWith('✗') ? 'bg-red-50 text-red-700 border border-red-200'
+            : 'bg-purple-50 text-purple-700 border border-purple-200'
         }`}>
           {scraperMessage}
         </div>
