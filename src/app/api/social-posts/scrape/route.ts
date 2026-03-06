@@ -180,56 +180,115 @@ function buildPost(platform: string, postId: string, content: string, keyword: s
 
 // ============ URL RESOLUTION ============
 
-/** Follow Google News redirect to get the real article/social URL */
-async function resolveGoogleNewsUrl(gnUrl: string): Promise<string> {
-  // If it's already a direct URL (not Google News), return as-is
-  if (!gnUrl.includes('news.google.com')) return gnUrl
-
+/**
+ * Decode a Google News RSS URL to get the real article/social URL.
+ * Two formats exist:
+ * 1. Old: base64 in path contains the URL directly (with binary prefix/suffix)
+ * 2. New (July 2024+): base64 decodes to "AU_yqL..." — needs batchexecute API call
+ */
+async function decodeGoogleNewsUrl(sourceUrl: string): Promise<string> {
   try {
-    // Use redirect: 'manual' to catch the 302/303 Location header without following
-    const res = await fetch(gnUrl, {
-      method: 'GET',
-      headers: { 'User-Agent': randomUA() },
-      redirect: 'manual',
-      signal: AbortSignal.timeout(8000),
-    })
+    const url = new URL(sourceUrl)
+    if (url.hostname !== 'news.google.com') return sourceUrl
 
-    // Check Location header for redirect
-    const location = res.headers.get('location')
-    if (location && !location.includes('news.google.com')) {
-      return location
+    const path = url.pathname.split('/')
+    const articlesIdx = path.indexOf('articles')
+    if (articlesIdx === -1 || articlesIdx >= path.length - 1) return sourceUrl
+
+    const base64 = path[articlesIdx + 1]
+    if (!base64) return sourceUrl
+
+    // Decode base64 (handle URL-safe base64)
+    const padded = base64.replace(/-/g, '+').replace(/_/g, '/')
+    let decoded: string
+    try {
+      decoded = Buffer.from(padded, 'base64').toString('binary')
+    } catch {
+      return sourceUrl
     }
 
-    // Some Google News URLs do a JS/meta redirect — try following with redirect: 'follow'
-    const res2 = await fetch(gnUrl, {
-      method: 'GET',
-      headers: { 'User-Agent': randomUA() },
-      redirect: 'follow',
-      signal: AbortSignal.timeout(8000),
-    })
-    const finalUrl = res2.url
-    if (finalUrl && finalUrl !== gnUrl && !finalUrl.includes('news.google.com')) {
-      return finalUrl
+    // Strip known prefix bytes: 0x08 0x13 0x22
+    const prefix = String.fromCharCode(0x08, 0x13, 0x22)
+    if (decoded.startsWith(prefix)) {
+      decoded = decoded.substring(prefix.length)
     }
 
-    // Last resort: parse the HTML for meta refresh or canonical URL
-    const html = await res2.text()
-    const metaRefresh = html.match(/<meta[^>]*http-equiv=["']refresh["'][^>]*content=["']\d+;\s*url=([^"']+)["']/i)
-    if (metaRefresh) return metaRefresh[1]
+    // Strip known suffix bytes: 0xD2 0x01 0x00
+    const suffix = String.fromCharCode(0xD2, 0x01, 0x00)
+    if (decoded.endsWith(suffix)) {
+      decoded = decoded.substring(0, decoded.length - suffix.length)
+    }
 
-    const canonical = html.match(/<link[^>]*rel=["']canonical["'][^>]*href=["']([^"']+)["']/i)
-    if (canonical && !canonical[1].includes('news.google.com')) return canonical[1]
+    // Read length byte(s) and extract URL string
+    const bytes = Uint8Array.from(decoded, c => c.charCodeAt(0))
+    const len = bytes[0]
+    let extracted: string
+    if (len >= 0x80) {
+      extracted = decoded.substring(2, len + 2)
+    } else {
+      extracted = decoded.substring(1, len + 1)
+    }
 
-    const dataUrl = html.match(/data-url=["']([^"']+)["']/i)
-    if (dataUrl && !dataUrl[1].includes('news.google.com')) return dataUrl[1]
+    // New-style encoding (July 2024+) — needs batchexecute API
+    if (extracted.startsWith('AU_yqL')) {
+      return await fetchDecodedBatchExecute(base64)
+    }
+
+    // Old-style: extracted string is the URL
+    if (extracted.startsWith('http')) {
+      return extracted
+    }
+
+    // Fallback: try batchexecute for any unrecognized format
+    return await fetchDecodedBatchExecute(base64)
   } catch (e) {
-    console.log(`[URL Resolve] Failed for ${gnUrl.substring(0, 60)}:`, e instanceof Error ? e.message : 'timeout')
+    console.log(`[URL Decode] Failed for ${sourceUrl.substring(0, 80)}:`, e instanceof Error ? e.message : 'unknown')
+    return sourceUrl
   }
-
-  return gnUrl // Fallback to original
 }
 
-/** Resolve multiple URLs in parallel with concurrency limit */
+/** Use Google's internal batchexecute API to resolve a Google News article ID to real URL */
+async function fetchDecodedBatchExecute(articleId: string): Promise<string> {
+  const payload =
+    '[[["Fbv4je","[\\"garturlreq\\",[[\\"en-US\\",\\"US\\",[\\"FINANCE_TOP_INDICES\\",\\"WEB_TEST_1_0_0\\"],null,null,1,1,\\"US:en\\",null,180,null,null,null,null,null,0,null,null,[1608992183,723341000]],\\"en-US\\",\\"US\\",1,[2,3,4,8],1,0,\\"655000234\\",0,0,null,0],\\"' +
+    articleId +
+    '\\"]",null,"generic"]]]'
+
+  try {
+    const res = await fetch('https://news.google.com/_/DotsSplashUi/data/batchexecute?rpcids=Fbv4je', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8',
+        'Referer': 'https://news.google.com/',
+      },
+      body: 'f.req=' + encodeURIComponent(payload),
+      signal: AbortSignal.timeout(8000),
+    })
+
+    const text = await res.text()
+    const header = '[\\"garturlres\\",\\"'
+    const footer = '\\",'
+
+    if (!text.includes(header)) {
+      throw new Error('batchexecute response missing header')
+    }
+
+    const start = text.substring(text.indexOf(header) + header.length)
+    if (!start.includes(footer)) {
+      throw new Error('batchexecute response missing footer')
+    }
+
+    const url = start.substring(0, start.indexOf(footer))
+    if (url.startsWith('http')) return url
+    throw new Error('extracted URL invalid: ' + url.substring(0, 50))
+  } catch (e) {
+    console.log(`[batchexecute] Failed:`, e instanceof Error ? e.message : 'unknown')
+    // Return a Google News URL as fallback (won't embed but at least links somewhere)
+    return `https://news.google.com/rss/articles/${articleId}`
+  }
+}
+
+/** Resolve multiple Google News URLs in parallel with concurrency limit */
 async function resolveUrls(items: Array<{ title: string; link: string; pubDate: string }>): Promise<Array<{ title: string; link: string; resolvedLink: string; pubDate: string }>> {
   const BATCH_SIZE = 5
   const results: Array<{ title: string; link: string; resolvedLink: string; pubDate: string }> = []
@@ -239,15 +298,15 @@ async function resolveUrls(items: Array<{ title: string; link: string; pubDate: 
     const resolved = await Promise.allSettled(
       batch.map(async (item) => ({
         ...item,
-        resolvedLink: await resolveGoogleNewsUrl(item.link),
+        resolvedLink: await decodeGoogleNewsUrl(item.link),
       }))
     )
-    for (const r of resolved) {
+    for (let j = 0; j < resolved.length; j++) {
+      const r = resolved[j]
       if (r.status === 'fulfilled') {
         results.push(r.value)
       } else {
-        // If resolution failed, keep original link
-        results.push({ ...batch[resolved.indexOf(r)], resolvedLink: batch[resolved.indexOf(r)].link })
+        results.push({ ...batch[j], resolvedLink: batch[j].link })
       }
     }
   }
