@@ -318,12 +318,12 @@ export async function POST(request: NextRequest) {
       clearTimeout(timeout)
       if (fetchError instanceof Error && fetchError.name === 'AbortError') {
         return NextResponse.json(
-          { success: false, error: 'Scraper timeout', message: 'The scraper took too long to respond. Try again or reduce the number of sources.' },
+          { success: false, error: 'Scraper timeout', message: `The scraper at ${SCRAPER_API} took too long to respond (>2 min). It may be starting up — try again in 30 seconds.` },
           { status: 504 }
         )
       }
       return NextResponse.json(
-        { success: false, error: 'Scraper unreachable', message: `Could not connect to scraper at ${SCRAPER_API}` },
+        { success: false, error: 'Scraper unreachable', message: `Could not connect to scraper at ${SCRAPER_API}. The service may be down or restarting — try again in a minute.` },
         { status: 502 }
       )
     }
