@@ -79,7 +79,7 @@ export async function GET(request: NextRequest) {
 
     // Filter stories by client keywords if clientId is provided
     if (clientId && clientKeywords.length > 0) {
-      const matchesClient = (story: { title?: string; content: string | null; keywords: string | null }) => {
+      const matchesClient = (story: { title?: string | null; content: string | null; keywords: string | null }) => {
         const content = `${story.title || ''} ${story.content || ''} ${story.keywords || ''}`.toLowerCase()
         return clientKeywords.some(kw => content.includes(kw))
       }
