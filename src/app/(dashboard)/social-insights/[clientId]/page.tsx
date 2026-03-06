@@ -65,7 +65,6 @@ export default function ClientSocialInsightsPage() {
   const [clientKeywords, setClientKeywords] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isDeleting, setIsDeleting] = useState<string | null>(null)
-  const [isAccepting, setIsAccepting] = useState<string | null>(null)
   const [isScraperRunning, setIsScraperRunning] = useState(false)
   const [scraperMessage, setScraperMessage] = useState<string | null>(null)
   const [platformFilter, setPlatformFilter] = useState<string>('all')
@@ -113,24 +112,25 @@ export default function ClientSocialInsightsPage() {
     fetchClient()
   }, [clientId])
 
-  // Accept a scraped post — promotes it to the published social posts table
-  const handleAcceptPost = async (post: SocialPost) => {
-    try {
-      setIsAccepting(post.id)
-      const res = await fetch(`/api/social-posts/${post.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'accepted' }),
-      })
-      if (!res.ok) throw new Error('Failed to accept')
-      // Remove from list if we're filtering by pending
-      if (statusFilter === 'pending') {
-        setPosts(prev => prev.filter(p => p.id !== post.id))
-      } else {
-        setPosts(prev => prev.map(p => p.id === post.id ? { ...p, status: 'accepted' } : p))
-      }
-    } catch { alert('Failed to accept post') }
-    finally { setIsAccepting(null) }
+  // Accept a scraped post — redirect to add page for review before publishing
+  const handleAcceptPost = (post: SocialPost) => {
+    const p = new URLSearchParams({
+      platform: post.platform,
+      postId: post.postId,
+      postUrl: post.postUrl,
+      content: post.content || '',
+      authorName: post.authorName || '',
+      authorHandle: post.authorHandle || '',
+      embedUrl: post.embedUrl || '',
+      embedHtml: post.embedHtml || '',
+      likesCount: String(post.likesCount || 0),
+      commentsCount: String(post.commentsCount || 0),
+      sharesCount: String(post.sharesCount || 0),
+      viewsCount: String(post.viewsCount || 0),
+      clientId,
+      insightId: post.id,
+    })
+    router.push(`/media/social/add?${p.toString()}`)
   }
 
   // Archive a post — hides it from both insights and published
@@ -302,10 +302,8 @@ export default function ClientSocialInsightsPage() {
             {isPending && (
               <>
                 <Button variant="ghost" size="sm" onClick={() => handleAcceptPost(post)}
-                  disabled={isAccepting === post.id} title="Accept (quick publish)">
-                  {isAccepting === post.id
-                    ? <Loader2 className="h-4 w-4 animate-spin" />
-                    : <CheckCircle className="h-4 w-4 text-emerald-600" />}
+                  title="Accept (review & publish)">
+                  <CheckCircle className="h-4 w-4 text-emerald-600" />
                 </Button>
                 <Button variant="ghost" size="sm" onClick={() => handleArchivePost(post)}
                   disabled={isDeleting === post.id} title="Archive (dismiss)">
@@ -452,9 +450,6 @@ export default function ClientSocialInsightsPage() {
                 <>
                   <Button size="sm" onClick={() => { handleAcceptPost(previewPost); setPreviewPost(null) }} className="gap-1 bg-emerald-500 hover:bg-emerald-600">
                     <CheckCircle className="h-3 w-3" /> Accept
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => { handleAcceptAndEdit(previewPost); setPreviewPost(null) }} className="gap-1 text-blue-600">
-                    <Eye className="h-3 w-3" /> Accept & Edit
                   </Button>
                   <Button size="sm" variant="outline" onClick={() => { handleArchivePost(previewPost); setPreviewPost(null) }} className="gap-1 text-gray-500">
                     <Archive className="h-3 w-3" /> Archive
