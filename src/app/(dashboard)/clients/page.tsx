@@ -282,14 +282,29 @@ export default function ClientsPage() {
   const columns: ColumnDef<Client>[] = [
     { accessorKey: 'name', header: ({ column }) => <DataTableColumnHeader column={column} title="Client Name" />, cell: ({ row }) => <span className="text-blue-600 hover:underline cursor-pointer" onClick={() => handleViewClient(row.original)}>{row.getValue('name')}</span> },
     { id: 'clientUsers', header: 'Client Users', cell: ({ row }) => <Button variant="ghost" size="sm" onClick={() => router.push(`/client-users?clientId=${row.original.id}`)} className="text-gray-600"><Users className="h-4 w-4 mr-1" />{row.original.users ? row.original.users.length : 0}</Button> },
-    { accessorKey: 'isActive', header: ({ column }) => <DataTableColumnHeader column={column} title="Status" />, cell: ({ row }) => { const isActive = row.getValue('isActive') as boolean; return <Badge variant="outline" className={isActive ? 'border-green-200 bg-green-50 text-green-700' : 'border-gray-200 bg-gray-50 text-gray-500'}>{isActive ? 'Active' : 'Deactivated'}</Badge> } },
-    { id: 'toggle', header: '(De)Activate', cell: ({ row }) => <button onClick={() => handleToggleStatus(row.original)} className={`text-sm ${row.original.isActive ? 'text-orange-600 hover:text-orange-700' : 'text-blue-600 hover:text-blue-700'}`}>{row.original.isActive ? 'Deactivate' : 'Re-activate'}</button> },
-    { id: 'actions', header: 'Actions', cell: ({ row }) => (
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" size="sm" onClick={() => handleEditClient(row.original)} className="text-blue-500 hover:text-blue-700 hover:bg-blue-50"><Pencil className="h-4 w-4" /></Button>
-        <Button variant="ghost" size="sm" onClick={() => handleDeleteClick(row.original)} className="text-red-500 hover:text-red-700 hover:bg-red-50"><Trash2 className="h-4 w-4" /></Button>
-      </div>
-    ) },
+    {
+      accessorKey: 'isActive',
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Status" />,
+      cell: ({ row }) => {
+        const isActive = row.getValue('isActive') as boolean
+        return (
+          <Badge variant="outline" className={isActive ? 'border-green-200 bg-green-50 text-green-700' : 'border-gray-200 bg-gray-50 text-gray-500'}>
+            {isActive ? 'Active' : 'Deactivated'}
+          </Badge>
+        )
+      },
+    },
+    { id: 'toggle', header: 'Toggle', cell: ({ row }) => <button onClick={() => handleToggleStatus(row.original)} className={`text-sm ${row.original.isActive ? 'text-orange-600 hover:text-orange-700' : 'text-blue-600 hover:text-blue-700'}`}>{row.original.isActive ? 'Deactivate' : 'Re-activate'}</button> },
+    {
+      id: 'actions',
+      header: 'Actions',
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={() => handleEditClient(row.original)} className="text-blue-500 hover:text-blue-700 hover:bg-blue-50"><Pencil className="h-4 w-4" /></Button>
+          <Button variant="ghost" size="sm" onClick={() => handleDeleteClick(row.original)} className="text-red-500 hover:text-red-700 hover:bg-red-50"><Trash2 className="h-4 w-4" /></Button>
+        </div>
+      ),
+    },
   ]
 
   return (
