@@ -97,8 +97,8 @@ export default function DailyInsightsPage() {
     <div className="p-4 sm:p-6 space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-bold text-gray-800">Daily Insights</h1>
-          <p className="text-gray-500 mt-1">Review scraped articles by client</p>
+          <h1 className="text-2xl lg:text-3xl font-bold text-gray-800">Web Insights</h1>
+          <p className="text-gray-500 mt-1">Review scraped web articles by client</p>
         </div>
         <div className="flex gap-2">
           <Button onClick={handleClearInsights} disabled={isClearing || isScraperRunning} variant="outline" className="gap-2 text-red-600 border-red-200 hover:bg-red-50">

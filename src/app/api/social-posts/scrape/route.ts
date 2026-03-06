@@ -127,141 +127,112 @@ async function scrapeYouTube(keyword: string): Promise<any[]> {
 }
 
 // ============ TWITTER/X SCRAPER ============
+// Nitter is dead (Feb 2024). Use syndication.twitter.com for public tweet search
+// and fall back to Google search for Twitter results
 async function scrapeTwitter(keyword: string): Promise<any[]> {
   const posts: any[] = []
-  
-  // Multiple Nitter instances to try
-  const nitterInstances = [
-    'https://nitter.privacydev.net',
-    'https://nitter.poast.org',
-    'https://nitter.net',
-    'https://nitter.cz',
-    'https://nitter.1d4.us',
-    'https://nitter.kavin.rocks',
-  ]
-  
-  for (const instance of nitterInstances) {
+
+  try {
+    console.log(`[Twitter] Searching via syndication for: ${keyword}`)
+
+    // Strategy 1: Twitter syndication timeline (works for hashtags/search)
+    const syndicationUrl = `https://syndication.twitter.com/srv/timeline-profile/screen-name/${encodeURIComponent(keyword)}?dnt=true&embedId=twitter-widget-0&frame=false&hideBorder=false&hideFooter=false&hideHeader=false&hideScrollBar=false&lang=en&maxHeight=600px&origin=https%3A%2F%2Fpublish.twitter.com&theme=light&widgetId=profile%3Ascreen-name%3A${encodeURIComponent(keyword)}`
+
     try {
-      console.log(`[Twitter] Trying ${instance} for: ${keyword}`)
-      const searchUrl = `${instance}/search?f=tweets&q=${encodeURIComponent(keyword)}`
-      const response = await fetchWithHeaders(searchUrl)
-      
-      if (!response.ok) {
-        console.log(`[Twitter] ${instance} returned ${response.status}`)
-        continue
-      }
-      
-      const html = await response.text()
-      
-      // Check if we got a valid page with tweets
-      if (!html.includes('timeline-item') && !html.includes('tweet-body')) {
-        console.log(`[Twitter] ${instance} returned no tweets`)
-        continue
-      }
-      
-      // Parse tweets using regex patterns for Nitter's HTML structure
-      // Pattern for tweet containers
-      const tweetBlocks = html.split(/<div class="timeline-item\s*">/g).slice(1)
-      
-      for (const block of tweetBlocks.slice(0, 15)) {
-        try {
-          // Extract username from profile link
-          const usernameMatch = block.match(/href="\/([^/"?]+)"[^>]*class="[^"]*username/)
-          if (!usernameMatch) continue
-          const username = usernameMatch[1]
-          
-          // Extract display name
-          const nameMatch = block.match(/class="[^"]*fullname[^"]*"[^>]*>([^<]+)</)
-          const displayName = nameMatch ? nameMatch[1].trim() : username
-          
-          // Extract tweet content
-          const contentMatch = block.match(/class="tweet-content[^"]*"[^>]*>([\s\S]*?)<\/div>/)
-          if (!contentMatch) continue
-          let tweetText = contentMatch[1]
-            .replace(/<a[^>]*>([^<]*)<\/a>/g, '$1') // Keep link text
-            .replace(/<[^>]+>/g, ' ') // Remove other tags
-            .replace(/\s+/g, ' ')
-            .trim()
-          
-          if (tweetText.length < 10) continue
-          
-          // Extract tweet ID from status link
-          const statusMatch = block.match(/href="\/[^/]+\/status\/(\d+)/)
-          if (!statusMatch) continue
-          const tweetId = statusMatch[1]
-          
-          // Extract stats
-          let likes = 0, retweets = 0, replies = 0, quotes = 0
-          
-          const likeMatch = block.match(/icon-heart[^>]*><\/span>\s*<span[^>]*>(\d+)/)
-          if (likeMatch) likes = parseInt(likeMatch[1]) || 0
-          
-          const rtMatch = block.match(/icon-retweet[^>]*><\/span>\s*<span[^>]*>(\d+)/)
-          if (rtMatch) retweets = parseInt(rtMatch[1]) || 0
-          
-          const replyMatch = block.match(/icon-comment[^>]*><\/span>\s*<span[^>]*>(\d+)/)
-          if (replyMatch) replies = parseInt(replyMatch[1]) || 0
-          
-          const quoteMatch = block.match(/icon-quote[^>]*><\/span>\s*<span[^>]*>(\d+)/)
-          if (quoteMatch) quotes = parseInt(quoteMatch[1]) || 0
-          
-          // Extract date
-          const dateMatch = block.match(/title="([^"]+)"[^>]*class="[^"]*tweet-date/)
-          let postedAt = new Date()
-          if (dateMatch) {
-            try { postedAt = new Date(dateMatch[1]) } catch {}
-          }
-          
-          // Extract media
-          const mediaUrls: string[] = []
-          const imgRegex = /class="[^"]*still-image[^"]*"[^>]*href="([^"]+)"/g
-          let imgMatch
-          while ((imgMatch = imgRegex.exec(block)) !== null) {
-            mediaUrls.push(imgMatch[1].startsWith('http') ? imgMatch[1] : `${instance}${imgMatch[1]}`)
-          }
-          
-          const postUrl = `https://twitter.com/${username}/status/${tweetId}`
-          
+      const response = await fetchWithHeaders(syndicationUrl)
+      if (response.ok) {
+        const html = await response.text()
+        // Parse timeline entries from syndication HTML
+        const tweetRegex = /data-tweet-id="(\d+)"[\s\S]*?<p[^>]*class="[^"]*timeline-Tweet-text[^"]*"[^>]*>([\s\S]*?)<\/p>/g
+        let match
+        while ((match = tweetRegex.exec(html)) !== null && posts.length < 10) {
+          const tweetId = match[1]
+          const text = match[2].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+          if (text.length < 10) continue
+
+          const authorMatch = html.match(/data-screen-name="([^"]+)"/)
+          const nameMatch = html.match(/class="[^"]*TweetAuthor-name[^"]*"[^>]*>([^<]+)</)
+
           posts.push({
             platform: 'TWITTER' as SocialPlatform,
             postId: tweetId,
-            content: tweetText.substring(0, 500),
+            content: text.substring(0, 500),
             summary: '',
-            authorHandle: `@${username}`,
-            authorName: displayName,
-            postUrl,
-            embedUrl: postUrl,
-            embedHtml: `<blockquote class="twitter-tweet"><p>${tweetText.substring(0, 280)}</p>&mdash; ${displayName} (@${username}) <a href="${postUrl}">View on Twitter</a></blockquote><script async src="https://platform.twitter.com/widgets.js"></script>`,
-            mediaUrls,
-            mediaType: mediaUrls.length > 0 ? 'image' : 'text',
+            authorHandle: authorMatch ? `@${authorMatch[1]}` : '',
+            authorName: nameMatch ? nameMatch[1].trim() : '',
+            postUrl: `https://twitter.com/i/status/${tweetId}`,
+            embedUrl: `https://twitter.com/i/status/${tweetId}`,
+            embedHtml: `<blockquote class="twitter-tweet"><a href="https://twitter.com/i/status/${tweetId}">Tweet</a></blockquote><script async src="https://platform.twitter.com/widgets.js"></script>`,
+            mediaUrls: [],
+            mediaType: 'text',
             viewsCount: 0,
-            likesCount: likes,
-            commentsCount: replies,
-            sharesCount: retweets + quotes,
-            hashtags: (tweetText.match(/#\w+/g) || []),
-            mentions: (tweetText.match(/@\w+/g) || []),
+            likesCount: 0,
+            commentsCount: 0,
+            sharesCount: 0,
+            hashtags: (text.match(/#\w+/g) || []),
+            mentions: (text.match(/@\w+/g) || []),
             keywords: keyword,
-            postedAt,
+            postedAt: new Date(),
           })
-        } catch (e) {
+        }
+      }
+    } catch (e) {
+      console.log('[Twitter] Syndication failed, trying RSS bridge...')
+    }
+
+    // Strategy 2: RSS Bridge instances (community-maintained Twitter RSS feeds)
+    if (posts.length === 0) {
+      const rssBridges = [
+        `https://rss-bridge.org/bridge01/?action=display&bridge=TwitterBridge&context=By+keyword&q=${encodeURIComponent(keyword)}&format=Json`,
+      ]
+
+      for (const bridgeUrl of rssBridges) {
+        try {
+          const response = await fetchWithHeaders(bridgeUrl)
+          if (!response.ok) continue
+          const data = await response.json()
+          const items = data.items || []
+
+          for (const item of items.slice(0, 10)) {
+            const content = (item.content_text || item.title || '').substring(0, 500)
+            if (content.length < 10) continue
+            const urlMatch = (item.url || '').match(/status\/(\d+)/)
+            const tweetId = urlMatch ? urlMatch[1] : `rss_${Date.now()}_${posts.length}`
+
+            posts.push({
+              platform: 'TWITTER' as SocialPlatform,
+              postId: tweetId,
+              content,
+              summary: '',
+              authorHandle: item.author?.name ? `@${item.author.name}` : '',
+              authorName: item.author?.name || '',
+              postUrl: item.url || `https://twitter.com/search?q=${encodeURIComponent(keyword)}`,
+              embedUrl: item.url || '',
+              embedHtml: `<blockquote class="twitter-tweet"><p>${content.substring(0, 280)}</p><a href="${item.url || '#'}">View on Twitter</a></blockquote><script async src="https://platform.twitter.com/widgets.js"></script>`,
+              mediaUrls: [],
+              mediaType: 'text',
+              viewsCount: 0,
+              likesCount: 0,
+              commentsCount: 0,
+              sharesCount: 0,
+              hashtags: (content.match(/#\w+/g) || []),
+              mentions: (content.match(/@\w+/g) || []),
+              keywords: keyword,
+              postedAt: item.date_published ? new Date(item.date_published) : new Date(),
+            })
+          }
+          if (posts.length > 0) break
+        } catch {
           continue
         }
       }
-      
-      if (posts.length > 0) {
-        console.log(`[Twitter] Found ${posts.length} tweets from ${instance}`)
-        break
-      }
-    } catch (error) {
-      console.log(`[Twitter] Error with ${instance}:`, error)
-      continue
     }
+
+    console.log(`[Twitter] Found ${posts.length} tweets for "${keyword}"`)
+  } catch (error) {
+    console.error('[Twitter] Scrape error:', error)
   }
-  
-  if (posts.length === 0) {
-    console.log('[Twitter] No tweets found from any Nitter instance')
-  }
-  
+
   return posts
 }
 
@@ -412,6 +383,172 @@ async function scrapeInstagram(keyword: string): Promise<any[]> {
   return posts
 }
 
+// ============ LINKEDIN SCRAPER ============
+// LinkedIn blocks direct scraping, but we can search for public posts via Google
+async function scrapeLinkedIn(keyword: string): Promise<any[]> {
+  const posts: any[] = []
+
+  try {
+    console.log(`[LinkedIn] Searching for: ${keyword}`)
+
+    // Use Google to find recent LinkedIn posts about the keyword
+    const googleUrl = `https://www.google.com/search?q=site:linkedin.com/posts+${encodeURIComponent(keyword)}&tbs=qdr:w&num=10`
+    const response = await fetchWithHeaders(googleUrl, {
+      'Accept': 'text/html,application/xhtml+xml',
+    })
+
+    if (!response.ok) {
+      console.log(`[LinkedIn] Google search returned ${response.status}`)
+      return posts
+    }
+
+    const html = await response.text()
+
+    // Parse Google search results for LinkedIn post URLs
+    const linkRegex = /href="(https?:\/\/(?:www\.)?linkedin\.com\/posts\/[^"&]+)"/g
+    const titleRegex = /<h3[^>]*>([\s\S]*?)<\/h3>/g
+    const snippetRegex = /<div[^>]*class="[^"]*VwiC3b[^"]*"[^>]*>([\s\S]*?)<\/div>/g
+
+    const urls: string[] = []
+    let linkMatch
+    while ((linkMatch = linkRegex.exec(html)) !== null) {
+      const url = linkMatch[1].split('&')[0] // Clean tracking params
+      if (!urls.includes(url)) urls.push(url)
+    }
+
+    // Extract titles and snippets from search results
+    const titles: string[] = []
+    let titleMatch
+    while ((titleMatch = titleRegex.exec(html)) !== null) {
+      titles.push(titleMatch[1].replace(/<[^>]+>/g, '').trim())
+    }
+
+    const snippets: string[] = []
+    let snippetMatch
+    while ((snippetMatch = snippetRegex.exec(html)) !== null) {
+      snippets.push(snippetMatch[1].replace(/<[^>]+>/g, '').trim())
+    }
+
+    for (let i = 0; i < Math.min(urls.length, 10); i++) {
+      const url = urls[i]
+      const title = titles[i] || ''
+      const snippet = snippets[i] || title
+
+      // Extract author from URL (linkedin.com/posts/authorname_...)
+      const authorMatch = url.match(/linkedin\.com\/posts\/([^_/]+)/)
+      const authorName = authorMatch ? authorMatch[1].replace(/-/g, ' ') : ''
+
+      const postId = `li_${Buffer.from(url).toString('base64').substring(0, 20)}`
+      const content = snippet || title || `LinkedIn post about ${keyword}`
+
+      posts.push({
+        platform: 'LINKEDIN' as SocialPlatform,
+        postId,
+        content: content.substring(0, 500),
+        summary: '',
+        authorHandle: authorName,
+        authorName: authorName.split(' ').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
+        postUrl: url,
+        embedUrl: url,
+        embedHtml: `<iframe src="${url}" width="100%" height="400" frameborder="0" allowfullscreen></iframe>`,
+        mediaUrls: [],
+        mediaType: 'text',
+        viewsCount: 0,
+        likesCount: 0,
+        commentsCount: 0,
+        sharesCount: 0,
+        hashtags: (content.match(/#\w+/g) || []),
+        mentions: [],
+        keywords: keyword,
+        postedAt: new Date(),
+      })
+    }
+
+    console.log(`[LinkedIn] Found ${posts.length} posts`)
+  } catch (error) {
+    console.error('[LinkedIn] Scrape error:', error)
+  }
+
+  return posts
+}
+
+// ============ FACEBOOK SCRAPER ============
+// Facebook blocks direct scraping, search via Google for public posts
+async function scrapeFacebook(keyword: string): Promise<any[]> {
+  const posts: any[] = []
+
+  try {
+    console.log(`[Facebook] Searching for: ${keyword}`)
+
+    const googleUrl = `https://www.google.com/search?q=site:facebook.com+${encodeURIComponent(keyword)}&tbs=qdr:w&num=10`
+    const response = await fetchWithHeaders(googleUrl, {
+      'Accept': 'text/html,application/xhtml+xml',
+    })
+
+    if (!response.ok) {
+      console.log(`[Facebook] Google search returned ${response.status}`)
+      return posts
+    }
+
+    const html = await response.text()
+
+    // Parse Google results for Facebook URLs
+    const linkRegex = /href="(https?:\/\/(?:www\.)?facebook\.com\/[^"&]+\/posts\/[^"&]+)"/g
+    const titleRegex = /<h3[^>]*>([\s\S]*?)<\/h3>/g
+
+    const urls: string[] = []
+    let linkMatch
+    while ((linkMatch = linkRegex.exec(html)) !== null) {
+      const url = linkMatch[1].split('&')[0]
+      if (!urls.includes(url)) urls.push(url)
+    }
+
+    const titles: string[] = []
+    let titleMatch
+    while ((titleMatch = titleRegex.exec(html)) !== null) {
+      titles.push(titleMatch[1].replace(/<[^>]+>/g, '').trim())
+    }
+
+    for (let i = 0; i < Math.min(urls.length, 10); i++) {
+      const url = urls[i]
+      const title = titles[i] || `Facebook post about ${keyword}`
+
+      const authorMatch = url.match(/facebook\.com\/([^/]+)\//)
+      const authorName = authorMatch ? authorMatch[1].replace(/\./g, ' ') : ''
+
+      const postId = `fb_${Buffer.from(url).toString('base64').substring(0, 20)}`
+
+      posts.push({
+        platform: 'FACEBOOK' as SocialPlatform,
+        postId,
+        content: title.substring(0, 500),
+        summary: '',
+        authorHandle: authorName,
+        authorName: authorName.split(' ').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
+        postUrl: url,
+        embedUrl: url,
+        embedHtml: `<iframe src="https://www.facebook.com/plugins/post.php?href=${encodeURIComponent(url)}&show_text=true&width=500" width="100%" height="400" style="border:none;overflow:hidden" scrolling="no" frameborder="0" allowfullscreen="true"></iframe>`,
+        mediaUrls: [],
+        mediaType: 'text',
+        viewsCount: 0,
+        likesCount: 0,
+        commentsCount: 0,
+        sharesCount: 0,
+        hashtags: [],
+        mentions: [],
+        keywords: keyword,
+        postedAt: new Date(),
+      })
+    }
+
+    console.log(`[Facebook] Found ${posts.length} posts`)
+  } catch (error) {
+    console.error('[Facebook] Scrape error:', error)
+  }
+
+  return posts
+}
+
 // ============ GET CLIENT KEYWORDS ============
 async function getClientKeywords(clientId: string): Promise<string[]> {
   try {
@@ -482,7 +619,7 @@ export async function POST(request: NextRequest) {
 
     const platforms = providedPlatforms?.length > 0 
       ? providedPlatforms 
-      : ['youtube', 'twitter', 'tiktok', 'instagram']
+      : ['youtube', 'twitter', 'tiktok', 'instagram', 'linkedin', 'facebook']
 
     console.log(`[Social Scraper] Starting scrape for keywords: ${keywords.join(', ')}`)
     console.log(`[Social Scraper] Platforms: ${platforms.join(', ')}`)
@@ -512,6 +649,12 @@ export async function POST(request: NextRequest) {
               break
             case 'instagram':
               posts = await scrapeInstagram(keyword)
+              break
+            case 'linkedin':
+              posts = await scrapeLinkedIn(keyword)
+              break
+            case 'facebook':
+              posts = await scrapeFacebook(keyword)
               break
           }
           
@@ -676,7 +819,7 @@ export async function POST(request: NextRequest) {
 export async function GET() {
   return NextResponse.json({
     status: 'ready',
-    supportedPlatforms: ['youtube', 'twitter', 'tiktok', 'instagram'],
+    supportedPlatforms: ['youtube', 'twitter', 'tiktok', 'instagram', 'linkedin', 'facebook'],
     note: 'Pass clientId to use client keywords, or provide keywords array directly',
   })
 }

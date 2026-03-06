@@ -54,7 +54,8 @@ export const navigationSections: NavSection[] = [
   {
     title: 'INSIGHTS',
     items: [
-      { label: 'Daily Insights', href: '/daily-insights', icon: Sparkles, requiredRole: 'admin' },
+      { label: 'Web Insights', href: '/daily-insights', icon: Sparkles, requiredRole: 'admin' },
+      { label: 'Social Insights', href: '/social-insights', icon: Share2, requiredRole: 'admin' },
     ],
   },
   {
