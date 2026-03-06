@@ -563,22 +563,46 @@ export async function POST(request: NextRequest) {
       clientMajorStories.slice(0, 6).forEach((story: any, i: number) => {
         const col = i % 2
         const row = Math.floor(i / 2)
-        const x = 40 + col * 460
-        const y = 80 + row * 150
+        const cardX = 30 + col * 470
+        const cardY = 80 + row * 155
+        const cardW = 440
+        const cardH = 140
 
+        // Card background with warm tint
+        doc.setFillColor(255, 248, 240)
+        doc.roundedRect(cardX, cardY, cardW, cardH, 4, 4, 'F')
+
+        // Card border
+        doc.setDrawColor(253, 232, 208)
+        doc.setLineWidth(0.5)
+        doc.roundedRect(cardX, cardY, cardW, cardH, 4, 4, 'S')
+
+        // Orange accent bar on left
+        doc.setFillColor(ORANGE[0], ORANGE[1], ORANGE[2])
+        doc.rect(cardX, cardY, 3, cardH, 'F')
+
+        const textX = cardX + 14
+        const textW = cardW - 24
+
+        // Date
         doc.setFontSize(9)
         doc.setTextColor(ORANGE[0], ORANGE[1], ORANGE[2])
-        doc.text(story.date || '', x, y)
+        doc.setFont('helvetica', 'bold')
+        doc.text(story.date || '', textX, cardY + 16)
 
-        doc.setFontSize(11)
+        // Title
+        doc.setFontSize(12)
         doc.setTextColor(DARK_TEXT[0], DARK_TEXT[1], DARK_TEXT[2])
-        const titleLines = doc.splitTextToSize(story.title || '', 420)
-        doc.text(titleLines.slice(0, 2), x, y + 18)
+        doc.setFont('helvetica', 'bold')
+        const titleLines = doc.splitTextToSize(story.title || '', textW)
+        doc.text(titleLines.slice(0, 2), textX, cardY + 34)
 
+        // Summary
         doc.setFontSize(9)
         doc.setTextColor(GRAY_TEXT[0], GRAY_TEXT[1], GRAY_TEXT[2])
-        const summaryLines = doc.splitTextToSize(story.summary?.substring(0, 200) || '', 420)
-        doc.text(summaryLines.slice(0, 4), x, y + 50)
+        doc.setFont('helvetica', 'normal')
+        const summaryLines = doc.splitTextToSize(story.summary?.substring(0, 180) || '', textW)
+        doc.text(summaryLines.slice(0, 4), textX, cardY + 68)
       })
     }
 
@@ -626,22 +650,46 @@ export async function POST(request: NextRequest) {
           competitor.majorStories.slice(0, 6).forEach((story: any, i: number) => {
             const col = i % 2
             const row = Math.floor(i / 2)
-            const x = 40 + col * 460
-            const y = 80 + row * 150
+            const cardX = 30 + col * 470
+            const cardY = 80 + row * 155
+            const cardW = 440
+            const cardH = 140
 
+            // Card background with warm tint
+            doc.setFillColor(255, 248, 240)
+            doc.roundedRect(cardX, cardY, cardW, cardH, 4, 4, 'F')
+
+            // Card border
+            doc.setDrawColor(253, 232, 208)
+            doc.setLineWidth(0.5)
+            doc.roundedRect(cardX, cardY, cardW, cardH, 4, 4, 'S')
+
+            // Orange accent bar on left
+            doc.setFillColor(ORANGE[0], ORANGE[1], ORANGE[2])
+            doc.rect(cardX, cardY, 3, cardH, 'F')
+
+            const textX = cardX + 14
+            const textW = cardW - 24
+
+            // Date
             doc.setFontSize(9)
             doc.setTextColor(ORANGE[0], ORANGE[1], ORANGE[2])
-            doc.text(story.date || '', x, y)
+            doc.setFont('helvetica', 'bold')
+            doc.text(story.date || '', textX, cardY + 16)
 
-            doc.setFontSize(11)
+            // Title
+            doc.setFontSize(12)
             doc.setTextColor(DARK_TEXT[0], DARK_TEXT[1], DARK_TEXT[2])
-            const titleLines = doc.splitTextToSize(story.title || '', 420)
-            doc.text(titleLines.slice(0, 2), x, y + 18)
+            doc.setFont('helvetica', 'bold')
+            const titleLines = doc.splitTextToSize(story.title || '', textW)
+            doc.text(titleLines.slice(0, 2), textX, cardY + 34)
 
+            // Summary
             doc.setFontSize(9)
             doc.setTextColor(GRAY_TEXT[0], GRAY_TEXT[1], GRAY_TEXT[2])
-            const summaryLines = doc.splitTextToSize(story.summary?.substring(0, 200) || '', 420)
-            doc.text(summaryLines.slice(0, 4), x, y + 50)
+            doc.setFont('helvetica', 'normal')
+            const summaryLines = doc.splitTextToSize(story.summary?.substring(0, 180) || '', textW)
+            doc.text(summaryLines.slice(0, 4), textX, cardY + 68)
           })
         }
       })

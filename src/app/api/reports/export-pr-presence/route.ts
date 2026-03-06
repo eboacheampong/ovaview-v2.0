@@ -330,21 +330,47 @@ export async function POST(request: NextRequest) {
     addSlideHeader(pptx, slide11, `Major Stories – ${clientName}`, clientName, logoBase64)
 
     if (clientMajorStories && clientMajorStories.length > 0) {
-      const leftStories = clientMajorStories.slice(0, 3)
-      const rightStories = clientMajorStories.slice(3, 6)
+      const stories = clientMajorStories.slice(0, 6)
+      stories.forEach((story: any, i: number) => {
+        const col = i % 2
+        const row = Math.floor(i / 2)
+        const cardX = 0.3 + col * 4.85
+        const cardY = 0.85 + row * 1.55
+        const cardW = 4.55
+        const cardH = 1.4
 
-      leftStories.forEach((story: any, i: number) => {
-        const y = 0.8 + i * 1.4
-        slide11.addText(story.date, { x: 0.4, y, w: 4.5, h: 0.25, fontSize: 9, color: ORANGE, fontFace: 'Arial', bold: true })
-        slide11.addText(story.title, { x: 0.4, y: y + 0.25, w: 4.5, h: 0.3, fontSize: 10, color: DARK_TEXT, fontFace: 'Arial', bold: true })
-        slide11.addText(story.summary?.substring(0, 200) || '', { x: 0.4, y: y + 0.55, w: 4.5, h: 0.7, fontSize: 8, color: GRAY_TEXT, fontFace: 'Arial' })
-      })
+        // Card background
+        slide11.addShape('rect' as any, {
+          x: cardX, y: cardY, w: cardW, h: cardH,
+          fill: { color: 'FFF8F0' },
+          line: { color: 'FDE8D0', width: 0.75 },
+          rectRadius: 0.08,
+        })
 
-      rightStories.forEach((story: any, i: number) => {
-        const y = 0.8 + i * 1.4
-        slide11.addText(story.date, { x: 5.2, y, w: 4.5, h: 0.25, fontSize: 9, color: ORANGE, fontFace: 'Arial', bold: true })
-        slide11.addText(story.title, { x: 5.2, y: y + 0.25, w: 4.5, h: 0.3, fontSize: 10, color: DARK_TEXT, fontFace: 'Arial', bold: true })
-        slide11.addText(story.summary?.substring(0, 200) || '', { x: 5.2, y: y + 0.55, w: 4.5, h: 0.7, fontSize: 8, color: GRAY_TEXT, fontFace: 'Arial' })
+        // Orange accent bar on left
+        slide11.addShape('rect' as any, {
+          x: cardX, y: cardY, w: 0.04, h: cardH,
+          fill: { color: ORANGE },
+        })
+
+        const textX = cardX + 0.18
+        const textW = cardW - 0.3
+
+        // Date
+        slide11.addText(story.date || '', {
+          x: textX, y: cardY + 0.08, w: textW, h: 0.22,
+          fontSize: 9, color: ORANGE, fontFace: 'Arial', bold: true,
+        })
+        // Title
+        slide11.addText(story.title || '', {
+          x: textX, y: cardY + 0.28, w: textW, h: 0.35,
+          fontSize: 11, color: DARK_TEXT, fontFace: 'Arial', bold: true,
+        })
+        // Summary
+        slide11.addText(story.summary?.substring(0, 180) || '', {
+          x: textX, y: cardY + 0.62, w: textW, h: 0.65,
+          fontSize: 9, color: GRAY_TEXT, fontFace: 'Arial', lineSpacingMultiple: 1.15,
+        })
       })
     }
 
@@ -387,21 +413,44 @@ export async function POST(request: NextRequest) {
           const compSlide = pptx.addSlide()
           addSlideHeader(pptx, compSlide, `Major Stories – ${competitor.name}`, clientName, logoBase64)
 
-          const leftStories = competitor.majorStories.slice(0, 3)
-          const rightStories = competitor.majorStories.slice(3, 6)
+          const stories = competitor.majorStories.slice(0, 6)
+          stories.forEach((story: any, i: number) => {
+            const col = i % 2
+            const row = Math.floor(i / 2)
+            const cardX = 0.3 + col * 4.85
+            const cardY = 0.85 + row * 1.55
+            const cardW = 4.55
+            const cardH = 1.4
 
-          leftStories.forEach((story: any, i: number) => {
-            const y = 0.8 + i * 1.4
-            compSlide.addText(story.date, { x: 0.4, y, w: 4.5, h: 0.25, fontSize: 9, color: ORANGE, fontFace: 'Arial', bold: true })
-            compSlide.addText(story.title, { x: 0.4, y: y + 0.25, w: 4.5, h: 0.3, fontSize: 10, color: DARK_TEXT, fontFace: 'Arial', bold: true })
-            compSlide.addText(story.summary?.substring(0, 200) || '', { x: 0.4, y: y + 0.55, w: 4.5, h: 0.7, fontSize: 8, color: GRAY_TEXT, fontFace: 'Arial' })
-          })
+            // Card background
+            compSlide.addShape('rect' as any, {
+              x: cardX, y: cardY, w: cardW, h: cardH,
+              fill: { color: 'FFF8F0' },
+              line: { color: 'FDE8D0', width: 0.75 },
+              rectRadius: 0.08,
+            })
 
-          rightStories.forEach((story: any, i: number) => {
-            const y = 0.8 + i * 1.4
-            compSlide.addText(story.date, { x: 5.2, y, w: 4.5, h: 0.25, fontSize: 9, color: ORANGE, fontFace: 'Arial', bold: true })
-            compSlide.addText(story.title, { x: 5.2, y: y + 0.25, w: 4.5, h: 0.3, fontSize: 10, color: DARK_TEXT, fontFace: 'Arial', bold: true })
-            compSlide.addText(story.summary?.substring(0, 200) || '', { x: 5.2, y: y + 0.55, w: 4.5, h: 0.7, fontSize: 8, color: GRAY_TEXT, fontFace: 'Arial' })
+            // Orange accent bar on left
+            compSlide.addShape('rect' as any, {
+              x: cardX, y: cardY, w: 0.04, h: cardH,
+              fill: { color: ORANGE },
+            })
+
+            const textX = cardX + 0.18
+            const textW = cardW - 0.3
+
+            compSlide.addText(story.date || '', {
+              x: textX, y: cardY + 0.08, w: textW, h: 0.22,
+              fontSize: 9, color: ORANGE, fontFace: 'Arial', bold: true,
+            })
+            compSlide.addText(story.title || '', {
+              x: textX, y: cardY + 0.28, w: textW, h: 0.35,
+              fontSize: 11, color: DARK_TEXT, fontFace: 'Arial', bold: true,
+            })
+            compSlide.addText(story.summary?.substring(0, 180) || '', {
+              x: textX, y: cardY + 0.62, w: textW, h: 0.65,
+              fontSize: 9, color: GRAY_TEXT, fontFace: 'Arial', lineSpacingMultiple: 1.15,
+            })
           })
         }
       })

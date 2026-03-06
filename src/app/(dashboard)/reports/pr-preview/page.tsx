@@ -766,12 +766,13 @@ function MajorStoriesSlide({ clientName, stories }: { clientName: string; storie
     <SlideWrapper>
       <SlideHeader title={`Major Stories — ${clientName}`} />
       <div className="flex-1 p-4 overflow-hidden">
-        <div className="grid grid-cols-2 gap-3 h-full">
+        <div className="grid grid-cols-2 gap-4 h-full">
           {stories.slice(0, 6).map((story, i) => (
-            <div key={i} className="border border-gray-100 rounded-lg p-3 bg-gray-50/50 overflow-hidden">
-              <p className="text-[10px] font-semibold text-orange-600">{story.date}</p>
-              <p className="text-xs font-semibold text-gray-800 mt-0.5 line-clamp-2">{story.title}</p>
-              <p className="text-[10px] text-gray-500 mt-1 line-clamp-3 leading-relaxed">{story.summary}</p>
+            <div key={i} className="relative rounded-lg border border-orange-100 bg-orange-50/40 p-4 overflow-hidden">
+              <div className="absolute left-0 top-0 bottom-0 w-1 bg-orange-500 rounded-l-lg" />
+              <p className="text-[11px] font-bold text-orange-600 mb-1">{story.date}</p>
+              <p className="text-sm font-bold text-gray-900 leading-snug line-clamp-2">{story.title}</p>
+              <p className="text-xs text-gray-600 mt-2 line-clamp-3 leading-relaxed">{story.summary}</p>
             </div>
           ))}
         </div>
