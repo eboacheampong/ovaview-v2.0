@@ -34,7 +34,7 @@ export async function POST() {
         }
         if (keywords.size === 0) continue
 
-        console.log(`[Scrape-All] Scraping for ${client.name} (keywords: ${[...keywords].join(', ')})`)
+        console.log(`[Scrape-All] Scraping for ${client.name} (keywords: ${Array.from(keywords).join(', ')})`)
 
         const controller = new AbortController()
         const timeout = setTimeout(() => controller.abort(), 50000) // 50s per client max
