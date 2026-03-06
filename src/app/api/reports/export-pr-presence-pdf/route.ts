@@ -600,7 +600,7 @@ export async function POST(request: NextRequest) {
         doc.text(titleLines.slice(0, 2), textX, cardY + 34)
 
         // Summary
-        doc.setFontSize(10)
+        doc.setFontSize(11)
         doc.setTextColor(GRAY_TEXT[0], GRAY_TEXT[1], GRAY_TEXT[2])
         doc.setFont('helvetica', 'normal')
         const summaryLines = doc.splitTextToSize(story.summary?.substring(0, 180) || '', textW)
@@ -687,7 +687,7 @@ export async function POST(request: NextRequest) {
             doc.text(titleLines.slice(0, 2), textX, cardY + 34)
 
             // Summary
-            doc.setFontSize(10)
+            doc.setFontSize(11)
             doc.setTextColor(GRAY_TEXT[0], GRAY_TEXT[1], GRAY_TEXT[2])
             doc.setFont('helvetica', 'normal')
             const summaryLines = doc.splitTextToSize(story.summary?.substring(0, 180) || '', textW)
@@ -711,7 +711,7 @@ export async function POST(request: NextRequest) {
 
       // Client sentiment bars
       if (clientSentiment) {
-        doc.setFontSize(12)
+        doc.setFontSize(13)
         doc.setTextColor(DARK_TEXT[0], DARK_TEXT[1], DARK_TEXT[2])
         doc.text(`${clientName} Sentiment`, 520, 100)
         const clientSentData = [
@@ -724,7 +724,7 @@ export async function POST(request: NextRequest) {
 
       // Summary
       const total = sentimentData.reduce((sum, s) => sum + s.value, 0)
-      doc.setFontSize(11)
+      doc.setFontSize(12)
       doc.setTextColor(DARK_TEXT[0], DARK_TEXT[1], DARK_TEXT[2])
       doc.text(`Out of ${total.toLocaleString()} stories:`, 450, 370)
       doc.text(`• ${industrySentiment.positive?.percentage || 0}% were positive`, 450, 395)
@@ -746,7 +746,7 @@ export async function POST(request: NextRequest) {
       keyTakeouts.slice(0, 8).forEach((takeout: string, i: number) => {
         const y = 85 + i * 55
         const color = i % 2 === 1 ? ORANGE : DARK_TEXT
-        doc.setFontSize(12)
+        doc.setFontSize(13)
         doc.setTextColor(color[0], color[1], color[2])
         const lines = doc.splitTextToSize(`>  ${takeout}`, 860)
         doc.text(lines.slice(0, 3), 50, y)

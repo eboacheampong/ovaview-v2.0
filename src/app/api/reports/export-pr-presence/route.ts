@@ -141,9 +141,9 @@ export async function POST(request: NextRequest) {
         x, y: 0.9, w: 1.5, h: 1.5, showLegend: false, showValue: false, showPercent: false,
         holeSize: 65, chartColors: [scopeColors[i], 'E5E7EB'],
       })
-      slide4.addText(item.count.toString(), { x, y: 1.35, w: 1.5, h: 0.6, fontSize: 28, bold: true, color: DARK_TEXT, align: 'center', valign: 'middle', fontFace: 'Arial' })
-      slide4.addText(item.label, { x: x - 0.1, y: 2.5, w: 1.7, h: 0.35, fontSize: 13, color: DARK_TEXT, align: 'center', fontFace: 'Arial', bold: true })
-      slide4.addText(item.desc, { x: x - 0.2, y: 2.85, w: 1.9, h: 1.2, fontSize: 10, color: GRAY_TEXT, align: 'center', fontFace: 'Arial' })
+      slide4.addText(item.count.toString(), { x, y: 1.35, w: 1.5, h: 0.6, fontSize: 32, bold: true, color: DARK_TEXT, align: 'center', valign: 'middle', fontFace: 'Arial' })
+      slide4.addText(item.label, { x: x - 0.1, y: 2.5, w: 1.7, h: 0.35, fontSize: 14, color: DARK_TEXT, align: 'center', fontFace: 'Arial', bold: true })
+      slide4.addText(item.desc, { x: x - 0.2, y: 2.85, w: 1.9, h: 1.2, fontSize: 11, color: GRAY_TEXT, align: 'center', fontFace: 'Arial', lineSpacingMultiple: 1.3 })
     })
 
     // ===== SLIDE 5: MEDIA SOURCES - INDUSTRY (Pie chart) =====
@@ -158,9 +158,9 @@ export async function POST(request: NextRequest) {
       }
     ], {
       x: 0.3, y: 0.8, w: 4.5, h: 3.5,
-      showLegend: true, legendPos: 'b', legendFontSize: 11,
+      showLegend: true, legendPos: 'b', legendFontSize: 12,
       showValue: true, showPercent: true,
-      dataLabelPosition: 'outEnd', dataLabelFontSize: 11,
+      dataLabelPosition: 'outEnd', dataLabelFontSize: 12,
       chartColors: [ORANGE, BLACK, PURPLE, GRAY_TEXT],
     })
 
@@ -180,9 +180,9 @@ export async function POST(request: NextRequest) {
       return `${source.name}: ${source.count} (${source.percentage}%)`
     })
 
-    slide5.addText(introText, { x: 5.0, y: 0.8, w: 4.8, h: 0.8, fontSize: 12, color: DARK_TEXT, fontFace: 'Arial', lineSpacingMultiple: 1.4 })
-    slide5.addText(totalText, { x: 5.0, y: 1.6, w: 4.8, h: 0.8, fontSize: 12, color: DARK_TEXT, fontFace: 'Arial', lineSpacingMultiple: 1.4 })
-    slide5.addText(bulletPoints.map(b => `•   ${b}`).join('\n'), { x: 5.0, y: 2.5, w: 4.8, h: 2.0, fontSize: 12, color: DARK_TEXT, fontFace: 'Arial', lineSpacingMultiple: 1.5 })
+    slide5.addText(introText, { x: 5.0, y: 0.8, w: 4.8, h: 0.8, fontSize: 13, color: DARK_TEXT, fontFace: 'Arial', lineSpacingMultiple: 1.4 })
+    slide5.addText(totalText, { x: 5.0, y: 1.6, w: 4.8, h: 0.8, fontSize: 13, color: DARK_TEXT, fontFace: 'Arial', lineSpacingMultiple: 1.4 })
+    slide5.addText(bulletPoints.map(b => `•   ${b}`).join('\n'), { x: 5.0, y: 2.5, w: 4.8, h: 2.0, fontSize: 13, color: DARK_TEXT, fontFace: 'Arial', lineSpacingMultiple: 1.5 })
 
     // ===== SLIDE 6: MEDIA SOURCES - MONTHLY TREND (Clustered bar chart) =====
     const slide6 = pptx.addSlide()
@@ -197,8 +197,8 @@ export async function POST(request: NextRequest) {
       ], {
         x: 0.3, y: 0.8, w: 5, h: 3.8,
         barGrouping: 'clustered',
-        showLegend: true, legendPos: 't', legendFontSize: 10,
-        showValue: true, dataLabelFontSize: 8,
+        showLegend: true, legendPos: 't', legendFontSize: 11,
+        showValue: true, dataLabelFontSize: 9,
         chartColors: [BLACK, ORANGE, PURPLE, GRAY_TEXT],
         catAxisOrientation: 'minMax',
       })
@@ -275,9 +275,9 @@ export async function POST(request: NextRequest) {
         const maxBarHeight = 3.0
         const barHeight = (j.count / maxCount) * maxBarHeight
         const barY = 1.0 + (maxBarHeight - barHeight)
-        slide8.addText(j.count.toString(), { x: barX, y: barY - 0.35, w: barWidth, h: 0.3, fontSize: 14, color: DARK_TEXT, fontFace: 'Arial', align: 'center', bold: true })
+        slide8.addText(j.count.toString(), { x: barX, y: barY - 0.35, w: barWidth, h: 0.3, fontSize: 16, color: DARK_TEXT, fontFace: 'Arial', align: 'center', bold: true })
         slide8.addShape(pptx.ShapeType.rect, { x: barX, y: barY, w: barWidth, h: barHeight, fill: { color: BLACK } })
-        slide8.addText(`${j.name},\n${j.outlet}`, { x: barX - 0.1, y: 4.1, w: barWidth + 0.2, h: 0.9, fontSize: 11, color: DARK_TEXT, fontFace: 'Arial', align: 'center' })
+        slide8.addText(`${j.name},\n${j.outlet}`, { x: barX - 0.1, y: 4.1, w: barWidth + 0.2, h: 0.9, fontSize: 12, color: DARK_TEXT, fontFace: 'Arial', align: 'center' })
       })
     }
 
@@ -294,35 +294,35 @@ export async function POST(request: NextRequest) {
         { name: 'Organization Visibility', labels: orgVisibility.map((o: any) => o.name), values: orgVisibility.map((o: any) => o.mentions) }
       ], {
         x: 0.2, y: 0.8, w: 4.5, h: 3.5,
-        showLegend: true, legendPos: 'b', legendFontSize: 8,
-        showValue: true, dataLabelFontSize: 9,
+        showLegend: true, legendPos: 'b', legendFontSize: 10,
+        showValue: true, dataLabelFontSize: 10,
         chartColors: [BLACK, ORANGE, RED, BLUE, GRAY_TEXT],
       })
     }
 
     // Sources of Mentions bar chart (top-right)
-    slide10.addText(`Sources of Mentions - ${clientName}`, { x: 5, y: 0.7, w: 4.8, h: 0.35, fontSize: 12, color: DARK_TEXT, fontFace: 'Arial', bold: true })
+    slide10.addText(`Sources of Mentions - ${clientName}`, { x: 5, y: 0.7, w: 4.8, h: 0.35, fontSize: 14, color: DARK_TEXT, fontFace: 'Arial', bold: true })
     if (clientSourcesOfMentions) {
       slide10.addChart(CHART_BAR, [
         { name: 'Mentions', labels: ['Print Media', 'News Website', 'TV', 'Radio'], values: [clientSourcesOfMentions.printMedia, clientSourcesOfMentions.newsWebsite, clientSourcesOfMentions.tv, clientSourcesOfMentions.radio] }
       ], {
         x: 5, y: 1.0, w: 4.8, h: 1.8,
-        showValue: true, dataLabelFontSize: 9,
+        showValue: true, dataLabelFontSize: 10,
         chartColors: [ORANGE],
-        valAxisHidden: true, catAxisLabelFontSize: 8,
+        valAxisHidden: true, catAxisLabelFontSize: 10,
       })
     }
 
     // Trend of Mentions bar chart (bottom-right)
-    slide10.addText(`Trend of Mentions - ${clientName}`, { x: 5, y: 3.0, w: 4.8, h: 0.35, fontSize: 12, color: DARK_TEXT, fontFace: 'Arial', bold: true })
+    slide10.addText(`Trend of Mentions - ${clientName}`, { x: 5, y: 3.0, w: 4.8, h: 0.35, fontSize: 14, color: DARK_TEXT, fontFace: 'Arial', bold: true })
     if (clientMonthlyTrend && clientMonthlyTrend.length > 0) {
       slide10.addChart(CHART_BAR, [
         { name: 'Mentions', labels: clientMonthlyTrend.map((m: any) => m.month), values: clientMonthlyTrend.map((m: any) => m.count) }
       ], {
         x: 5, y: 3.3, w: 4.8, h: 1.5,
-        showValue: true, dataLabelFontSize: 9,
+        showValue: true, dataLabelFontSize: 10,
         chartColors: [RED],
-        valAxisHidden: true, catAxisLabelFontSize: 8,
+        valAxisHidden: true, catAxisLabelFontSize: 10,
       })
     }
 
@@ -360,17 +360,17 @@ export async function POST(request: NextRequest) {
         // Date
         slide11.addText(story.date || '', {
           x: textX, y: cardY + 0.08, w: textW, h: 0.22,
-          fontSize: 10, color: ORANGE, fontFace: 'Arial', bold: true,
+          fontSize: 11, color: ORANGE, fontFace: 'Arial', bold: true,
         })
         // Title
         slide11.addText(story.title || '', {
           x: textX, y: cardY + 0.28, w: textW, h: 0.35,
-          fontSize: 12, color: DARK_TEXT, fontFace: 'Arial', bold: true,
+          fontSize: 13, color: DARK_TEXT, fontFace: 'Arial', bold: true,
         })
         // Summary
         slide11.addText(story.summary?.substring(0, 180) || '', {
           x: textX, y: cardY + 0.62, w: textW, h: 0.65,
-          fontSize: 10, color: GRAY_TEXT, fontFace: 'Arial', lineSpacingMultiple: 1.15,
+          fontSize: 11, color: GRAY_TEXT, fontFace: 'Arial', lineSpacingMultiple: 1.15,
         })
       })
     }
@@ -390,16 +390,16 @@ export async function POST(request: NextRequest) {
         { name: 'Competitor Presence', labels: topCompetitors.map((c: any) => c.name), values: topCompetitors.map((c: any) => c.mentions) }
       ], {
         x: 0.2, y: 0.8, w: 5, h: 3.8,
-        showLegend: true, legendPos: 'b', legendFontSize: 9,
+        showLegend: true, legendPos: 'b', legendFontSize: 11,
         showValue: true, showPercent: false,
-        dataLabelPosition: 'outEnd', dataLabelFontSize: 10,
+        dataLabelPosition: 'outEnd', dataLabelFontSize: 11,
         chartColors: [GRAY_TEXT, BLUE, ORANGE, BLACK, PURPLE],
       })
 
       const topPlayer = topCompetitors[0]
       slide13.addText(
         `Overall, the presence of companies in the media remained competitive. A total of ${totalMentions.toLocaleString()} mentions.\n\n${topPlayer?.name} (${topPlayer?.mentions}) had the highest mentions.`,
-        { x: 5.5, y: 1.2, w: 4.2, h: 3, fontSize: 11, color: DARK_TEXT, fontFace: 'Arial', lineSpacingMultiple: 1.4 }
+        { x: 5.5, y: 1.2, w: 4.2, h: 3, fontSize: 13, color: DARK_TEXT, fontFace: 'Arial', lineSpacingMultiple: 1.4 }
       )
     } else {
       slide13.addText('No competitor data available. Add competitors to the client profile to populate this slide.', {
@@ -442,15 +442,15 @@ export async function POST(request: NextRequest) {
 
             compSlide.addText(story.date || '', {
               x: textX, y: cardY + 0.08, w: textW, h: 0.22,
-              fontSize: 10, color: ORANGE, fontFace: 'Arial', bold: true,
+              fontSize: 11, color: ORANGE, fontFace: 'Arial', bold: true,
             })
             compSlide.addText(story.title || '', {
               x: textX, y: cardY + 0.28, w: textW, h: 0.35,
-              fontSize: 12, color: DARK_TEXT, fontFace: 'Arial', bold: true,
+              fontSize: 13, color: DARK_TEXT, fontFace: 'Arial', bold: true,
             })
             compSlide.addText(story.summary?.substring(0, 180) || '', {
               x: textX, y: cardY + 0.62, w: textW, h: 0.65,
-              fontSize: 10, color: GRAY_TEXT, fontFace: 'Arial', lineSpacingMultiple: 1.15,
+              fontSize: 11, color: GRAY_TEXT, fontFace: 'Arial', lineSpacingMultiple: 1.15,
             })
           })
         }
@@ -467,21 +467,21 @@ export async function POST(request: NextRequest) {
         { name: 'Sentiment', labels: ['Positive', 'Negative', 'Neutral'], values: [industrySentiment.positive.count, industrySentiment.negative.count, industrySentiment.neutral.count] }
       ], {
         x: 0.2, y: 0.8, w: 4, h: 3,
-        showLegend: true, legendPos: 'b', legendFontSize: 9,
-        showPercent: true, dataLabelFontSize: 10,
+        showLegend: true, legendPos: 'b', legendFontSize: 11,
+        showPercent: true, dataLabelFontSize: 11,
         chartColors: [GREEN, BLACK, GRAY_TEXT],
       })
 
       // Client sentiment bars (right)
       if (clientSentiment) {
-        slideSent.addText(`${clientName} Sentiment`, { x: 5, y: 0.7, w: 4.8, h: 0.3, fontSize: 11, color: DARK_TEXT, fontFace: 'Arial', bold: true })
+        slideSent.addText(`${clientName} Sentiment`, { x: 5, y: 0.7, w: 4.8, h: 0.3, fontSize: 13, color: DARK_TEXT, fontFace: 'Arial', bold: true })
         slideSent.addChart(CHART_BAR, [
           { name: 'Client Sentiment', labels: ['Positive', 'Negative', 'Neutral'], values: [clientSentiment.positive, clientSentiment.negative, clientSentiment.neutral] }
         ], {
           x: 4.8, y: 1.0, w: 5, h: 2.5,
-          showValue: true, dataLabelFontSize: 10,
+          showValue: true, dataLabelFontSize: 11,
           chartColors: [GREEN, RED, YELLOW],
-          valAxisHidden: true, catAxisLabelFontSize: 10,
+          valAxisHidden: true, catAxisLabelFontSize: 11,
         })
       }
 
@@ -493,7 +493,7 @@ export async function POST(request: NextRequest) {
           `• Another (${industrySentiment.negative.percentage}%) were negative.`,
           `• ${industrySentiment.neutral.percentage}% were neutral.`,
         ].join('\n'),
-        { x: 0.5, y: 4.0, w: 9, h: 1, fontSize: 10, color: DARK_TEXT, fontFace: 'Arial', lineSpacingMultiple: 1.3 }
+        { x: 0.5, y: 4.0, w: 9, h: 1, fontSize: 12, color: DARK_TEXT, fontFace: 'Arial', lineSpacingMultiple: 1.3 }
       )
     }
 
@@ -514,7 +514,7 @@ export async function POST(request: NextRequest) {
       pageTakeouts.forEach((takeout: string, i: number) => {
         const y = 0.9 + i * 0.72
         const color = i % 2 === 1 ? ORANGE : DARK_TEXT
-        ktSlide.addText(`>  ${takeout}`, { x: 0.6, y, w: 8.8, h: 0.65, fontSize: 12, color, fontFace: 'Arial', lineSpacingMultiple: 1.2, valign: 'top' })
+        ktSlide.addText(`>  ${takeout}`, { x: 0.6, y, w: 8.8, h: 0.65, fontSize: 13, color, fontFace: 'Arial', lineSpacingMultiple: 1.2, valign: 'top' })
       })
     })
 
