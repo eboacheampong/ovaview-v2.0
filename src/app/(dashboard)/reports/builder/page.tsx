@@ -39,8 +39,8 @@ interface Client {
 const CHART_COLORS = ['#f97316', '#3b82f6', '#10b981', '#8b5cf6', '#06b6d4', '#ec4899']
 
 // Canvas logical size - 16:9 widescreen
-const CANVAS_W = 1100
-const CANVAS_H = 619
+const CANVAS_W = 960
+const CANVAS_H = 540
 
 const DEFAULT_SLIDES: Slide[] = [
   {
@@ -48,8 +48,8 @@ const DEFAULT_SLIDES: Slide[] = [
     name: 'Cover Page',
     background: '#D4941A',
     elements: [
-      { id: 'title', type: 'title', content: { text: 'MEDIA PRESENCE\nANALYSIS REPORT', fontSize: 44, color: '#ffffff' }, position: { x: 80, y: 160 }, size: { width: 700, height: 140 } },
-      { id: 'date', type: 'text', content: { text: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long' }), fontSize: 20, color: '#ffffff' }, position: { x: 80, y: 320 }, size: { width: 400, height: 40 } },
+      { id: 'title', type: 'title', content: { text: 'MEDIA PRESENCE\nANALYSIS REPORT', fontSize: 32, color: '#ffffff' }, position: { x: 60, y: 130 }, size: { width: 550, height: 110 } },
+      { id: 'date', type: 'text', content: { text: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long' }), fontSize: 15, color: '#ffffff' }, position: { x: 60, y: 260 }, size: { width: 350, height: 30 } },
     ]
   },
   {
@@ -57,8 +57,8 @@ const DEFAULT_SLIDES: Slide[] = [
     name: 'Brief',
     background: '#ffffff',
     elements: [
-      { id: 'brief-title', type: 'title', content: { text: 'Brief', fontSize: 34, color: '#f97316' }, position: { x: 60, y: 40 }, size: { width: 300, height: 50 } },
-      { id: 'brief-text', type: 'text', content: { text: 'This report is an analysis of the PR presence for\n[Client Name]\nThe data was captured from [Date Range].', fontSize: 20, color: '#6b7280' }, position: { x: 80, y: 140 }, size: { width: 700, height: 180 } },
+      { id: 'brief-title', type: 'title', content: { text: 'Brief', fontSize: 24, color: '#f97316' }, position: { x: 40, y: 30 }, size: { width: 250, height: 40 } },
+      { id: 'brief-text', type: 'text', content: { text: 'This report is an analysis of the PR presence for\n[Client Name]\nThe data was captured from [Date Range].', fontSize: 15, color: '#6b7280' }, position: { x: 60, y: 110 }, size: { width: 600, height: 150 } },
     ]
   },
   {
@@ -66,7 +66,7 @@ const DEFAULT_SLIDES: Slide[] = [
     name: 'Section: Industry',
     background: '#D4941A',
     elements: [
-      { id: 'section-title', type: 'title', content: { text: 'MEDIA PRESENCE ANALYSIS\nIndustry', fontSize: 40, color: '#ffffff' }, position: { x: 80, y: 200 }, size: { width: 700, height: 140 } },
+      { id: 'section-title', type: 'title', content: { text: 'MEDIA PRESENCE ANALYSIS\nIndustry', fontSize: 28, color: '#ffffff' }, position: { x: 60, y: 160 }, size: { width: 600, height: 110 } },
     ]
   },
   {
@@ -74,13 +74,13 @@ const DEFAULT_SLIDES: Slide[] = [
     name: 'Scope of Coverage',
     background: '#ffffff',
     elements: [
-      { id: 'scope-title', type: 'title', content: { text: 'Scope of Coverage - Overall', fontSize: 30, color: '#1f2937' }, position: { x: 60, y: 30 }, size: { width: 600, height: 50 } },
+      { id: 'scope-title', type: 'title', content: { text: 'Scope of Coverage - Overall', fontSize: 22, color: '#1f2937' }, position: { x: 40, y: 20 }, size: { width: 500, height: 40 } },
       { id: 'scope-kpi', type: 'kpi', content: { metrics: [
         { label: 'News Website', value: '0', change: 0 },
         { label: 'Print Media', value: '0', change: 0 },
         { label: 'Radio', value: '0', change: 0 },
         { label: 'Television', value: '0', change: 0 },
-      ] }, position: { x: 60, y: 110 }, size: { width: 980, height: 280 } },
+      ] }, position: { x: 40, y: 80 }, size: { width: 880, height: 240 } },
     ]
   },
   {
@@ -88,9 +88,9 @@ const DEFAULT_SLIDES: Slide[] = [
     name: 'Media Sources - Industry',
     background: '#ffffff',
     elements: [
-      { id: 'media-title', type: 'title', content: { text: 'Media Sources - Industry', fontSize: 30, color: '#1f2937' }, position: { x: 60, y: 30 }, size: { width: 600, height: 50 } },
-      { id: 'media-chart', type: 'chart', content: { chartType: 'pie', dataKey: 'mediaDistribution' }, position: { x: 40, y: 100 }, size: { width: 500, height: 420 } },
-      { id: 'media-text', type: 'text', content: { text: 'Total coverage from four media sources.\n\nBreakdown shows the distribution across News Websites, Print Media, Radio and Television.', fontSize: 16, color: '#4b5563' }, position: { x: 580, y: 120 }, size: { width: 460, height: 300 } },
+      { id: 'media-title', type: 'title', content: { text: 'Media Sources - Industry', fontSize: 22, color: '#1f2937' }, position: { x: 40, y: 20 }, size: { width: 500, height: 40 } },
+      { id: 'media-chart', type: 'chart', content: { chartType: 'pie', dataKey: 'mediaDistribution' }, position: { x: 20, y: 75 }, size: { width: 420, height: 350 } },
+      { id: 'media-text', type: 'text', content: { text: 'Total coverage from four media sources.\n\nBreakdown shows the distribution across News Websites, Print Media, Radio and Television.', fontSize: 13, color: '#4b5563' }, position: { x: 480, y: 90 }, size: { width: 440, height: 280 } },
     ]
   },
   {
@@ -98,9 +98,9 @@ const DEFAULT_SLIDES: Slide[] = [
     name: 'Monthly Trend',
     background: '#ffffff',
     elements: [
-      { id: 'trend-title', type: 'title', content: { text: 'Media Sources – Monthly Trend (Industry)', fontSize: 28, color: '#1f2937' }, position: { x: 60, y: 30 }, size: { width: 700, height: 50 } },
-      { id: 'trend-chart', type: 'chart', content: { chartType: 'bar', dataKey: 'coverageTrend' }, position: { x: 40, y: 100 }, size: { width: 600, height: 420 } },
-      { id: 'trend-text', type: 'text', content: { text: 'Period Under Review\n\nMonthly breakdown of media coverage across all sources.', fontSize: 16, color: '#4b5563' }, position: { x: 680, y: 120 }, size: { width: 370, height: 300 } },
+      { id: 'trend-title', type: 'title', content: { text: 'Media Sources – Monthly Trend (Industry)', fontSize: 20, color: '#1f2937' }, position: { x: 40, y: 20 }, size: { width: 600, height: 40 } },
+      { id: 'trend-chart', type: 'chart', content: { chartType: 'bar', dataKey: 'coverageTrend' }, position: { x: 20, y: 75 }, size: { width: 520, height: 360 } },
+      { id: 'trend-text', type: 'text', content: { text: 'Period Under Review\n\nMonthly breakdown of media coverage across all sources.', fontSize: 13, color: '#4b5563' }, position: { x: 570, y: 90 }, size: { width: 360, height: 280 } },
     ]
   },
   {
@@ -108,8 +108,8 @@ const DEFAULT_SLIDES: Slide[] = [
     name: 'Thematic Areas (Word Cloud)',
     background: '#ffffff',
     elements: [
-      { id: 'thematic-title', type: 'title', content: { text: 'Thematic Areas of Coverage - Industry', fontSize: 28, color: '#1f2937' }, position: { x: 60, y: 30 }, size: { width: 700, height: 50 } },
-      { id: 'thematic-text', type: 'text', content: { text: 'Word cloud generated from story keywords.\nExport to PPTX for full visualization.', fontSize: 16, color: '#9ca3af' }, position: { x: 200, y: 250 }, size: { width: 600, height: 80 } },
+      { id: 'thematic-title', type: 'title', content: { text: 'Thematic Areas of Coverage - Industry', fontSize: 20, color: '#1f2937' }, position: { x: 40, y: 20 }, size: { width: 600, height: 40 } },
+      { id: 'thematic-text', type: 'text', content: { text: 'Word cloud generated from story keywords.\nExport to PPTX for full visualization.', fontSize: 13, color: '#9ca3af' }, position: { x: 180, y: 220 }, size: { width: 550, height: 70 } },
     ]
   },
   {
@@ -117,8 +117,8 @@ const DEFAULT_SLIDES: Slide[] = [
     name: 'Key Personalities (Industry)',
     background: '#ffffff',
     elements: [
-      { id: 'kp-ind-title', type: 'title', content: { text: 'Key Personalities (Industry) – Top 5', fontSize: 28, color: '#1f2937' }, position: { x: 60, y: 30 }, size: { width: 700, height: 50 } },
-      { id: 'kp-ind-text', type: 'text', content: { text: 'Populated from story mentions.\nPhotos can be added manually.', fontSize: 16, color: '#9ca3af' }, position: { x: 200, y: 250 }, size: { width: 600, height: 60 } },
+      { id: 'kp-ind-title', type: 'title', content: { text: 'Key Personalities (Industry) – Top 5', fontSize: 20, color: '#1f2937' }, position: { x: 40, y: 20 }, size: { width: 600, height: 40 } },
+      { id: 'kp-ind-text', type: 'text', content: { text: 'Populated from story mentions.\nPhotos can be added manually.', fontSize: 13, color: '#9ca3af' }, position: { x: 180, y: 220 }, size: { width: 550, height: 50 } },
     ]
   },
   {
@@ -126,8 +126,8 @@ const DEFAULT_SLIDES: Slide[] = [
     name: 'Key Personalities (Client)',
     background: '#ffffff',
     elements: [
-      { id: 'kp-client-title', type: 'title', content: { text: 'Key Personalities (Client) – Top 5', fontSize: 28, color: '#1f2937' }, position: { x: 60, y: 30 }, size: { width: 700, height: 50 } },
-      { id: 'kp-client-text', type: 'text', content: { text: 'Populated from story mentions.\nPhotos can be added manually.', fontSize: 16, color: '#9ca3af' }, position: { x: 200, y: 250 }, size: { width: 600, height: 60 } },
+      { id: 'kp-client-title', type: 'title', content: { text: 'Key Personalities (Client) – Top 5', fontSize: 20, color: '#1f2937' }, position: { x: 40, y: 20 }, size: { width: 600, height: 40 } },
+      { id: 'kp-client-text', type: 'text', content: { text: 'Populated from story mentions.\nPhotos can be added manually.', fontSize: 13, color: '#9ca3af' }, position: { x: 180, y: 220 }, size: { width: 550, height: 50 } },
     ]
   },
   {
@@ -135,8 +135,8 @@ const DEFAULT_SLIDES: Slide[] = [
     name: 'Key Journalists - Top 5',
     background: '#ffffff',
     elements: [
-      { id: 'kj-title', type: 'title', content: { text: 'Key Journalists – Top 5', fontSize: 30, color: '#1f2937' }, position: { x: 60, y: 30 }, size: { width: 600, height: 50 } },
-      { id: 'kj-chart', type: 'chart', content: { chartType: 'bar', dataKey: 'journalists' }, position: { x: 40, y: 100 }, size: { width: 1020, height: 440 } },
+      { id: 'kj-title', type: 'title', content: { text: 'Key Journalists – Top 5', fontSize: 22, color: '#1f2937' }, position: { x: 40, y: 20 }, size: { width: 500, height: 40 } },
+      { id: 'kj-chart', type: 'chart', content: { chartType: 'bar', dataKey: 'journalists' }, position: { x: 20, y: 75 }, size: { width: 900, height: 380 } },
     ]
   },
   {
@@ -144,7 +144,7 @@ const DEFAULT_SLIDES: Slide[] = [
     name: 'Section: Client Visibility',
     background: '#D4941A',
     elements: [
-      { id: 'vis-title', type: 'title', content: { text: 'Visibility of\n[Client Name]', fontSize: 40, color: '#ffffff' }, position: { x: 80, y: 200 }, size: { width: 700, height: 140 } },
+      { id: 'vis-title', type: 'title', content: { text: 'Visibility of\n[Client Name]', fontSize: 28, color: '#ffffff' }, position: { x: 60, y: 160 }, size: { width: 600, height: 110 } },
     ]
   },
   {
@@ -152,8 +152,8 @@ const DEFAULT_SLIDES: Slide[] = [
     name: 'Client Visibility',
     background: '#ffffff',
     elements: [
-      { id: 'cv-title', type: 'title', content: { text: 'Media Sources - Client', fontSize: 30, color: '#1f2937' }, position: { x: 60, y: 30 }, size: { width: 600, height: 50 } },
-      { id: 'cv-chart', type: 'chart', content: { chartType: 'pie', dataKey: 'mediaDistribution' }, position: { x: 40, y: 100 }, size: { width: 500, height: 420 } },
+      { id: 'cv-title', type: 'title', content: { text: 'Media Sources - Client', fontSize: 22, color: '#1f2937' }, position: { x: 40, y: 20 }, size: { width: 500, height: 40 } },
+      { id: 'cv-chart', type: 'chart', content: { chartType: 'pie', dataKey: 'mediaDistribution' }, position: { x: 20, y: 75 }, size: { width: 420, height: 350 } },
     ]
   },
   {
@@ -161,8 +161,8 @@ const DEFAULT_SLIDES: Slide[] = [
     name: 'Major Stories - Client',
     background: '#ffffff',
     elements: [
-      { id: 'ms-title', type: 'title', content: { text: 'Major Stories – [Client Name]', fontSize: 28, color: '#1f2937' }, position: { x: 60, y: 30 }, size: { width: 700, height: 50 } },
-      { id: 'ms-text', type: 'text', content: { text: 'Major stories are populated from the database when exporting to PPTX.', fontSize: 16, color: '#9ca3af' }, position: { x: 200, y: 250 }, size: { width: 600, height: 60 } },
+      { id: 'ms-title', type: 'title', content: { text: 'Major Stories – [Client Name]', fontSize: 20, color: '#1f2937' }, position: { x: 40, y: 20 }, size: { width: 600, height: 40 } },
+      { id: 'ms-text', type: 'text', content: { text: 'Major stories are populated from the database when exporting to PPTX.', fontSize: 13, color: '#9ca3af' }, position: { x: 180, y: 220 }, size: { width: 550, height: 50 } },
     ]
   },
   {
@@ -170,7 +170,7 @@ const DEFAULT_SLIDES: Slide[] = [
     name: 'Section: Competitors',
     background: '#D4941A',
     elements: [
-      { id: 'comp-section-title', type: 'title', content: { text: 'Visibility of\nCompetitors', fontSize: 40, color: '#ffffff' }, position: { x: 80, y: 200 }, size: { width: 700, height: 140 } },
+      { id: 'comp-section-title', type: 'title', content: { text: 'Visibility of\nCompetitors', fontSize: 28, color: '#ffffff' }, position: { x: 60, y: 160 }, size: { width: 600, height: 110 } },
     ]
   },
   {
@@ -178,9 +178,9 @@ const DEFAULT_SLIDES: Slide[] = [
     name: 'Competitor Presence',
     background: '#ffffff',
     elements: [
-      { id: 'cp-title', type: 'title', content: { text: 'Competitor Presence – Top 5 Sector Players', fontSize: 26, color: '#1f2937' }, position: { x: 60, y: 30 }, size: { width: 800, height: 50 } },
-      { id: 'cp-chart', type: 'chart', content: { chartType: 'pie', dataKey: 'mediaDistribution' }, position: { x: 40, y: 100 }, size: { width: 500, height: 420 } },
-      { id: 'cp-text', type: 'text', content: { text: 'Competitor data populated from client competitor settings.', fontSize: 16, color: '#9ca3af' }, position: { x: 580, y: 140 }, size: { width: 460, height: 200 } },
+      { id: 'cp-title', type: 'title', content: { text: 'Competitor Presence – Top 5 Sector Players', fontSize: 19, color: '#1f2937' }, position: { x: 40, y: 20 }, size: { width: 700, height: 40 } },
+      { id: 'cp-chart', type: 'chart', content: { chartType: 'pie', dataKey: 'mediaDistribution' }, position: { x: 20, y: 75 }, size: { width: 420, height: 350 } },
+      { id: 'cp-text', type: 'text', content: { text: 'Competitor data populated from client competitor settings.', fontSize: 13, color: '#9ca3af' }, position: { x: 480, y: 110 }, size: { width: 440, height: 180 } },
     ]
   },
   {
@@ -188,8 +188,8 @@ const DEFAULT_SLIDES: Slide[] = [
     name: 'Story Orientation - Sentiments',
     background: '#ffffff',
     elements: [
-      { id: 'sent-title', type: 'title', content: { text: 'Story Orientation - Sentiments', fontSize: 28, color: '#1f2937' }, position: { x: 60, y: 30 }, size: { width: 700, height: 50 } },
-      { id: 'sent-chart', type: 'chart', content: { chartType: 'pie', dataKey: 'sentiment' }, position: { x: 40, y: 100 }, size: { width: 500, height: 420 } },
+      { id: 'sent-title', type: 'title', content: { text: 'Story Orientation - Sentiments', fontSize: 20, color: '#1f2937' }, position: { x: 40, y: 20 }, size: { width: 600, height: 40 } },
+      { id: 'sent-chart', type: 'chart', content: { chartType: 'pie', dataKey: 'sentiment' }, position: { x: 20, y: 75 }, size: { width: 420, height: 350 } },
     ]
   },
   {
@@ -197,8 +197,8 @@ const DEFAULT_SLIDES: Slide[] = [
     name: 'Key Takeouts - Conclusions',
     background: '#ffffff',
     elements: [
-      { id: 'conc-title', type: 'title', content: { text: 'Key Takeouts - Conclusions', fontSize: 30, color: '#f97316' }, position: { x: 60, y: 30 }, size: { width: 700, height: 50 } },
-      { id: 'conc-text', type: 'text', content: { text: 'Conclusions are auto-generated from analytics data when exporting to PPTX.', fontSize: 16, color: '#9ca3af' }, position: { x: 80, y: 140 }, size: { width: 900, height: 350 } },
+      { id: 'conc-title', type: 'title', content: { text: 'Key Takeouts - Conclusions', fontSize: 22, color: '#f97316' }, position: { x: 40, y: 20 }, size: { width: 600, height: 40 } },
+      { id: 'conc-text', type: 'text', content: { text: 'Conclusions are auto-generated from analytics data when exporting to PPTX.', fontSize: 13, color: '#9ca3af' }, position: { x: 60, y: 100 }, size: { width: 820, height: 320 } },
     ]
   },
 ]
@@ -489,8 +489,8 @@ export default function ReportBuilderPage() {
 
   const getDefaultContent = (type: SlideElement['type']) => {
     switch (type) {
-      case 'title': return { text: 'New Title', fontSize: 32, color: '#1f2937' }
-      case 'text': return { text: 'Enter your text here...', fontSize: 18, color: '#4b5563' }
+      case 'title': return { text: 'New Title', fontSize: 22, color: '#1f2937' }
+      case 'text': return { text: 'Enter your text here...', fontSize: 14, color: '#4b5563' }
       case 'chart': return { chartType: 'bar', dataKey: 'mediaDistribution' }
       case 'table': return { headers: ['Column 1', 'Column 2'], rows: [['Data 1', 'Data 2']] }
       case 'image': return { src: '', alt: 'Image' }
@@ -501,13 +501,13 @@ export default function ReportBuilderPage() {
 
   const getDefaultSize = (type: SlideElement['type']) => {
     switch (type) {
-      case 'title': return { width: 600, height: 60 }
-      case 'text': return { width: 500, height: 150 }
-      case 'chart': return { width: 600, height: 400 }
-      case 'table': return { width: 700, height: 300 }
-      case 'image': return { width: 300, height: 220 }
-      case 'kpi': return { width: 800, height: 200 }
-      default: return { width: 300, height: 150 }
+      case 'title': return { width: 500, height: 45 }
+      case 'text': return { width: 400, height: 120 }
+      case 'chart': return { width: 450, height: 300 }
+      case 'table': return { width: 550, height: 250 }
+      case 'image': return { width: 250, height: 180 }
+      case 'kpi': return { width: 700, height: 180 }
+      default: return { width: 250, height: 120 }
     }
   }
 
@@ -661,10 +661,10 @@ export default function ReportBuilderPage() {
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={data} margin={{ top: 10, right: 20, left: 10, bottom: 10 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis dataKey="month" stroke="#9ca3af" fontSize={13} tick={{ fill: '#4b5563' }} />
-              <YAxis stroke="#9ca3af" fontSize={13} tick={{ fill: '#4b5563' }} />
-              <Tooltip contentStyle={{ fontSize: 13 }} />
-              <Legend wrapperStyle={{ fontSize: 13 }} />
+              <XAxis dataKey="month" stroke="#9ca3af" fontSize={11} tick={{ fill: '#4b5563' }} />
+              <YAxis stroke="#9ca3af" fontSize={11} tick={{ fill: '#4b5563' }} />
+              <Tooltip contentStyle={{ fontSize: 11 }} />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
               <Area type="monotone" dataKey="web" stackId="1" stroke="#06b6d4" fill="#06b6d4" fillOpacity={0.6} name="Web" />
               <Area type="monotone" dataKey="print" stackId="1" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.6} name="Print" />
               <Area type="monotone" dataKey="radio" stackId="1" stroke="#10b981" fill="#10b981" fillOpacity={0.6} name="Radio" />
@@ -677,9 +677,9 @@ export default function ReportBuilderPage() {
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data} margin={{ top: 10, right: 20, left: 10, bottom: 10 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis dataKey="name" stroke="#9ca3af" fontSize={13} tick={{ fill: '#4b5563' }} interval={0} angle={-15} textAnchor="end" height={50} />
-              <YAxis stroke="#9ca3af" fontSize={13} tick={{ fill: '#4b5563' }} />
-              <Tooltip contentStyle={{ fontSize: 13 }} />
+              <XAxis dataKey="name" stroke="#9ca3af" fontSize={11} tick={{ fill: '#4b5563' }} interval={0} angle={-15} textAnchor="end" height={50} />
+              <YAxis stroke="#9ca3af" fontSize={11} tick={{ fill: '#4b5563' }} />
+              <Tooltip contentStyle={{ fontSize: 11 }} />
               <Bar dataKey="value" fill="#f97316" radius={[4, 4, 0, 0]} maxBarSize={50} />
             </BarChart>
           </ResponsiveContainer>
@@ -699,14 +699,14 @@ export default function ReportBuilderPage() {
                   return `${value} (${((percent ?? 0) * 100).toFixed(0)}%)`
                 }}
                 labelLine
-                fontSize={13}
+                fontSize={11}
               >
                 {data.map((_, index) => (
                   <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                 ))}
               </Pie>
-              <Tooltip contentStyle={{ fontSize: 13 }} />
-              <Legend wrapperStyle={{ fontSize: 13 }} />
+              <Tooltip contentStyle={{ fontSize: 11 }} />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
             </RechartsPie>
           </ResponsiveContainer>
         )
@@ -715,11 +715,11 @@ export default function ReportBuilderPage() {
           <ResponsiveContainer width="100%" height="100%">
             <RadarChart data={data} cx="50%" cy="50%" outerRadius="65%">
               <PolarGrid />
-              <PolarAngleAxis dataKey="industry" fontSize={13} tick={{ fill: '#4b5563' }} />
-              <PolarRadiusAxis fontSize={12} tick={{ fill: '#9ca3af' }} />
+              <PolarAngleAxis dataKey="industry" fontSize={11} tick={{ fill: '#4b5563' }} />
+              <PolarRadiusAxis fontSize={10} tick={{ fill: '#9ca3af' }} />
               <Radar name="Coverage" dataKey="coverage" stroke="#f97316" fill="#f97316" fillOpacity={0.4} />
               <Radar name="Sentiment" dataKey="sentiment" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.4} />
-              <Legend wrapperStyle={{ fontSize: 13 }} />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
             </RadarChart>
           </ResponsiveContainer>
         )
@@ -864,11 +864,11 @@ export default function ReportBuilderPage() {
             onClick={(e) => { e.stopPropagation(); !isPreviewMode && setSelectedElement(element.id) }}
           >
             {element.content.metrics?.map((metric: any, i: number) => (
-              <div key={i} className="bg-gray-50 rounded-xl p-4 border border-gray-100">
-                <p className="text-sm text-gray-500 truncate">{metric.label}</p>
-                <p className="text-2xl font-bold text-gray-800 leading-tight mt-1">{metric.value}</p>
+              <div key={i} className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+                <p className="text-xs text-gray-500 truncate">{metric.label}</p>
+                <p className="text-xl font-bold text-gray-800 leading-tight mt-1">{metric.value}</p>
                 {metric.change !== 0 && (
-                  <p className={`text-sm mt-1 ${metric.change > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  <p className={`text-xs mt-1 ${metric.change > 0 ? 'text-green-600' : 'text-red-600'}`}>
                     {metric.change > 0 ? '+' : ''}{metric.change}%
                   </p>
                 )}
@@ -903,7 +903,7 @@ export default function ReportBuilderPage() {
             onMouseDown={(e) => handleMouseDown(e, element.id)}
             onClick={(e) => { e.stopPropagation(); !isPreviewMode && setSelectedElement(element.id) }}
           >
-            <table className="w-full text-base border-collapse">
+            <table className="w-full text-sm border-collapse">
               <thead>
                 <tr className="bg-orange-50">
                   {element.content.headers?.map((h: string, i: number) => (
@@ -1120,7 +1120,7 @@ export default function ReportBuilderPage() {
 
         {/* Center - Slide Canvas */}
         <div className="flex-1 p-6 flex items-start justify-center overflow-auto bg-gray-200/50">
-          <div className="relative w-full max-w-[1100px] sticky top-6">
+          <div className="relative w-full max-w-[960px] sticky top-6">
             {/* Hint bar */}
             {!isPreviewMode && (
               <div className="mb-3 text-center">
