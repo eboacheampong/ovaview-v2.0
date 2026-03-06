@@ -268,16 +268,17 @@ export async function POST(request: NextRequest) {
 
     doc.setFontSize(44)
     doc.setTextColor(WHITE[0], WHITE[1], WHITE[2])
-    doc.text('MEDIA PRESENCE', SLIDE_WIDTH / 2, 180, { align: 'center' })
-    doc.text('ANALYSIS REPORT', SLIDE_WIDTH / 2, 240, { align: 'center' })
+    doc.text('MEDIA PRESENCE', SLIDE_WIDTH / 2, 200, { align: 'center' })
+    doc.text('ANALYSIS REPORT', SLIDE_WIDTH / 2, 260, { align: 'center' })
 
     doc.setFontSize(18)
-    doc.text(dateRangeLabel, SLIDE_WIDTH / 2, 300, { align: 'center' })
+    doc.text(dateRangeLabel, SLIDE_WIDTH / 2, 320, { align: 'center' })
 
-    // Logo OR client name on cover — not both
+    // Logo top-right on cover, client name below date if no logo
     if (logoBase64) {
-      try { doc.addImage(logoBase64, 'AUTO', SLIDE_WIDTH / 2 - 80, 340, 160, 60) } catch {}
-    } else if (clientName) {
+      try { doc.addImage(logoBase64, 'AUTO', SLIDE_WIDTH - 150, 15, 120, 65) } catch {}
+    }
+    if (clientName && !logoBase64) {
       doc.setFontSize(20)
       doc.text(clientName, SLIDE_WIDTH / 2, 370, { align: 'center' })
     }
@@ -302,6 +303,9 @@ export async function POST(request: NextRequest) {
     addNewSlide(doc)
     doc.setFillColor(GOLD[0], GOLD[1], GOLD[2])
     doc.rect(0, 0, SLIDE_WIDTH, SLIDE_HEIGHT, 'F')
+    if (logoBase64) {
+      try { doc.addImage(logoBase64, 'AUTO', SLIDE_WIDTH - 140, 15, 110, 55) } catch {}
+    }
     doc.setFontSize(36)
     doc.setTextColor(WHITE[0], WHITE[1], WHITE[2])
     doc.text('MEDIA PRESENCE ANALYSIS', SLIDE_WIDTH / 2, 230, { align: 'center' })
@@ -472,6 +476,9 @@ export async function POST(request: NextRequest) {
     addNewSlide(doc)
     doc.setFillColor(GOLD[0], GOLD[1], GOLD[2])
     doc.rect(0, 0, SLIDE_WIDTH, SLIDE_HEIGHT, 'F')
+    if (logoBase64) {
+      try { doc.addImage(logoBase64, 'AUTO', SLIDE_WIDTH - 140, 15, 110, 55) } catch {}
+    }
     doc.setFontSize(36)
     doc.setTextColor(WHITE[0], WHITE[1], WHITE[2])
     doc.text('Visibility of', SLIDE_WIDTH / 2, 230, { align: 'center' })
@@ -541,6 +548,9 @@ export async function POST(request: NextRequest) {
     addNewSlide(doc)
     doc.setFillColor(GOLD[0], GOLD[1], GOLD[2])
     doc.rect(0, 0, SLIDE_WIDTH, SLIDE_HEIGHT, 'F')
+    if (logoBase64) {
+      try { doc.addImage(logoBase64, 'AUTO', SLIDE_WIDTH - 140, 15, 110, 55) } catch {}
+    }
     doc.setFontSize(36)
     doc.setTextColor(WHITE[0], WHITE[1], WHITE[2])
     doc.text('Visibility of', SLIDE_WIDTH / 2, 230, { align: 'center' })
@@ -637,20 +647,20 @@ export async function POST(request: NextRequest) {
     // ===== SLIDE: KEY TAKEOUTS =====
     addNewSlide(doc)
 
-    doc.setFontSize(24)
+    doc.setFontSize(22)
     doc.setTextColor(ORANGE[0], ORANGE[1], ORANGE[2])
-    doc.text('Key Takeouts - Conclusions', 40, 50)
+    doc.text('Key Takeouts - Conclusions', 40, 45)
 
     doc.setFontSize(10)
-    doc.text('Ovaview', SLIDE_WIDTH - 40, 50, { align: 'right' })
+    doc.text('Ovaview', SLIDE_WIDTH - 40, 45, { align: 'right' })
 
     if (keyTakeouts && keyTakeouts.length > 0) {
-      keyTakeouts.slice(0, 6).forEach((takeout: string, i: number) => {
-        const y = 100 + i * 70
+      keyTakeouts.slice(0, 8).forEach((takeout: string, i: number) => {
+        const y = 85 + i * 55
         const color = i % 2 === 1 ? ORANGE : DARK_TEXT
         doc.setFontSize(12)
         doc.setTextColor(color[0], color[1], color[2])
-        const lines = doc.splitTextToSize(`➤  ${takeout}`, 880)
+        const lines = doc.splitTextToSize(`>  ${takeout}`, 860)
         doc.text(lines.slice(0, 3), 50, y)
       })
     }

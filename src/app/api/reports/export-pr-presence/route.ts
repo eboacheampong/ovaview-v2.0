@@ -92,16 +92,17 @@ export async function POST(request: NextRequest) {
     const slide1 = pptx.addSlide()
     slide1.background = { fill: GOLD }
     slide1.addText('MEDIA PRESENCE\nANALYSIS REPORT', {
-      x: 0.8, y: 1.0, w: 8, h: 2, fontSize: 44, color: WHITE, bold: true, align: 'center', fontFace: 'Arial', lineSpacingMultiple: 1.2,
+      x: 0.8, y: 1.2, w: 8, h: 2, fontSize: 44, color: WHITE, bold: true, align: 'center', fontFace: 'Arial', lineSpacingMultiple: 1.2,
     })
     slide1.addText(dateRangeLabel, {
-      x: 0.8, y: 3.2, w: 8, h: 0.5, fontSize: 18, color: WHITE, align: 'center', fontFace: 'Arial',
+      x: 0.8, y: 3.4, w: 8, h: 0.5, fontSize: 18, color: WHITE, align: 'center', fontFace: 'Arial',
     })
-    // Logo OR client name on cover — not both
+    // Logo top-right on cover, client name below date if no logo
     if (logoBase64) {
-      slide1.addImage({ data: logoBase64, x: 3.5, y: 3.9, w: 2.6, h: 1.0, sizing: { type: 'contain', w: 2.6, h: 1.0 } })
-    } else if (clientName) {
-      slide1.addText(clientName, { x: 1, y: 3.9, w: 7.6, h: 0.6, fontSize: 20, color: WHITE, align: 'center', fontFace: 'Arial', bold: true })
+      slide1.addImage({ data: logoBase64, x: 7.8, y: 0.2, w: 1.8, h: 1.0, sizing: { type: 'contain', w: 1.8, h: 1.0 } })
+    }
+    if (clientName && !logoBase64) {
+      slide1.addText(clientName, { x: 1, y: 4.1, w: 7.6, h: 0.6, fontSize: 20, color: WHITE, align: 'center', fontFace: 'Arial', bold: true })
     }
 
     // ===== SLIDE 2: BRIEF =====
@@ -420,31 +421,26 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // ===== SLIDE: KEY TAKEOUTS - CONCLUSIONS (Page 1) =====
-    const slideKT1 = pptx.addSlide()
-    slideKT1.addText('Key Takeouts - Conclusions', { x: 0.5, y: 0.3, w: 8, h: 0.5, fontSize: 24, bold: true, color: ORANGE, fontFace: 'Arial' })
-    slideKT1.addText('Ovaview', { x: 8.5, y: 0.3, w: 1.3, h: 0.4, fontSize: 10, color: ORANGE, align: 'right', fontFace: 'Arial', bold: true })
-
+    // ===== SLIDE: KEY TAKEOUTS - CONCLUSIONS =====
+    // Render all takeouts across pages, 6 per page with tighter spacing
+    const takeoutPages: string[][] = []
     if (keyTakeouts && keyTakeouts.length > 0) {
-      keyTakeouts.slice(0, 4).forEach((takeout: string, i: number) => {
-        const y = 1.2 + i * 1.0
+      for (let i = 0; i < keyTakeouts.length; i += 6) {
+        takeoutPages.push(keyTakeouts.slice(i, i + 6))
+      }
+    }
+
+    takeoutPages.forEach((pageTakeouts: string[]) => {
+      const ktSlide = pptx.addSlide()
+      ktSlide.addText('Key Takeouts - Conclusions', { x: 0.5, y: 0.2, w: 8, h: 0.5, fontSize: 22, bold: true, color: ORANGE, fontFace: 'Arial' })
+      ktSlide.addText('Ovaview', { x: 8.5, y: 0.2, w: 1.3, h: 0.4, fontSize: 10, color: ORANGE, align: 'right', fontFace: 'Arial', bold: true })
+
+      pageTakeouts.forEach((takeout: string, i: number) => {
+        const y = 0.9 + i * 0.72
         const color = i % 2 === 1 ? ORANGE : DARK_TEXT
-        slideKT1.addText(`➤  ${takeout}`, { x: 0.8, y, w: 8.5, h: 0.8, fontSize: 13, color, fontFace: 'Arial', lineSpacingMultiple: 1.3 })
+        ktSlide.addText(`>  ${takeout}`, { x: 0.6, y, w: 8.8, h: 0.65, fontSize: 12, color, fontFace: 'Arial', lineSpacingMultiple: 1.2, valign: 'top' })
       })
-    }
-
-    // ===== SLIDE: KEY TAKEOUTS - CONCLUSIONS (Page 2) =====
-    if (keyTakeouts && keyTakeouts.length > 4) {
-      const slideKT2 = pptx.addSlide()
-      slideKT2.addText('Key Takeouts - Conclusions', { x: 0.5, y: 0.3, w: 8, h: 0.5, fontSize: 24, bold: true, color: ORANGE, fontFace: 'Arial' })
-      slideKT2.addText('Ovaview', { x: 8.5, y: 0.3, w: 1.3, h: 0.4, fontSize: 10, color: ORANGE, align: 'right', fontFace: 'Arial', bold: true })
-
-      keyTakeouts.slice(4).forEach((takeout: string, i: number) => {
-        const y = 1.2 + i * 1.0
-        const color = i % 2 === 0 ? ORANGE : DARK_TEXT
-        slideKT2.addText(`➤  ${takeout}`, { x: 0.8, y, w: 8.5, h: 0.8, fontSize: 13, color, fontFace: 'Arial', lineSpacingMultiple: 1.3 })
-      })
-    }
+    })
 
     // Generate the PPTX as base64
     const pptxBase64 = await pptx.write({ outputType: 'base64' }) as string
