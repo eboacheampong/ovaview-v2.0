@@ -334,9 +334,10 @@ export async function POST(request: NextRequest) {
       doc.setFontSize(32)
       doc.setTextColor(DARK_TEXT[0], DARK_TEXT[1], DARK_TEXT[2])
       doc.text(item.count.toString(), centerX, centerY + 10, { align: 'center' })
-      doc.setFontSize(13)
+      doc.setFontSize(14)
+      doc.setTextColor(DARK_TEXT[0], DARK_TEXT[1], DARK_TEXT[2])
       doc.text(item.label, centerX, centerY + 90, { align: 'center' })
-      doc.setFontSize(9)
+      doc.setFontSize(11)
       doc.setTextColor(GRAY_TEXT[0], GRAY_TEXT[1], GRAY_TEXT[2])
       const descLines = doc.splitTextToSize(item.desc, 170)
       doc.text(descLines.slice(0, 4), centerX, centerY + 115, { align: 'center' })
@@ -438,9 +439,10 @@ export async function POST(request: NextRequest) {
 
       tags.forEach((item: any) => {
         const ratio = item.weight / maxWeight
-        const fontSize = Math.max(12, Math.min(28, Math.round(12 + ratio * 16)))
+        const fontSize = Math.max(13, Math.min(28, Math.round(13 + ratio * 15)))
         doc.setFontSize(fontSize)
-        const textWidth = doc.getTextWidth(item.keyword)
+        const labelText = `${item.keyword} (${item.weight})`
+        const textWidth = doc.getTextWidth(labelText)
         const boxW = textWidth + tagPadX * 2
         const boxH = fontSize + tagPadY * 2
 
@@ -467,7 +469,7 @@ export async function POST(request: NextRequest) {
 
         // Tag text centered in pill
         doc.setFontSize(fontSize)
-        doc.text(item.keyword, curX + boxW / 2, curY + boxH / 2 + fontSize * 0.3, { align: 'center' })
+        doc.text(labelText, curX + boxW / 2, curY + boxH / 2 + fontSize * 0.3, { align: 'center' })
 
         curX += boxW + tagGap
       })
@@ -495,11 +497,11 @@ export async function POST(request: NextRequest) {
         doc.text(j.count.toString(), barX + barWidth / 2, barY - 12, { align: 'center' })
         doc.setFillColor(BLACK_RGB[0], BLACK_RGB[1], BLACK_RGB[2])
         doc.rect(barX, barY, barWidth, barHeight, 'F')
-        doc.setFontSize(10)
+        doc.setFontSize(12)
         doc.setTextColor(DARK_TEXT[0], DARK_TEXT[1], DARK_TEXT[2])
         const nameLines = doc.splitTextToSize(`${j.name},`, barWidth + 20)
         doc.text(nameLines, barX + barWidth / 2, baseY + 18, { align: 'center' })
-        doc.setFontSize(9)
+        doc.setFontSize(11)
         doc.setTextColor(GRAY_TEXT[0], GRAY_TEXT[1], GRAY_TEXT[2])
         const outletLines = doc.splitTextToSize(j.outlet, barWidth + 20)
         doc.text(outletLines, barX + barWidth / 2, baseY + 40, { align: 'center' })
@@ -585,20 +587,20 @@ export async function POST(request: NextRequest) {
         const textW = cardW - 24
 
         // Date
-        doc.setFontSize(9)
+        doc.setFontSize(10)
         doc.setTextColor(ORANGE[0], ORANGE[1], ORANGE[2])
         doc.setFont('helvetica', 'bold')
         doc.text(story.date || '', textX, cardY + 16)
 
         // Title
-        doc.setFontSize(12)
+        doc.setFontSize(13)
         doc.setTextColor(DARK_TEXT[0], DARK_TEXT[1], DARK_TEXT[2])
         doc.setFont('helvetica', 'bold')
         const titleLines = doc.splitTextToSize(story.title || '', textW)
         doc.text(titleLines.slice(0, 2), textX, cardY + 34)
 
         // Summary
-        doc.setFontSize(9)
+        doc.setFontSize(10)
         doc.setTextColor(GRAY_TEXT[0], GRAY_TEXT[1], GRAY_TEXT[2])
         doc.setFont('helvetica', 'normal')
         const summaryLines = doc.splitTextToSize(story.summary?.substring(0, 180) || '', textW)
@@ -672,20 +674,20 @@ export async function POST(request: NextRequest) {
             const textW = cardW - 24
 
             // Date
-            doc.setFontSize(9)
+            doc.setFontSize(10)
             doc.setTextColor(ORANGE[0], ORANGE[1], ORANGE[2])
             doc.setFont('helvetica', 'bold')
             doc.text(story.date || '', textX, cardY + 16)
 
             // Title
-            doc.setFontSize(12)
+            doc.setFontSize(13)
             doc.setTextColor(DARK_TEXT[0], DARK_TEXT[1], DARK_TEXT[2])
             doc.setFont('helvetica', 'bold')
             const titleLines = doc.splitTextToSize(story.title || '', textW)
             doc.text(titleLines.slice(0, 2), textX, cardY + 34)
 
             // Summary
-            doc.setFontSize(9)
+            doc.setFontSize(10)
             doc.setTextColor(GRAY_TEXT[0], GRAY_TEXT[1], GRAY_TEXT[2])
             doc.setFont('helvetica', 'normal')
             const summaryLines = doc.splitTextToSize(story.summary?.substring(0, 180) || '', textW)

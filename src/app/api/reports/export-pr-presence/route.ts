@@ -142,8 +142,8 @@ export async function POST(request: NextRequest) {
         holeSize: 65, chartColors: [scopeColors[i], 'E5E7EB'],
       })
       slide4.addText(item.count.toString(), { x, y: 1.35, w: 1.5, h: 0.6, fontSize: 28, bold: true, color: DARK_TEXT, align: 'center', valign: 'middle', fontFace: 'Arial' })
-      slide4.addText(item.label, { x: x - 0.1, y: 2.5, w: 1.7, h: 0.35, fontSize: 12, color: DARK_TEXT, align: 'center', fontFace: 'Arial', bold: true })
-      slide4.addText(item.desc, { x: x - 0.2, y: 2.85, w: 1.9, h: 1.2, fontSize: 8, color: GRAY_TEXT, align: 'center', fontFace: 'Arial' })
+      slide4.addText(item.label, { x: x - 0.1, y: 2.5, w: 1.7, h: 0.35, fontSize: 13, color: DARK_TEXT, align: 'center', fontFace: 'Arial', bold: true })
+      slide4.addText(item.desc, { x: x - 0.2, y: 2.85, w: 1.9, h: 1.2, fontSize: 10, color: GRAY_TEXT, align: 'center', fontFace: 'Arial' })
     })
 
     // ===== SLIDE 5: MEDIA SOURCES - INDUSTRY (Pie chart) =====
@@ -158,9 +158,9 @@ export async function POST(request: NextRequest) {
       }
     ], {
       x: 0.3, y: 0.8, w: 4.5, h: 3.5,
-      showLegend: true, legendPos: 'b', legendFontSize: 9,
+      showLegend: true, legendPos: 'b', legendFontSize: 11,
       showValue: true, showPercent: true,
-      dataLabelPosition: 'outEnd', dataLabelFontSize: 10,
+      dataLabelPosition: 'outEnd', dataLabelFontSize: 11,
       chartColors: [ORANGE, BLACK, PURPLE, GRAY_TEXT],
     })
 
@@ -197,8 +197,8 @@ export async function POST(request: NextRequest) {
       ], {
         x: 0.3, y: 0.8, w: 5, h: 3.8,
         barGrouping: 'clustered',
-        showLegend: true, legendPos: 't', legendFontSize: 8,
-        showValue: true, dataLabelFontSize: 7,
+        showLegend: true, legendPos: 't', legendFontSize: 10,
+        showValue: true, dataLabelFontSize: 8,
         chartColors: [BLACK, ORANGE, PURPLE, GRAY_TEXT],
         catAxisOrientation: 'minMax',
       })
@@ -229,12 +229,13 @@ export async function POST(request: NextRequest) {
 
       cloudItems.forEach((item: any) => {
         const ratio = item.weight / maxWeight
-        const fontSize = Math.max(9, Math.min(18, Math.round(9 + ratio * 9)))
-        // Estimate text width: ~0.07 inches per character at fontSize 12
+        const fontSize = Math.max(10, Math.min(20, Math.round(10 + ratio * 10)))
         const charWidth = fontSize * 0.006
         const textW = item.keyword.length * charWidth
-        const boxW = textW + 0.4
-        const boxH = 0.35 + (fontSize > 14 ? 0.08 : 0)
+        const countText = ` (${item.weight})`
+        const countW = countText.length * fontSize * 0.005
+        const boxW = textW + countW + 0.45
+        const boxH = 0.38 + (fontSize > 15 ? 0.08 : 0)
 
         // Wrap to next row
         if (curX + boxW > 0.5 + maxRowWidth) {
@@ -251,7 +252,7 @@ export async function POST(request: NextRequest) {
           fill: { color: bgColor }, rectRadius: 0.15,
         })
         // Tag text
-        slide7.addText(item.keyword, {
+        slide7.addText(`${item.keyword} (${item.weight})`, {
           x: curX, y: curY, w: boxW, h: boxH,
           fontSize, color: textColor, fontFace: 'Arial',
           align: 'center', valign: 'middle', bold: ratio > 0.5,
@@ -274,9 +275,9 @@ export async function POST(request: NextRequest) {
         const maxBarHeight = 3.0
         const barHeight = (j.count / maxCount) * maxBarHeight
         const barY = 1.0 + (maxBarHeight - barHeight)
-        slide8.addText(j.count.toString(), { x: barX, y: barY - 0.35, w: barWidth, h: 0.3, fontSize: 12, color: DARK_TEXT, fontFace: 'Arial', align: 'center', bold: true })
+        slide8.addText(j.count.toString(), { x: barX, y: barY - 0.35, w: barWidth, h: 0.3, fontSize: 14, color: DARK_TEXT, fontFace: 'Arial', align: 'center', bold: true })
         slide8.addShape(pptx.ShapeType.rect, { x: barX, y: barY, w: barWidth, h: barHeight, fill: { color: BLACK } })
-        slide8.addText(`${j.name},\n${j.outlet}`, { x: barX - 0.1, y: 4.1, w: barWidth + 0.2, h: 0.9, fontSize: 9, color: DARK_TEXT, fontFace: 'Arial', align: 'center' })
+        slide8.addText(`${j.name},\n${j.outlet}`, { x: barX - 0.1, y: 4.1, w: barWidth + 0.2, h: 0.9, fontSize: 11, color: DARK_TEXT, fontFace: 'Arial', align: 'center' })
       })
     }
 
@@ -359,17 +360,17 @@ export async function POST(request: NextRequest) {
         // Date
         slide11.addText(story.date || '', {
           x: textX, y: cardY + 0.08, w: textW, h: 0.22,
-          fontSize: 9, color: ORANGE, fontFace: 'Arial', bold: true,
+          fontSize: 10, color: ORANGE, fontFace: 'Arial', bold: true,
         })
         // Title
         slide11.addText(story.title || '', {
           x: textX, y: cardY + 0.28, w: textW, h: 0.35,
-          fontSize: 11, color: DARK_TEXT, fontFace: 'Arial', bold: true,
+          fontSize: 12, color: DARK_TEXT, fontFace: 'Arial', bold: true,
         })
         // Summary
         slide11.addText(story.summary?.substring(0, 180) || '', {
           x: textX, y: cardY + 0.62, w: textW, h: 0.65,
-          fontSize: 9, color: GRAY_TEXT, fontFace: 'Arial', lineSpacingMultiple: 1.15,
+          fontSize: 10, color: GRAY_TEXT, fontFace: 'Arial', lineSpacingMultiple: 1.15,
         })
       })
     }
@@ -441,15 +442,15 @@ export async function POST(request: NextRequest) {
 
             compSlide.addText(story.date || '', {
               x: textX, y: cardY + 0.08, w: textW, h: 0.22,
-              fontSize: 9, color: ORANGE, fontFace: 'Arial', bold: true,
+              fontSize: 10, color: ORANGE, fontFace: 'Arial', bold: true,
             })
             compSlide.addText(story.title || '', {
               x: textX, y: cardY + 0.28, w: textW, h: 0.35,
-              fontSize: 11, color: DARK_TEXT, fontFace: 'Arial', bold: true,
+              fontSize: 12, color: DARK_TEXT, fontFace: 'Arial', bold: true,
             })
             compSlide.addText(story.summary?.substring(0, 180) || '', {
               x: textX, y: cardY + 0.62, w: textW, h: 0.65,
-              fontSize: 9, color: GRAY_TEXT, fontFace: 'Arial', lineSpacingMultiple: 1.15,
+              fontSize: 10, color: GRAY_TEXT, fontFace: 'Arial', lineSpacingMultiple: 1.15,
             })
           })
         }

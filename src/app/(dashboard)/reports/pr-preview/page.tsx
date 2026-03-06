@@ -466,41 +466,25 @@ function ScopeSlide({ data }: { data: any }) {
   return (
     <SlideWrapper>
       <SlideHeader title="Scope of Coverage - Overall" />
-      <div className="flex-1 grid grid-cols-4 gap-4 px-6 py-4 items-start">
+      <div className="flex-1 grid grid-cols-4 gap-5 px-6 py-5 items-start">
         {items.map((item, i) => {
           const percentage = total > 0 ? (item.count / total) * 100 : 0
-          const circumference = 2 * Math.PI * 42 // radius = 42
+          const circumference = 2 * Math.PI * 42
           const strokeDasharray = `${(percentage / 100) * circumference} ${circumference}`
           
           return (
             <div key={i} className="flex flex-col items-center text-center">
-              {/* Donut Chart */}
-              <div className="relative w-24 h-24 md:w-28 md:h-28 mb-3">
+              <div className="relative w-28 h-28 md:w-32 md:h-32 mb-3">
                 <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-                  {/* Background circle */}
-                  <circle
-                    cx="50" cy="50" r="42"
-                    fill="none"
-                    stroke="#e5e7eb"
-                    strokeWidth="8"
-                  />
-                  {/* Progress circle */}
-                  <circle
-                    cx="50" cy="50" r="42"
-                    fill="none"
-                    stroke={item.color}
-                    strokeWidth="8"
-                    strokeDasharray={strokeDasharray}
-                    strokeLinecap="round"
-                  />
+                  <circle cx="50" cy="50" r="42" fill="none" stroke="#e5e7eb" strokeWidth="8" />
+                  <circle cx="50" cy="50" r="42" fill="none" stroke={item.color} strokeWidth="8" strokeDasharray={strokeDasharray} strokeLinecap="round" />
                 </svg>
-                {/* Count in center */}
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-2xl md:text-3xl font-bold text-gray-800">{item.count}</span>
+                  <span className="text-3xl md:text-4xl font-bold text-gray-800">{item.count}</span>
                 </div>
               </div>
-              <p className="text-sm md:text-base font-semibold text-gray-800">{item.label}</p>
-              <p className="text-[10px] md:text-xs text-gray-500 mt-1.5 leading-snug line-clamp-4 px-1">{item.desc}</p>
+              <p className="text-base md:text-lg font-bold text-gray-800">{item.label}</p>
+              <p className="text-sm text-gray-600 mt-2 leading-relaxed line-clamp-4 px-1">{item.desc}</p>
             </div>
           )
         })}
@@ -614,44 +598,35 @@ function MonthlyTrendSlide({ data }: { data: any[] }) {
 // --- Thematic Areas ---
 function ThematicSlide({ areas }: { areas: any[] }) {
   if (!areas?.length) return <SlideWrapper><SlideHeader title="Thematic Areas" /><div className="flex-1 flex items-center justify-center text-gray-400">No data</div></SlideWrapper>
-  const maxWeight = Math.max(...areas.map(a => a.weight), 1)
   
-  // Better distributed positions for word cloud - more centered and overlapping
-  const positions = [
-    { x: 50, y: 25 }, { x: 30, y: 35 }, { x: 70, y: 30 }, { x: 45, y: 45 },
-    { x: 55, y: 55 }, { x: 25, y: 50 }, { x: 75, y: 45 }, { x: 40, y: 65 },
-    { x: 60, y: 40 }, { x: 35, y: 75 }, { x: 65, y: 65 }, { x: 50, y: 80 },
-    { x: 20, y: 65 }, { x: 80, y: 55 }, { x: 45, y: 35 }, { x: 55, y: 70 },
-    { x: 30, y: 55 }, { x: 70, y: 75 }, { x: 40, y: 50 }, { x: 60, y: 55 },
+  const tagColors = [
+    'bg-orange-100 text-orange-800 border-orange-200',
+    'bg-gray-100 text-gray-800 border-gray-200',
+    'bg-amber-100 text-amber-800 border-amber-200',
+    'bg-slate-100 text-slate-800 border-slate-200',
+    'bg-yellow-100 text-yellow-800 border-yellow-200',
+    'bg-stone-100 text-stone-800 border-stone-200',
   ]
   
   return (
     <SlideWrapper>
       <SlideHeader title="Thematic Areas of Coverage - Industry" />
-      <div className="flex-1 relative p-6 overflow-hidden flex items-center justify-center">
-        <div className="relative w-full h-full max-w-[800px]">
-          {areas.slice(0, 20).map((area, i) => {
+      <div className="flex-1 p-6 overflow-hidden">
+        <div className="flex flex-wrap gap-3 justify-center items-center content-center h-full">
+          {areas.slice(0, 24).map((area, i) => {
+            const maxWeight = Math.max(...areas.map(a => a.weight), 1)
             const ratio = area.weight / maxWeight
-            // Larger font sizes: 18px to 56px
-            const size = Math.round(18 + ratio * 38)
-            const fontWeight = ratio > 0.5 ? 700 : ratio > 0.25 ? 600 : 500
-            const color = ratio > 0.6 ? '#D4941A' : ratio > 0.3 ? '#1f2937' : '#6b7280'
-            const pos = positions[i] || { x: 50, y: 50 }
+            const sizeClass = ratio > 0.7 ? 'text-lg px-5 py-2.5' : ratio > 0.4 ? 'text-base px-4 py-2' : 'text-sm px-3 py-1.5'
+            const fontWeight = ratio > 0.5 ? 'font-bold' : 'font-semibold'
+            const colorClass = tagColors[i % tagColors.length]
             
             return (
               <span
                 key={i}
-                className="absolute transform -translate-x-1/2 -translate-y-1/2 transition-all duration-300 hover:scale-110"
-                style={{ 
-                  left: `${pos.x}%`, 
-                  top: `${pos.y}%`,
-                  fontSize: size, 
-                  fontWeight, 
-                  color,
-                  textShadow: ratio > 0.5 ? '0 1px 2px rgba(0,0,0,0.1)' : 'none',
-                }}
+                className={`inline-flex items-center rounded-full border ${colorClass} ${sizeClass} ${fontWeight} whitespace-nowrap`}
               >
                 {area.keyword}
+                <span className="ml-1.5 text-xs opacity-70">({area.weight})</span>
               </span>
             )
           })}
@@ -677,7 +652,7 @@ function JournalistsSlide({ journalists }: { journalists: any[] }) {
           return (
             <div key={i} className="flex flex-col items-center flex-1 max-w-[140px]">
               {/* Count above bar */}
-              <span className="text-sm font-semibold text-gray-700 mb-2">{j.count}</span>
+              <span className="text-base font-bold text-gray-700 mb-2">{j.count}</span>
               {/* Bar */}
               <div 
                 className="w-full bg-gray-900 rounded-t-sm"
@@ -685,8 +660,8 @@ function JournalistsSlide({ journalists }: { journalists: any[] }) {
               />
               {/* Name and outlet below */}
               <div className="mt-3 text-center">
-                <p className="text-xs font-medium text-gray-800 leading-tight">{j.name},</p>
-                <p className="text-[10px] text-gray-500 leading-tight mt-0.5">{j.outlet}</p>
+                <p className="text-sm font-semibold text-gray-800 leading-tight">{j.name},</p>
+                <p className="text-xs text-gray-500 leading-tight mt-0.5">{j.outlet}</p>
               </div>
             </div>
           )
@@ -711,42 +686,42 @@ function ClientVisibilitySlide({ clientName, orgVisibility, clientSources, clien
   return (
     <SlideWrapper>
       <SlideHeader title={`Client Visibility — ${clientName}`} />
-      <div className="flex-1 flex flex-col md:flex-row p-3 gap-3 min-h-0">
+      <div className="flex-1 flex flex-col md:flex-row p-4 gap-4 min-h-0">
         {/* Donut */}
         <div className="flex-1 min-h-0">
           <ResponsiveContainer width="100%" height="100%">
             <RechartsPie>
-              <Pie data={donutData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius="35%" outerRadius="65%" label={({ percent }: any) => `${((percent ?? 0) * 100).toFixed(0)}%`} fontSize={10}>
+              <Pie data={donutData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius="35%" outerRadius="65%" label={({ percent }: any) => `${((percent ?? 0) * 100).toFixed(0)}%`} fontSize={13}>
                 {donutData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
               </Pie>
               <Tooltip />
-              <Legend wrapperStyle={{ fontSize: 10 }} />
+              <Legend wrapperStyle={{ fontSize: 13 }} />
             </RechartsPie>
           </ResponsiveContainer>
         </div>
         {/* Right side: sources + trend */}
-        <div className="flex-1 flex flex-col gap-2 min-h-0">
-          <p className="text-xs font-semibold text-gray-700">Sources of Mentions — {clientName} ({totalMentions})</p>
+        <div className="flex-1 flex flex-col gap-3 min-h-0">
+          <p className="text-base font-bold text-gray-800">Sources of Mentions — {clientName} ({totalMentions})</p>
           <div className="flex-1 min-h-0">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={sourceData}>
-                <XAxis dataKey="name" fontSize={10} tick={{ fill: '#6b7280' }} />
-                <YAxis fontSize={10} tick={{ fill: '#6b7280' }} hide />
+                <XAxis dataKey="name" fontSize={13} tick={{ fill: '#374151' }} />
+                <YAxis fontSize={12} tick={{ fill: '#6b7280' }} hide />
                 <Tooltip />
-                <Bar dataKey="value" fill="#f97316" radius={[3, 3, 0, 0]} label={{ position: 'top', fontSize: 10, fill: '#374151' }} />
+                <Bar dataKey="value" fill="#f97316" radius={[3, 3, 0, 0]} label={{ position: 'top', fontSize: 13, fill: '#374151', fontWeight: 600 }} />
               </BarChart>
             </ResponsiveContainer>
           </div>
           {clientTrend?.length > 0 && (
             <>
-              <p className="text-xs font-semibold text-gray-700">Trend of Mentions</p>
+              <p className="text-base font-bold text-gray-800">Trend of Mentions</p>
               <div className="flex-1 min-h-0">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={clientTrend}>
-                    <XAxis dataKey="month" fontSize={9} tick={{ fill: '#6b7280' }} />
-                    <YAxis fontSize={9} tick={{ fill: '#6b7280' }} hide />
+                    <XAxis dataKey="month" fontSize={12} tick={{ fill: '#374151' }} />
+                    <YAxis fontSize={12} tick={{ fill: '#6b7280' }} hide />
                     <Tooltip />
-                    <Bar dataKey="count" fill="#ef4444" radius={[3, 3, 0, 0]} label={{ position: 'top', fontSize: 9, fill: '#374151' }} />
+                    <Bar dataKey="count" fill="#ef4444" radius={[3, 3, 0, 0]} label={{ position: 'top', fontSize: 12, fill: '#374151', fontWeight: 600 }} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -765,14 +740,14 @@ function MajorStoriesSlide({ clientName, stories }: { clientName: string; storie
   return (
     <SlideWrapper>
       <SlideHeader title={`Major Stories — ${clientName}`} />
-      <div className="flex-1 p-4 overflow-hidden">
+      <div className="flex-1 p-5 overflow-hidden">
         <div className="grid grid-cols-2 gap-4 h-full">
           {stories.slice(0, 6).map((story, i) => (
-            <div key={i} className="relative rounded-lg border border-orange-100 bg-orange-50/40 p-4 overflow-hidden">
+            <div key={i} className="relative rounded-lg border border-orange-100 bg-orange-50/40 p-4 pl-5 overflow-hidden">
               <div className="absolute left-0 top-0 bottom-0 w-1 bg-orange-500 rounded-l-lg" />
-              <p className="text-[11px] font-bold text-orange-600 mb-1">{story.date}</p>
-              <p className="text-sm font-bold text-gray-900 leading-snug line-clamp-2">{story.title}</p>
-              <p className="text-xs text-gray-600 mt-2 line-clamp-3 leading-relaxed">{story.summary}</p>
+              <p className="text-sm font-bold text-orange-600 mb-1">{story.date}</p>
+              <p className="text-base font-bold text-gray-900 leading-snug line-clamp-2">{story.title}</p>
+              <p className="text-sm text-gray-600 mt-2 line-clamp-3 leading-relaxed">{story.summary}</p>
             </div>
           ))}
         </div>
@@ -805,24 +780,24 @@ function CompetitorSlide({ competitors }: { competitors: any[] }) {
         <div className="flex-1 min-h-0">
           <ResponsiveContainer width="100%" height="100%">
             <RechartsPie>
-              <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius="70%" label={({ name, percent }: any) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`} fontSize={10} labelLine>
+              <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius="70%" label={({ name, percent }: any) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`} fontSize={12} labelLine>
                 {pieData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
               </Pie>
               <Tooltip />
-              <Legend wrapperStyle={{ fontSize: 10 }} />
+              <Legend wrapperStyle={{ fontSize: 13 }} />
             </RechartsPie>
           </ResponsiveContainer>
         </div>
-        <div className="flex-1 flex flex-col justify-center px-4 space-y-3">
-          <p className="text-sm text-gray-700 leading-relaxed">
+        <div className="flex-1 flex flex-col justify-center px-4 space-y-4">
+          <p className="text-base text-gray-700 leading-relaxed">
             A total of <span className="font-bold">{totalMentions.toLocaleString()}</span> mentions across top sector players.
           </p>
-          <div className="space-y-2">
+          <div className="space-y-3">
             {top5.map((c, i) => (
-              <div key={i} className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }} />
-                <span className="text-xs text-gray-700 flex-1 truncate">{c.name}</span>
-                <span className="text-xs font-semibold text-gray-800">{c.mentions}</span>
+              <div key={i} className="flex items-center gap-3">
+                <span className="w-4 h-4 rounded-full shrink-0" style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }} />
+                <span className="text-base text-gray-700 flex-1 truncate">{c.name}</span>
+                <span className="text-base font-bold text-gray-800">{c.mentions}</span>
               </div>
             ))}
           </div>
@@ -852,30 +827,30 @@ function SentimentSlide({ industry, client, clientName }: { industry: any; clien
       <SlideHeader title="Story Orientation - Sentiments" />
       <div className="flex-1 flex flex-col md:flex-row p-4 gap-4 min-h-0">
         <div className="flex-1 min-h-0">
-          <p className="text-xs font-semibold text-gray-700 mb-1">Industry Sentiment</p>
+          <p className="text-base font-bold text-gray-800 mb-2">Industry Sentiment</p>
           <ResponsiveContainer width="100%" height="85%">
             <RechartsPie>
-              <Pie data={industryPie} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius="65%" label={({ percent }: any) => `${((percent ?? 0) * 100).toFixed(0)}%`} fontSize={11}>
+              <Pie data={industryPie} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius="65%" label={({ percent }: any) => `${((percent ?? 0) * 100).toFixed(0)}%`} fontSize={14}>
                 <Cell fill="#10b981" />
                 <Cell fill="#1f2937" />
                 <Cell fill="#6b7280" />
               </Pie>
               <Tooltip />
-              <Legend wrapperStyle={{ fontSize: 10 }} />
+              <Legend wrapperStyle={{ fontSize: 13 }} />
             </RechartsPie>
           </ResponsiveContainer>
         </div>
         <div className="flex-1 flex flex-col min-h-0">
           {client && (
             <>
-              <p className="text-xs font-semibold text-gray-700 mb-1">{clientName} Sentiment</p>
+              <p className="text-base font-bold text-gray-800 mb-2">{clientName} Sentiment</p>
               <div className="flex-1 min-h-0">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={clientBar}>
-                    <XAxis dataKey="name" fontSize={10} tick={{ fill: '#6b7280' }} />
-                    <YAxis fontSize={10} tick={{ fill: '#6b7280' }} hide />
+                    <XAxis dataKey="name" fontSize={13} tick={{ fill: '#374151' }} />
+                    <YAxis fontSize={12} tick={{ fill: '#6b7280' }} hide />
                     <Tooltip />
-                    <Bar dataKey="value" radius={[4, 4, 0, 0]} label={{ position: 'top', fontSize: 11, fill: '#374151' }}>
+                    <Bar dataKey="value" radius={[4, 4, 0, 0]} label={{ position: 'top', fontSize: 14, fill: '#374151', fontWeight: 600 }}>
                       {clientBar.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
                     </Bar>
                   </BarChart>
@@ -883,10 +858,11 @@ function SentimentSlide({ industry, client, clientName }: { industry: any; clien
               </div>
             </>
           )}
-          <div className="mt-2 space-y-1 text-xs text-gray-600">
-            <p>• Out of {total.toLocaleString()} stories, {industry.positive.percentage}% were positive.</p>
-            <p>• {industry.negative.percentage}% were negative.</p>
-            <p>• {industry.neutral.percentage}% were neutral.</p>
+          <div className="mt-3 space-y-2 text-base text-gray-700">
+            <p>Out of {total.toLocaleString()} stories:</p>
+            <p className="ml-2">{'\u2022'} {industry.positive.percentage}% were positive</p>
+            <p className="ml-2">{'\u2022'} {industry.negative.percentage}% were negative</p>
+            <p className="ml-2">{'\u2022'} {industry.neutral.percentage}% were neutral</p>
           </div>
         </div>
       </div>
@@ -902,13 +878,13 @@ function TakeoutsSlide({ takeouts }: { takeouts: string[] }) {
     <SlideWrapper>
       <div className="px-6 py-4 flex items-center justify-between shrink-0">
         <h2 className="text-xl font-bold text-orange-500">Key Takeouts - Conclusions</h2>
-        <span className="text-xs font-bold text-orange-500">Ovaview</span>
+        <span className="text-sm font-bold text-orange-500">Ovaview</span>
       </div>
-      <div className="flex-1 px-8 py-2 space-y-4 overflow-hidden">
+      <div className="flex-1 px-8 py-3 space-y-4 overflow-hidden">
         {takeouts.map((t, i) => (
           <div key={i} className="flex gap-3 items-start">
-            <span className="text-orange-500 mt-0.5 shrink-0">➤</span>
-            <p className={`text-sm leading-relaxed ${i % 2 === 1 ? 'text-orange-600' : 'text-gray-700'}`}>{t}</p>
+            <span className="text-orange-500 mt-0.5 shrink-0 text-lg font-bold">{'>'}</span>
+            <p className={`text-base leading-relaxed ${i % 2 === 1 ? 'text-orange-600' : 'text-gray-700'}`}>{t}</p>
           </div>
         ))}
       </div>
