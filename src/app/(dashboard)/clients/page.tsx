@@ -219,8 +219,18 @@ export default function ClientsPage() {
   }
 
   const handleDeleteClick = (client: Client) => deleteModal.open(client)
-  const handleDeleteConfirm = async () => { setPendingAction({ type: 'delete', data: deleteModal.data! }); deleteModal.close(); passwordModal.open() }
-  const handleToggleStatus = (client: Client) => { setPendingAction({ type: 'toggle', data: client }); passwordModal.open() }
+
+  const handleDeleteConfirm = async () => {
+    setPendingAction({ type: 'delete', data: deleteModal.data! })
+    deleteModal.close()
+    passwordModal.open()
+  }
+
+  const handleToggleStatus = (client: Client) => {
+    setPendingAction({ type: 'toggle', data: client })
+    passwordModal.open()
+  }
+
   const handleViewClient = (client: Client) => viewModal.open(client)
 
   const handleEditClient = (client: Client) => {
@@ -280,28 +290,100 @@ export default function ClientsPage() {
   }
 
   const columns: ColumnDef<Client>[] = [
-    { accessorKey: 'name', header: ({ column }) => <DataTableColumnHeader column={column} title="Client Name" />, cell: ({ row }) => <span className="text-blue-600 hover:underline cursor-pointer" onClick={() => handleViewClient(row.original)}>{row.getValue('name')}</span> },
-    { id: 'clientUsers', header: 'Client Users', cell: ({ row }) => <Button variant="ghost" size="sm" onClick={() => router.push(`/client-users?clientId=${row.original.id}`)} className="text-gray-600"><Users className="h-4 w-4 mr-1" />{row.original.users ? row.original.users.length : 0}</Button> },
+    {
+      accessorKey: 'name',
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Client Name" />
+      ),
+      cell: ({ row }) => (
+        <span
+          className="text-blue-600 hover:underline cursor-pointer"
+          onClick={() => handleViewClient(row.original)}
+        >
+          {row.getValue('name')}
+        </span>
+      ),
+    },
+    {
+      id: 'clientUsers',
+      header: 'Client Users',
+      cell: ({ row }) => {
+        const clientId = row.original.id
+        const userCount = row.original.users ? row.original.users.length : 0
+        return (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => router.push('/client-users?clientId=' + clientId)}
+            className="text-gray-600"
+          >
+            <Users className="h-4 w-4 mr-1" />
+            {userCount}
+          </Button>
+        )
+      },
+    },
     {
       accessorKey: 'isActive',
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Status" />,
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Status" />
+      ),
       cell: ({ row }) => {
         const isActive = row.getValue('isActive') as boolean
         return (
-          <Badge variant="outline" className={isActive ? 'border-green-200 bg-green-50 text-green-700' : 'border-gray-200 bg-gray-50 text-gray-500'}>
+          <Badge
+            variant="outline"
+            className={
+              isActive
+                ? 'border-green-200 bg-green-50 text-green-700'
+                : 'border-gray-200 bg-gray-50 text-gray-500'
+            }
+          >
             {isActive ? 'Active' : 'Deactivated'}
           </Badge>
         )
       },
     },
-    { id: 'toggle', header: 'Toggle', cell: ({ row }) => <button onClick={() => handleToggleStatus(row.original)} className={`text-sm ${row.original.isActive ? 'text-orange-600 hover:text-orange-700' : 'text-blue-600 hover:text-blue-700'}`}>{row.original.isActive ? 'Deactivate' : 'Re-activate'}</button> },
+    {
+      id: 'toggle',
+      header: 'Toggle',
+      cell: ({ row }) => {
+        const isActive = row.original.isActive
+        return (
+          <button
+            onClick={() => handleToggleStatus(row.original)}
+            className={
+              isActive
+                ? 'text-sm text-orange-600 hover:text-orange-700'
+                : 'text-sm text-blue-600 hover:text-blue-700'
+            }
+          >
+            {isActive ? 'Deactivate' : 'Re-activate'}
+          </button>
+        )
+      },
+    },
     {
       id: 'actions',
       header: 'Actions',
       cell: ({ row }) => (
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={() => handleEditClient(row.original)} className="text-blue-500 hover:text-blue-700 hover:bg-blue-50"><Pencil className="h-4 w-4" /></Button>
-          <Button variant="ghost" size="sm" onClick={() => handleDeleteClick(row.original)} className="text-red-500 hover:text-red-700 hover:bg-red-50"><Trash2 className="h-4 w-4" /></Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => handleEditClient(row.original)}
+            className="text-blue-500 hover:text-blue-700 hover:bg-blue-50"
+          >
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => handleDeleteClick(row.original)}
+            className="text-red-500 hover:text-red-700 hover:bg-red-50"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
         </div>
       ),
     },
@@ -482,7 +564,9 @@ export default function ClientsPage() {
             )}
           </div>
           <p className="text-xs text-gray-400 -mt-2">Recommended: 300 x 150px (2:1 landscape) for best results in reports</p>
-            <div className="flex items-center gap-2"><Checkbox id="editActive" checked={editFormData.isActive} onCheckedChange={(checked) => setEditFormData({ ...editFormData, isActive: checked as boolean })} /><Label htmlFor="editActive" className="cursor-pointer">Active</Label></div>
+          <div className="flex items-center gap-2">
+            <Checkbox id="editActive" checked={editFormData.isActive} onCheckedChange={(checked) => setEditFormData({ ...editFormData, isActive: checked as boolean })} />
+            <Label htmlFor="editActive" className="cursor-pointer">Active</Label>
           </div>
 
           <div className="border-t border-gray-200 pt-4">
