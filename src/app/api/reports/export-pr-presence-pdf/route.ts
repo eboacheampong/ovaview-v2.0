@@ -12,6 +12,8 @@ const WHITE = [255, 255, 255] as const
 const ORANGE = [249, 115, 22] as const
 const GREEN = [16, 185, 129] as const
 const RED = [239, 68, 68] as const
+const BLACK_RGB = [31, 41, 55] as const
+const PURPLE = [192, 132, 252] as const
 
 // Slide dimensions (16:9 aspect ratio in points)
 const SLIDE_WIDTH = 960
@@ -21,209 +23,186 @@ type RGB = readonly [number, number, number]
 
 // Helper to draw a donut chart (ring with value in center)
 function drawDonutChart(
-  doc: jsPDF,
-  value: number,
-  total: number,
-  centerX: number,
-  centerY: number,
-  outerRadius: number,
-  innerRadius: number,
-  fillColor: RGB,
-  bgColor: RGB = [229, 231, 233] // Light gray background
+  doc: jsPDF, value: number, total: number,
+  centerX: number, centerY: number,
+  outerRadius: number, innerRadius: number,
+  fillColor: RGB, bgColor: RGB = [229, 231, 233]
 ) {
   const percentage = total > 0 ? value / total : 0
-  const startAngle = -Math.PI / 2 // Start from top
-  const endAngle = startAngle + (percentage * 2 * Math.PI)
-  
-  // Draw background ring (full circle)
+  const startAngle = -Math.PI / 2
   const segments = 60
+
+  // Background ring
   for (let j = 0; j < segments; j++) {
     const a1 = (j / segments) * 2 * Math.PI - Math.PI / 2
     const a2 = ((j + 1) / segments) * 2 * Math.PI - Math.PI / 2
-    
-    // Outer arc segment
     doc.setFillColor(bgColor[0], bgColor[1], bgColor[2])
-    doc.triangle(
-      centerX + innerRadius * Math.cos(a1), centerY + innerRadius * Math.sin(a1),
-      centerX + outerRadius * Math.cos(a1), centerY + outerRadius * Math.sin(a1),
-      centerX + outerRadius * Math.cos(a2), centerY + outerRadius * Math.sin(a2),
-      'F'
-    )
-    doc.triangle(
-      centerX + innerRadius * Math.cos(a1), centerY + innerRadius * Math.sin(a1),
-      centerX + outerRadius * Math.cos(a2), centerY + outerRadius * Math.sin(a2),
-      centerX + innerRadius * Math.cos(a2), centerY + innerRadius * Math.sin(a2),
-      'F'
-    )
+    doc.triangle(centerX + innerRadius * Math.cos(a1), centerY + innerRadius * Math.sin(a1), centerX + outerRadius * Math.cos(a1), centerY + outerRadius * Math.sin(a1), centerX + outerRadius * Math.cos(a2), centerY + outerRadius * Math.sin(a2), 'F')
+    doc.triangle(centerX + innerRadius * Math.cos(a1), centerY + innerRadius * Math.sin(a1), centerX + outerRadius * Math.cos(a2), centerY + outerRadius * Math.sin(a2), centerX + innerRadius * Math.cos(a2), centerY + innerRadius * Math.sin(a2), 'F')
   }
-  
-  // Draw filled portion
+
+  // Filled portion
   const filledSegments = Math.round(segments * percentage)
   for (let j = 0; j < filledSegments; j++) {
     const a1 = startAngle + (j / segments) * 2 * Math.PI
     const a2 = startAngle + ((j + 1) / segments) * 2 * Math.PI
-    
     doc.setFillColor(fillColor[0], fillColor[1], fillColor[2])
-    doc.triangle(
-      centerX + innerRadius * Math.cos(a1), centerY + innerRadius * Math.sin(a1),
-      centerX + outerRadius * Math.cos(a1), centerY + outerRadius * Math.sin(a1),
-      centerX + outerRadius * Math.cos(a2), centerY + outerRadius * Math.sin(a2),
-      'F'
-    )
-    doc.triangle(
-      centerX + innerRadius * Math.cos(a1), centerY + innerRadius * Math.sin(a1),
-      centerX + outerRadius * Math.cos(a2), centerY + outerRadius * Math.sin(a2),
-      centerX + innerRadius * Math.cos(a2), centerY + innerRadius * Math.sin(a2),
-      'F'
-    )
+    doc.triangle(centerX + innerRadius * Math.cos(a1), centerY + innerRadius * Math.sin(a1), centerX + outerRadius * Math.cos(a1), centerY + outerRadius * Math.sin(a1), centerX + outerRadius * Math.cos(a2), centerY + outerRadius * Math.sin(a2), 'F')
+    doc.triangle(centerX + innerRadius * Math.cos(a1), centerY + innerRadius * Math.sin(a1), centerX + outerRadius * Math.cos(a2), centerY + outerRadius * Math.sin(a2), centerX + innerRadius * Math.cos(a2), centerY + innerRadius * Math.sin(a2), 'F')
   }
-  
-  // Draw white center to create donut effect
+
+  // White center
   doc.setFillColor(255, 255, 255)
   for (let j = 0; j < segments; j++) {
     const a1 = (j / segments) * 2 * Math.PI
     const a2 = ((j + 1) / segments) * 2 * Math.PI
-    doc.triangle(
-      centerX, centerY,
-      centerX + innerRadius * Math.cos(a1), centerY + innerRadius * Math.sin(a1),
-      centerX + innerRadius * Math.cos(a2), centerY + innerRadius * Math.sin(a2),
-      'F'
-    )
+    doc.triangle(centerX, centerY, centerX + innerRadius * Math.cos(a1), centerY + innerRadius * Math.sin(a1), centerX + innerRadius * Math.cos(a2), centerY + innerRadius * Math.sin(a2), 'F')
   }
 }
 
-// Helper to draw a simple bar chart
+// Helper to draw a simple bar chart (single color per bar)
 function drawBarChart(
-  doc: jsPDF,
-  data: { label: string; value: number }[],
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  colors: RGB[]
+  doc: jsPDF, data: { label: string; value: number }[],
+  x: number, y: number, width: number, height: number, colors: RGB[]
 ) {
   if (!data.length) return
-  
   const maxValue = Math.max(...data.map(d => d.value), 1)
   const barWidth = (width - 20) / data.length - 10
   const chartHeight = height - 50
-  
+
   data.forEach((item, i) => {
     const barHeight = (item.value / maxValue) * chartHeight
     const barX = x + 10 + i * (barWidth + 10)
     const barY = y + chartHeight - barHeight
-    
-    // Draw bar
     const color = colors[i % colors.length]
     doc.setFillColor(color[0], color[1], color[2])
     doc.rect(barX, barY, barWidth, barHeight, 'F')
-    
-    // Draw value on top - LARGER FONT
     doc.setFontSize(12)
     doc.setTextColor(DARK_TEXT[0], DARK_TEXT[1], DARK_TEXT[2])
     doc.text(item.value.toString(), barX + barWidth / 2, barY - 8, { align: 'center' })
-    
-    // Draw label below - LARGER FONT
-    doc.setFontSize(11)
+    doc.setFontSize(10)
     doc.setTextColor(GRAY_TEXT[0], GRAY_TEXT[1], GRAY_TEXT[2])
     const labelLines = doc.splitTextToSize(item.label, barWidth + 10)
     doc.text(labelLines, barX + barWidth / 2, y + chartHeight + 15, { align: 'center' })
   })
 }
 
-// Helper to draw a simple pie chart with segment borders
-function drawPieChart(
+// Helper to draw a CLUSTERED bar chart (multiple series per category)
+function drawClusteredBarChart(
   doc: jsPDF,
-  data: { label: string; value: number }[],
-  centerX: number,
-  centerY: number,
-  radius: number,
-  colors: RGB[]
+  categories: string[],
+  series: { name: string; values: number[]; color: RGB }[],
+  x: number, y: number, width: number, height: number
+) {
+  if (!categories.length || !series.length) return
+  const maxValue = Math.max(...series.flatMap(s => s.values), 1)
+  const chartHeight = height - 60
+  const groupWidth = (width - 40) / categories.length
+  const barWidth = Math.min((groupWidth - 8) / series.length, 40)
+
+  categories.forEach((cat, ci) => {
+    const groupX = x + 20 + ci * groupWidth
+    series.forEach((s, si) => {
+      const val = s.values[ci] || 0
+      const barHeight = (val / maxValue) * chartHeight
+      const barX = groupX + si * barWidth + (groupWidth - barWidth * series.length) / 2
+      const barY = y + chartHeight - barHeight
+      doc.setFillColor(s.color[0], s.color[1], s.color[2])
+      doc.rect(barX, barY, barWidth - 2, barHeight, 'F')
+      // Value label on top
+      if (val > 0) {
+        doc.setFontSize(7)
+        doc.setTextColor(DARK_TEXT[0], DARK_TEXT[1], DARK_TEXT[2])
+        doc.text(val.toString(), barX + (barWidth - 2) / 2, barY - 4, { align: 'center' })
+      }
+    })
+    // Category label
+    doc.setFontSize(9)
+    doc.setTextColor(GRAY_TEXT[0], GRAY_TEXT[1], GRAY_TEXT[2])
+    doc.text(cat, groupX + groupWidth / 2, y + chartHeight + 15, { align: 'center' })
+  })
+
+  // Legend
+  let legendX = x + 20
+  const legendY = y + height - 15
+  series.forEach(s => {
+    doc.setFillColor(s.color[0], s.color[1], s.color[2])
+    doc.rect(legendX, legendY - 6, 10, 10, 'F')
+    doc.setFontSize(8)
+    doc.setTextColor(DARK_TEXT[0], DARK_TEXT[1], DARK_TEXT[2])
+    doc.text(s.name, legendX + 14, legendY + 2)
+    legendX += doc.getTextWidth(s.name) + 30
+  })
+}
+
+// Helper to draw a pie chart with segment borders
+function drawPieChart(
+  doc: jsPDF, data: { label: string; value: number }[],
+  centerX: number, centerY: number, radius: number, colors: RGB[]
 ) {
   if (!data.length) return
-  
   const total = data.reduce((sum, d) => sum + d.value, 0)
   if (total === 0) return
-  
-  let startAngle = -Math.PI / 2 // Start from top
+
+  let startAngle = -Math.PI / 2
   const segments = 50
-  
-  // First pass: draw all filled segments
+
+  // Draw filled segments
   data.forEach((item, i) => {
     const sliceAngle = (item.value / total) * 2 * Math.PI
     const color = colors[i % colors.length]
-    
     doc.setFillColor(color[0], color[1], color[2])
-    
-    // Fill the arc segments
     for (let j = 0; j < segments; j++) {
       const a1 = startAngle + (sliceAngle * j) / segments
       const a2 = startAngle + (sliceAngle * (j + 1)) / segments
-      doc.triangle(
-        centerX, centerY,
-        centerX + radius * Math.cos(a1), centerY + radius * Math.sin(a1),
-        centerX + radius * Math.cos(a2), centerY + radius * Math.sin(a2),
-        'F'
-      )
+      doc.triangle(centerX, centerY, centerX + radius * Math.cos(a1), centerY + radius * Math.sin(a1), centerX + radius * Math.cos(a2), centerY + radius * Math.sin(a2), 'F')
     }
-    
     startAngle += sliceAngle
   })
-  
-  // Second pass: draw white borders between segments for visibility
+
+  // White borders between segments
   startAngle = -Math.PI / 2
   doc.setDrawColor(255, 255, 255)
   doc.setLineWidth(3)
-  
-  data.forEach((item, i) => {
+  data.forEach((item) => {
     const sliceAngle = (item.value / total) * 2 * Math.PI
-    const endAngle = startAngle + sliceAngle
-    
-    // Draw border line from center to edge at start of each segment
     doc.line(centerX, centerY, centerX + radius * Math.cos(startAngle), centerY + radius * Math.sin(startAngle))
-    
-    startAngle = endAngle
+    startAngle += sliceAngle
   })
-  
-  // Draw outer circle border
+
+  // Outer circle border
   doc.setDrawColor(255, 255, 255)
   doc.setLineWidth(2)
   for (let j = 0; j < 60; j++) {
     const a1 = (j / 60) * 2 * Math.PI
     const a2 = ((j + 1) / 60) * 2 * Math.PI
-    doc.line(
-      centerX + radius * Math.cos(a1), centerY + radius * Math.sin(a1),
-      centerX + radius * Math.cos(a2), centerY + radius * Math.sin(a2)
-    )
+    doc.line(centerX + radius * Math.cos(a1), centerY + radius * Math.sin(a1), centerX + radius * Math.cos(a2), centerY + radius * Math.sin(a2))
   }
-  
-  // Third pass: draw percentage labels
+
+  // Percentage labels inside slices
   startAngle = -Math.PI / 2
-  data.forEach((item, i) => {
+  data.forEach((item) => {
     const sliceAngle = (item.value / total) * 2 * Math.PI
     const midAngle = startAngle + sliceAngle / 2
     const labelRadius = radius * 0.65
     const labelX = centerX + labelRadius * Math.cos(midAngle)
     const labelY = centerY + labelRadius * Math.sin(midAngle)
     const percentage = Math.round((item.value / total) * 100)
-    
     if (percentage > 5) {
       doc.setFontSize(12)
       doc.setTextColor(WHITE[0], WHITE[1], WHITE[2])
       doc.text(`${percentage}%`, labelX, labelY + 4, { align: 'center' })
     }
-    
     startAngle += sliceAngle
   })
-  
-  // Draw legend below with larger text
+
+  // Legend below
   let legendY = centerY + radius + 25
   data.forEach((item, i) => {
     const color = colors[i % colors.length]
     const legendX = centerX - radius + (i % 2) * (radius + 30)
     const row = Math.floor(i / 2)
     const ly = legendY + row * 20
-    
     doc.setFillColor(color[0], color[1], color[2])
     doc.rect(legendX, ly - 6, 12, 12, 'F')
     doc.setFontSize(10)
@@ -232,32 +211,26 @@ function drawPieChart(
   })
 }
 
-// Helper: Add slide header
+// Helper: Add slide header with gold bar, title, logo/client name, footer
 function addSlideHeader(doc: jsPDF, title: string, clientName?: string, logoBase64?: string | null) {
-  // Gold header bar
   doc.setFillColor(GOLD[0], GOLD[1], GOLD[2])
   doc.rect(0, 0, SLIDE_WIDTH, 50, 'F')
-  
-  // Title
   doc.setFontSize(20)
   doc.setTextColor(WHITE[0], WHITE[1], WHITE[2])
   doc.text(title, 30, 32)
-  
-  // Client logo or name top-right
+  // Logo (contain-fit) or client name top-right
   if (logoBase64) {
-    try { doc.addImage(logoBase64, 'PNG', SLIDE_WIDTH - 100, 5, 70, 40) } catch {}
+    try { doc.addImage(logoBase64, 'AUTO', SLIDE_WIDTH - 120, 5, 90, 40) } catch {}
   } else if (clientName) {
     doc.setFontSize(10)
     doc.text(clientName, SLIDE_WIDTH - 30, 32, { align: 'right' })
   }
-  
   // Footer
   doc.setFontSize(8)
   doc.setTextColor(ORANGE[0], ORANGE[1], ORANGE[2])
   doc.text('Ovaview', 20, SLIDE_HEIGHT - 15)
 }
 
-// Helper: Add new slide
 function addNewSlide(doc: jsPDF) {
   doc.addPage([SLIDE_WIDTH, SLIDE_HEIGHT], 'landscape')
 }
@@ -274,7 +247,7 @@ export async function POST(request: NextRequest) {
       keyTakeouts, totalIndustryStories,
     } = data
 
-    // Fetch client logo as base64 for embedding in PDF
+    // Fetch client logo as base64
     let logoBase64: string | null = null
     if (clientLogo) {
       try {
@@ -287,44 +260,40 @@ export async function POST(request: NextRequest) {
       } catch {}
     }
 
-    const doc = new jsPDF({
-      orientation: 'landscape',
-      unit: 'px',
-      format: [SLIDE_WIDTH, SLIDE_HEIGHT],
-    })
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'px', format: [SLIDE_WIDTH, SLIDE_HEIGHT] })
 
     // ===== SLIDE 1: COVER =====
     doc.setFillColor(GOLD[0], GOLD[1], GOLD[2])
     doc.rect(0, 0, SLIDE_WIDTH, SLIDE_HEIGHT, 'F')
-    
+
     doc.setFontSize(44)
     doc.setTextColor(WHITE[0], WHITE[1], WHITE[2])
-    doc.text('MEDIA PRESENCE', SLIDE_WIDTH / 2, 200, { align: 'center' })
-    doc.text('ANALYSIS REPORT', SLIDE_WIDTH / 2, 260, { align: 'center' })
-    
+    doc.text('MEDIA PRESENCE', SLIDE_WIDTH / 2, 180, { align: 'center' })
+    doc.text('ANALYSIS REPORT', SLIDE_WIDTH / 2, 240, { align: 'center' })
+
     doc.setFontSize(18)
-    doc.text(dateRangeLabel, SLIDE_WIDTH / 2, 320, { align: 'center' })
-    
-    if (clientName) {
-      doc.setFontSize(12)
-      doc.text(clientName, SLIDE_WIDTH - 40, 30, { align: 'right' })
-    }
+    doc.text(dateRangeLabel, SLIDE_WIDTH / 2, 300, { align: 'center' })
+
+    // Logo OR client name on cover — not both
     if (logoBase64) {
-      try { doc.addImage(logoBase64, 'PNG', SLIDE_WIDTH - 120, 10, 90, 50) } catch {}
+      try { doc.addImage(logoBase64, 'AUTO', SLIDE_WIDTH / 2 - 80, 340, 160, 60) } catch {}
+    } else if (clientName) {
+      doc.setFontSize(20)
+      doc.text(clientName, SLIDE_WIDTH / 2, 370, { align: 'center' })
     }
 
     // ===== SLIDE 2: BRIEF =====
     addNewSlide(doc)
     addSlideHeader(doc, 'Brief', clientName, logoBase64)
-    
+
     doc.setFontSize(16)
     doc.setTextColor(GRAY_TEXT[0], GRAY_TEXT[1], GRAY_TEXT[2])
     doc.text('This report is an analysis of the PR presence for', SLIDE_WIDTH / 2, 180, { align: 'center' })
-    
+
     doc.setFontSize(24)
     doc.setTextColor(DARK_TEXT[0], DARK_TEXT[1], DARK_TEXT[2])
     doc.text(clientName, SLIDE_WIDTH / 2, 230, { align: 'center' })
-    
+
     doc.setFontSize(16)
     doc.setTextColor(GRAY_TEXT[0], GRAY_TEXT[1], GRAY_TEXT[2])
     doc.text(`The data was captured from ${dateRangeLabel}.`, SLIDE_WIDTH / 2, 280, { align: 'center' })
@@ -333,7 +302,6 @@ export async function POST(request: NextRequest) {
     addNewSlide(doc)
     doc.setFillColor(GOLD[0], GOLD[1], GOLD[2])
     doc.rect(0, 0, SLIDE_WIDTH, SLIDE_HEIGHT, 'F')
-    
     doc.setFontSize(36)
     doc.setTextColor(WHITE[0], WHITE[1], WHITE[2])
     doc.text('MEDIA PRESENCE ANALYSIS', SLIDE_WIDTH / 2, 230, { align: 'center' })
@@ -343,128 +311,111 @@ export async function POST(request: NextRequest) {
     // ===== SLIDE 4: SCOPE OF COVERAGE =====
     addNewSlide(doc)
     addSlideHeader(doc, 'Scope of Coverage - Overall', clientName, logoBase64)
-    
+
     const scopeItems = [
-      { label: 'News Website', count: scopeOfCoverage?.newsWebsite?.count || 0, desc: scopeOfCoverage?.newsWebsite?.description || 'Monitoring covered major news websites locally and internationally' },
-      { label: 'Print Media', count: scopeOfCoverage?.printMedia?.count || 0, desc: scopeOfCoverage?.printMedia?.description || 'Covered all newspapers including major papers' },
-      { label: 'Radio', count: scopeOfCoverage?.radio?.count || 0, desc: scopeOfCoverage?.radio?.description || 'Radio stations covered include major FM stations' },
-      { label: 'Television', count: scopeOfCoverage?.television?.count || 0, desc: scopeOfCoverage?.television?.description || 'TV stations covered include major channels' },
+      { label: 'News Website', count: scopeOfCoverage?.newsWebsite?.count || 0, desc: scopeOfCoverage?.newsWebsite?.description || '' },
+      { label: 'Print Media', count: scopeOfCoverage?.printMedia?.count || 0, desc: scopeOfCoverage?.printMedia?.description || '' },
+      { label: 'Radio', count: scopeOfCoverage?.radio?.count || 0, desc: scopeOfCoverage?.radio?.description || '' },
+      { label: 'Television', count: scopeOfCoverage?.television?.count || 0, desc: scopeOfCoverage?.television?.description || '' },
     ]
-    
-    // Calculate total for percentage
     const totalScope = scopeItems.reduce((sum, item) => sum + item.count, 0)
-    
-    // Donut chart colors - alternating gold and dark gray
     const donutColors: RGB[] = [GOLD, GRAY_TEXT, GOLD, GRAY_TEXT]
-    
+
     scopeItems.forEach((item, i) => {
-      const centerX = 130 + i * 220
+      const centerX = 130 + i * 210
       const centerY = 200
-      const outerRadius = 70
-      const innerRadius = 50
-      
-      // Draw donut chart
-      drawDonutChart(doc, item.count, totalScope, centerX, centerY, outerRadius, innerRadius, donutColors[i])
-      
-      // Draw count in center
-      doc.setFontSize(36)
+      drawDonutChart(doc, item.count, totalScope, centerX, centerY, 65, 45, donutColors[i])
+      doc.setFontSize(32)
       doc.setTextColor(DARK_TEXT[0], DARK_TEXT[1], DARK_TEXT[2])
-      doc.text(item.count.toString(), centerX, centerY + 12, { align: 'center' })
-      
-      // Draw label below donut
-      doc.setFontSize(14)
-      doc.setTextColor(DARK_TEXT[0], DARK_TEXT[1], DARK_TEXT[2])
-      doc.text(item.label, centerX, centerY + outerRadius + 35, { align: 'center' })
-      
-      // Draw description text (wrapped)
-      doc.setFontSize(10)
+      doc.text(item.count.toString(), centerX, centerY + 10, { align: 'center' })
+      doc.setFontSize(13)
+      doc.text(item.label, centerX, centerY + 90, { align: 'center' })
+      doc.setFontSize(9)
       doc.setTextColor(GRAY_TEXT[0], GRAY_TEXT[1], GRAY_TEXT[2])
-      const descLines = doc.splitTextToSize(item.desc, 180)
-      doc.text(descLines.slice(0, 4), centerX, centerY + outerRadius + 60, { align: 'center' })
+      const descLines = doc.splitTextToSize(item.desc, 170)
+      doc.text(descLines.slice(0, 4), centerX, centerY + 115, { align: 'center' })
     })
 
-    // ===== SLIDE 5: MEDIA SOURCES - INDUSTRY =====
+    // ===== SLIDE 5: MEDIA SOURCES - INDUSTRY (Pie chart) =====
     addNewSlide(doc)
     addSlideHeader(doc, 'Media Sources - Industry', clientName, logoBase64)
-    
+
     const mediaPieData = [
       { label: 'News Website', value: mediaSourcesIndustry?.newsWebsite?.count || 0, percentage: mediaSourcesIndustry?.newsWebsite?.percentage || 0 },
       { label: 'Print Media', value: mediaSourcesIndustry?.printMedia?.count || 0, percentage: mediaSourcesIndustry?.printMedia?.percentage || 0 },
       { label: 'Radio', value: mediaSourcesIndustry?.radio?.count || 0, percentage: mediaSourcesIndustry?.radio?.percentage || 0 },
       { label: 'TV', value: mediaSourcesIndustry?.tv?.count || 0, percentage: mediaSourcesIndustry?.tv?.percentage || 0 },
     ]
-    
-    drawPieChart(doc, mediaPieData, 250, 280, 120, [ORANGE, DARK_TEXT, [192, 132, 252], GRAY_TEXT])
-    
-    // Sort media sources by count to identify highest and lowest
+
+    drawPieChart(doc, mediaPieData, 250, 280, 120, [ORANGE, DARK_TEXT, PURPLE, GRAY_TEXT])
+
     const sortedSources = [...mediaPieData].sort((a, b) => b.value - a.value)
     const industryLabel = data.industryName || 'sector'
-    
-    // Intelligent analysis text - LARGER FONTS
-    doc.setFontSize(14)
+
+    doc.setFontSize(13)
     doc.setTextColor(DARK_TEXT[0], DARK_TEXT[1], DARK_TEXT[2])
-    
-    // Intro paragraph
     const introText = `The ${industryLabel} continued to receive substantial media publicity during the period under review.`
-    const introLines = doc.splitTextToSize(introText, 400)
+    const introLines = doc.splitTextToSize(introText, 380)
     doc.text(introLines, 520, 100)
-    
-    // Total coverage
-    doc.setFontSize(14)
+
+    doc.setFontSize(13)
     const totalText = `Total Coverage – ${(totalIndustryStories || 0).toLocaleString()} news stories from four media sources (print media, news website, radio and television).`
-    const totalLines = doc.splitTextToSize(totalText, 400)
+    const totalLines = doc.splitTextToSize(totalText, 380)
     doc.text(totalLines, 520, 170)
-    
-    // Bullet points from highest to lowest - LARGER FONTS
-    doc.setFontSize(15)
+
+    doc.setFontSize(14)
     let bulletY = 270
     sortedSources.forEach((source, i) => {
       let bulletText = ''
-      if (i === 0) {
-        bulletText = `•   ${source.label} – highest (${source.percentage}%)`
-      } else if (i === sortedSources.length - 1) {
-        bulletText = `•   ${source.label} – lowest (${source.percentage}%)`
-      } else {
-        bulletText = `•   ${source.label} (${source.percentage}%)`
-      }
-      doc.text(bulletText, 520, bulletY + i * 40)
+      if (i === 0) bulletText = `•   ${source.label} – highest (${source.percentage}%)`
+      else if (i === sortedSources.length - 1) bulletText = `•   ${source.label} – lowest (${source.percentage}%)`
+      else bulletText = `•   ${source.label} (${source.percentage}%)`
+      doc.text(bulletText, 520, bulletY + i * 35)
     })
 
-    // ===== SLIDE 6: MONTHLY TREND =====
+    // ===== SLIDE 6: MONTHLY TREND (Clustered bar chart per media type) =====
     addNewSlide(doc)
     addSlideHeader(doc, 'Media Sources – Monthly Trend (Industry)', clientName, logoBase64)
-    
+
     if (monthlyTrend && monthlyTrend.length > 0) {
-      const trendData = monthlyTrend.map((m: any) => ({
-        label: m.month,
-        value: m.total || (m.print + m.web + m.tv + m.radio)
-      }))
-      drawBarChart(doc, trendData, 50, 100, 500, 350, [ORANGE])
-      
-      // Analysis text - LARGER FONTS
+      const categories = monthlyTrend.map((m: any) => m.month)
+      const series = [
+        { name: 'Print Media', values: monthlyTrend.map((m: any) => m.print), color: BLACK_RGB as RGB },
+        { name: 'News Website', values: monthlyTrend.map((m: any) => m.web), color: ORANGE as RGB },
+        { name: 'TV', values: monthlyTrend.map((m: any) => m.tv), color: PURPLE as RGB },
+        { name: 'Radio', values: monthlyTrend.map((m: any) => m.radio), color: GRAY_TEXT as RGB },
+      ]
+      drawClusteredBarChart(doc, categories, series, 30, 80, 540, 400)
+
+      // Analysis text on the right
       const highestMonth = monthlyTrend.reduce((max: any, m: any) => (m.total || 0) > (max.total || 0) ? m : max, monthlyTrend[0])
       const lowestMonth = monthlyTrend.reduce((min: any, m: any) => (m.total || 0) < (min.total || 0) ? m : min, monthlyTrend[0])
-      
-      doc.setFontSize(20)
+
+      doc.setFontSize(18)
       doc.setTextColor(DARK_TEXT[0], DARK_TEXT[1], DARK_TEXT[2])
-      doc.text('Period Under Review', 600, 150)
-      
-      doc.setFontSize(16)
+      doc.text('Period Under Review', 620, 140)
+
+      doc.setFontSize(14)
       doc.setTextColor(GREEN[0], GREEN[1], GREEN[2])
-      doc.text(`${highestMonth?.month} – ${(highestMonth?.total || 0).toLocaleString()} articles (Highest)`, 600, 210)
-      
+      doc.text(`${highestMonth?.month} – ${(highestMonth?.total || 0).toLocaleString()} articles`, 620, 200)
+      doc.setFontSize(11)
+      doc.setTextColor(GRAY_TEXT[0], GRAY_TEXT[1], GRAY_TEXT[2])
+      doc.text('(Highest)', 620, 220)
+
+      doc.setFontSize(14)
       doc.setTextColor(RED[0], RED[1], RED[2])
-      doc.text(`${lowestMonth?.month} – ${(lowestMonth?.total || 0).toLocaleString()} articles (Lowest)`, 600, 260)
+      doc.text(`${lowestMonth?.month} – ${(lowestMonth?.total || 0).toLocaleString()} articles`, 620, 270)
+      doc.setFontSize(11)
+      doc.setTextColor(GRAY_TEXT[0], GRAY_TEXT[1], GRAY_TEXT[2])
+      doc.text('(Lowest)', 620, 290)
     }
 
     // ===== SLIDE 7: THEMATIC AREAS =====
     addNewSlide(doc)
     addSlideHeader(doc, 'Thematic Areas of Coverage - Industry', clientName, logoBase64)
-    
+
     if (thematicAreas && thematicAreas.length > 0) {
       const maxWeight = Math.max(...thematicAreas.map((a: any) => a.weight), 1)
-      
-      // Better distributed positions for word cloud - more centered
       const positions = [
         { x: 480, y: 140 }, { x: 280, y: 180 }, { x: 680, y: 160 }, { x: 380, y: 220 },
         { x: 580, y: 240 }, { x: 200, y: 260 }, { x: 760, y: 220 }, { x: 320, y: 300 },
@@ -472,21 +423,13 @@ export async function POST(request: NextRequest) {
         { x: 800, y: 300 }, { x: 480, y: 420 }, { x: 280, y: 400 }, { x: 700, y: 360 },
         { x: 380, y: 460 }, { x: 580, y: 460 }, { x: 480, y: 200 }, { x: 150, y: 200 },
       ]
-      
       thematicAreas.slice(0, 20).forEach((item: any, i: number) => {
         const ratio = item.weight / maxWeight
-        // Larger font sizes: 16px to 48px
         const fontSize = Math.round(16 + ratio * 32)
         const pos = positions[i] || { x: 480, y: 280 }
-        
-        if (ratio > 0.6) {
-          doc.setTextColor(GOLD[0], GOLD[1], GOLD[2])
-        } else if (ratio > 0.3) {
-          doc.setTextColor(DARK_TEXT[0], DARK_TEXT[1], DARK_TEXT[2])
-        } else {
-          doc.setTextColor(GRAY_TEXT[0], GRAY_TEXT[1], GRAY_TEXT[2])
-        }
-        
+        if (ratio > 0.6) doc.setTextColor(GOLD[0], GOLD[1], GOLD[2])
+        else if (ratio > 0.3) doc.setTextColor(DARK_TEXT[0], DARK_TEXT[1], DARK_TEXT[2])
+        else doc.setTextColor(GRAY_TEXT[0], GRAY_TEXT[1], GRAY_TEXT[2])
         doc.setFontSize(fontSize)
         doc.text(item.keyword, pos.x, pos.y, { align: 'center' })
       })
@@ -495,41 +438,33 @@ export async function POST(request: NextRequest) {
     // ===== SLIDE 8: KEY JOURNALISTS =====
     addNewSlide(doc)
     addSlideHeader(doc, 'Key Journalists – Top 5', clientName, logoBase64)
-    
+
     if (topJournalists && topJournalists.length > 0) {
       const top5 = topJournalists.slice(0, 5)
       const maxCount = Math.max(...top5.map((j: any) => j.count), 1)
-      
-      const barWidth = 120
-      const maxBarHeight = 280
-      const startX = 120
-      const barGap = 160
-      const baseY = 420 // Bottom of bars
-      
+      const barWidth = 110
+      const maxBarHeight = 260
+      const startX = 130
+      const barGap = 155
+      const baseY = 400
+
       top5.forEach((j: any, i: number) => {
         const barX = startX + i * barGap
         const barHeight = (j.count / maxCount) * maxBarHeight
         const barY = baseY - barHeight
-        
-        // Count above bar
         doc.setFontSize(14)
         doc.setTextColor(DARK_TEXT[0], DARK_TEXT[1], DARK_TEXT[2])
-        doc.text(j.count.toString(), barX + barWidth / 2, barY - 15, { align: 'center' })
-        
-        // Bar
-        doc.setFillColor(31, 41, 55) // Dark gray/black
+        doc.text(j.count.toString(), barX + barWidth / 2, barY - 12, { align: 'center' })
+        doc.setFillColor(BLACK_RGB[0], BLACK_RGB[1], BLACK_RGB[2])
         doc.rect(barX, barY, barWidth, barHeight, 'F')
-        
-        // Name and outlet below bar
         doc.setFontSize(10)
         doc.setTextColor(DARK_TEXT[0], DARK_TEXT[1], DARK_TEXT[2])
         const nameLines = doc.splitTextToSize(`${j.name},`, barWidth + 20)
-        doc.text(nameLines, barX + barWidth / 2, baseY + 20, { align: 'center' })
-        
+        doc.text(nameLines, barX + barWidth / 2, baseY + 18, { align: 'center' })
         doc.setFontSize(9)
         doc.setTextColor(GRAY_TEXT[0], GRAY_TEXT[1], GRAY_TEXT[2])
         const outletLines = doc.splitTextToSize(j.outlet, barWidth + 20)
-        doc.text(outletLines, barX + barWidth / 2, baseY + 45, { align: 'center' })
+        doc.text(outletLines, barX + barWidth / 2, baseY + 40, { align: 'center' })
       })
     }
 
@@ -537,7 +472,6 @@ export async function POST(request: NextRequest) {
     addNewSlide(doc)
     doc.setFillColor(GOLD[0], GOLD[1], GOLD[2])
     doc.rect(0, 0, SLIDE_WIDTH, SLIDE_HEIGHT, 'F')
-    
     doc.setFontSize(36)
     doc.setTextColor(WHITE[0], WHITE[1], WHITE[2])
     doc.text('Visibility of', SLIDE_WIDTH / 2, 230, { align: 'center' })
@@ -547,14 +481,17 @@ export async function POST(request: NextRequest) {
     // ===== SLIDE 10: CLIENT VISIBILITY =====
     addNewSlide(doc)
     addSlideHeader(doc, `Client Visibility — ${clientName}`, clientName, logoBase64)
-    
+
     if (orgVisibility && orgVisibility.length > 0) {
       const visData = orgVisibility.map((o: any) => ({ label: o.name, value: o.mentions }))
       drawPieChart(doc, visData, 200, 280, 100, [DARK_TEXT, ORANGE, RED, [59, 130, 246], GRAY_TEXT])
     }
-    
-    // Sources bar chart
+
+    // Sources bar chart (right side)
     if (clientSourcesOfMentions) {
+      doc.setFontSize(11)
+      doc.setTextColor(DARK_TEXT[0], DARK_TEXT[1], DARK_TEXT[2])
+      doc.text(`Sources of Mentions - ${clientName}`, 550, 80)
       const sourceData = [
         { label: 'Print', value: clientSourcesOfMentions.printMedia || 0 },
         { label: 'Web', value: clientSourcesOfMentions.newsWebsite || 0 },
@@ -564,26 +501,35 @@ export async function POST(request: NextRequest) {
       drawBarChart(doc, sourceData, 450, 100, 450, 180, [ORANGE])
     }
 
+    // Client monthly trend (bottom-right)
+    if (clientMonthlyTrend && clientMonthlyTrend.length > 0) {
+      doc.setFontSize(11)
+      doc.setTextColor(DARK_TEXT[0], DARK_TEXT[1], DARK_TEXT[2])
+      doc.text(`Trend of Mentions - ${clientName}`, 550, 310)
+      const trendData = clientMonthlyTrend.map((m: any) => ({ label: m.month, value: m.count }))
+      drawBarChart(doc, trendData, 450, 330, 450, 160, [RED])
+    }
+
     // ===== SLIDE 11: MAJOR STORIES =====
     if (clientMajorStories && clientMajorStories.length > 0) {
       addNewSlide(doc)
       addSlideHeader(doc, `Major Stories – ${clientName}`, clientName, logoBase64)
-      
+
       clientMajorStories.slice(0, 6).forEach((story: any, i: number) => {
         const col = i % 2
         const row = Math.floor(i / 2)
         const x = 40 + col * 460
         const y = 80 + row * 150
-        
+
         doc.setFontSize(9)
         doc.setTextColor(ORANGE[0], ORANGE[1], ORANGE[2])
         doc.text(story.date || '', x, y)
-        
+
         doc.setFontSize(11)
         doc.setTextColor(DARK_TEXT[0], DARK_TEXT[1], DARK_TEXT[2])
         const titleLines = doc.splitTextToSize(story.title || '', 420)
         doc.text(titleLines.slice(0, 2), x, y + 18)
-        
+
         doc.setFontSize(9)
         doc.setTextColor(GRAY_TEXT[0], GRAY_TEXT[1], GRAY_TEXT[2])
         const summaryLines = doc.splitTextToSize(story.summary?.substring(0, 200) || '', 420)
@@ -595,7 +541,6 @@ export async function POST(request: NextRequest) {
     addNewSlide(doc)
     doc.setFillColor(GOLD[0], GOLD[1], GOLD[2])
     doc.rect(0, 0, SLIDE_WIDTH, SLIDE_HEIGHT, 'F')
-    
     doc.setFontSize(36)
     doc.setTextColor(WHITE[0], WHITE[1], WHITE[2])
     doc.text('Visibility of', SLIDE_WIDTH / 2, 230, { align: 'center' })
@@ -605,25 +550,59 @@ export async function POST(request: NextRequest) {
     // ===== SLIDE 13: COMPETITOR PRESENCE =====
     addNewSlide(doc)
     addSlideHeader(doc, 'Competitor Presence – Top 5 Sector Players', clientName, logoBase64)
-    
+
     if (competitorAnalysis && competitorAnalysis.length > 0) {
       const compData: { label: string; value: number }[] = competitorAnalysis.slice(0, 5).map((c: any) => ({ label: c.name, value: c.mentions }))
-      drawPieChart(doc, compData, 250, 280, 120, [GRAY_TEXT, [59, 130, 246], ORANGE, DARK_TEXT, [192, 132, 252]])
-      
+      drawPieChart(doc, compData, 250, 280, 120, [GRAY_TEXT, [59, 130, 246], ORANGE, DARK_TEXT, PURPLE])
+
       const totalMentions = compData.reduce((sum, c) => sum + c.value, 0)
-      doc.setFontSize(12)
+      doc.setFontSize(13)
       doc.setTextColor(DARK_TEXT[0], DARK_TEXT[1], DARK_TEXT[2])
-      doc.text(`Total mentions: ${totalMentions.toLocaleString()}`, 550, 200)
-      
+      const compSummary = `Overall, the presence of companies in the media remained competitive. A total of ${totalMentions.toLocaleString()} mentions.`
+      const compLines = doc.splitTextToSize(compSummary, 380)
+      doc.text(compLines, 520, 160)
+
+      doc.setFontSize(12)
       compData.forEach((c, i) => {
-        doc.text(`• ${c.label}: ${c.value}`, 550, 240 + i * 25)
+        doc.text(`• ${c.label}: ${c.value}`, 520, 240 + i * 28)
       })
     }
 
-    // ===== SLIDE 14: SENTIMENTS =====
+    // ===== SLIDES: MAJOR STORIES PER COMPETITOR =====
+    if (competitorAnalysis && competitorAnalysis.length > 0) {
+      competitorAnalysis.slice(0, 5).forEach((competitor: any) => {
+        if (competitor.majorStories && competitor.majorStories.length > 0) {
+          addNewSlide(doc)
+          addSlideHeader(doc, `Major Stories – ${competitor.name}`, clientName, logoBase64)
+
+          competitor.majorStories.slice(0, 6).forEach((story: any, i: number) => {
+            const col = i % 2
+            const row = Math.floor(i / 2)
+            const x = 40 + col * 460
+            const y = 80 + row * 150
+
+            doc.setFontSize(9)
+            doc.setTextColor(ORANGE[0], ORANGE[1], ORANGE[2])
+            doc.text(story.date || '', x, y)
+
+            doc.setFontSize(11)
+            doc.setTextColor(DARK_TEXT[0], DARK_TEXT[1], DARK_TEXT[2])
+            const titleLines = doc.splitTextToSize(story.title || '', 420)
+            doc.text(titleLines.slice(0, 2), x, y + 18)
+
+            doc.setFontSize(9)
+            doc.setTextColor(GRAY_TEXT[0], GRAY_TEXT[1], GRAY_TEXT[2])
+            const summaryLines = doc.splitTextToSize(story.summary?.substring(0, 200) || '', 420)
+            doc.text(summaryLines.slice(0, 4), x, y + 50)
+          })
+        }
+      })
+    }
+
+    // ===== SLIDE: SENTIMENTS =====
     addNewSlide(doc)
     addSlideHeader(doc, 'Story Orientation - Sentiments', clientName, logoBase64)
-    
+
     if (industrySentiment) {
       const sentimentData = [
         { label: 'Positive', value: industrySentiment.positive?.count || 0 },
@@ -631,35 +610,46 @@ export async function POST(request: NextRequest) {
         { label: 'Neutral', value: industrySentiment.neutral?.count || 0 },
       ]
       drawPieChart(doc, sentimentData, 200, 260, 100, [GREEN, RED, [234, 179, 8]])
-      
+
+      // Client sentiment bars
+      if (clientSentiment) {
+        doc.setFontSize(12)
+        doc.setTextColor(DARK_TEXT[0], DARK_TEXT[1], DARK_TEXT[2])
+        doc.text(`${clientName} Sentiment`, 520, 100)
+        const clientSentData = [
+          { label: 'Positive', value: clientSentiment.positive || 0 },
+          { label: 'Negative', value: clientSentiment.negative || 0 },
+          { label: 'Neutral', value: clientSentiment.neutral || 0 },
+        ]
+        drawBarChart(doc, clientSentData, 450, 120, 440, 200, [GREEN, RED, [234, 179, 8]])
+      }
+
       // Summary
       const total = sentimentData.reduce((sum, s) => sum + s.value, 0)
       doc.setFontSize(11)
       doc.setTextColor(DARK_TEXT[0], DARK_TEXT[1], DARK_TEXT[2])
-      doc.text(`Out of ${total.toLocaleString()} stories:`, 500, 180)
-      doc.text(`• ${industrySentiment.positive?.percentage || 0}% were positive`, 500, 210)
-      doc.text(`• ${industrySentiment.negative?.percentage || 0}% were negative`, 500, 240)
-      doc.text(`• ${industrySentiment.neutral?.percentage || 0}% were neutral`, 500, 270)
+      doc.text(`Out of ${total.toLocaleString()} stories:`, 450, 370)
+      doc.text(`• ${industrySentiment.positive?.percentage || 0}% were positive`, 450, 395)
+      doc.text(`• ${industrySentiment.negative?.percentage || 0}% were negative`, 450, 420)
+      doc.text(`• ${industrySentiment.neutral?.percentage || 0}% were neutral`, 450, 445)
     }
 
-    // ===== SLIDE 15: KEY TAKEOUTS =====
+    // ===== SLIDE: KEY TAKEOUTS =====
     addNewSlide(doc)
-    
+
     doc.setFontSize(24)
     doc.setTextColor(ORANGE[0], ORANGE[1], ORANGE[2])
     doc.text('Key Takeouts - Conclusions', 40, 50)
-    
+
     doc.setFontSize(10)
     doc.text('Ovaview', SLIDE_WIDTH - 40, 50, { align: 'right' })
-    
+
     if (keyTakeouts && keyTakeouts.length > 0) {
       keyTakeouts.slice(0, 6).forEach((takeout: string, i: number) => {
         const y = 100 + i * 70
         const color = i % 2 === 1 ? ORANGE : DARK_TEXT
-        
         doc.setFontSize(12)
         doc.setTextColor(color[0], color[1], color[2])
-        
         const lines = doc.splitTextToSize(`➤  ${takeout}`, 880)
         doc.text(lines.slice(0, 3), 50, y)
       })
