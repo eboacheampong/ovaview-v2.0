@@ -178,6 +178,83 @@ function buildPost(platform: string, postId: string, content: string, keyword: s
 }
 
 
+// ============ URL RESOLUTION ============
+
+/** Follow Google News redirect to get the real article/social URL */
+async function resolveGoogleNewsUrl(gnUrl: string): Promise<string> {
+  // If it's already a direct URL (not Google News), return as-is
+  if (!gnUrl.includes('news.google.com')) return gnUrl
+
+  try {
+    // Use redirect: 'manual' to catch the 302/303 Location header without following
+    const res = await fetch(gnUrl, {
+      method: 'GET',
+      headers: { 'User-Agent': randomUA() },
+      redirect: 'manual',
+      signal: AbortSignal.timeout(8000),
+    })
+
+    // Check Location header for redirect
+    const location = res.headers.get('location')
+    if (location && !location.includes('news.google.com')) {
+      return location
+    }
+
+    // Some Google News URLs do a JS/meta redirect — try following with redirect: 'follow'
+    const res2 = await fetch(gnUrl, {
+      method: 'GET',
+      headers: { 'User-Agent': randomUA() },
+      redirect: 'follow',
+      signal: AbortSignal.timeout(8000),
+    })
+    const finalUrl = res2.url
+    if (finalUrl && finalUrl !== gnUrl && !finalUrl.includes('news.google.com')) {
+      return finalUrl
+    }
+
+    // Last resort: parse the HTML for meta refresh or canonical URL
+    const html = await res2.text()
+    const metaRefresh = html.match(/<meta[^>]*http-equiv=["']refresh["'][^>]*content=["']\d+;\s*url=([^"']+)["']/i)
+    if (metaRefresh) return metaRefresh[1]
+
+    const canonical = html.match(/<link[^>]*rel=["']canonical["'][^>]*href=["']([^"']+)["']/i)
+    if (canonical && !canonical[1].includes('news.google.com')) return canonical[1]
+
+    const dataUrl = html.match(/data-url=["']([^"']+)["']/i)
+    if (dataUrl && !dataUrl[1].includes('news.google.com')) return dataUrl[1]
+  } catch (e) {
+    console.log(`[URL Resolve] Failed for ${gnUrl.substring(0, 60)}:`, e instanceof Error ? e.message : 'timeout')
+  }
+
+  return gnUrl // Fallback to original
+}
+
+/** Resolve multiple URLs in parallel with concurrency limit */
+async function resolveUrls(items: Array<{ title: string; link: string; pubDate: string }>): Promise<Array<{ title: string; link: string; resolvedLink: string; pubDate: string }>> {
+  const BATCH_SIZE = 5
+  const results: Array<{ title: string; link: string; resolvedLink: string; pubDate: string }> = []
+
+  for (let i = 0; i < items.length; i += BATCH_SIZE) {
+    const batch = items.slice(i, i + BATCH_SIZE)
+    const resolved = await Promise.allSettled(
+      batch.map(async (item) => ({
+        ...item,
+        resolvedLink: await resolveGoogleNewsUrl(item.link),
+      }))
+    )
+    for (const r of resolved) {
+      if (r.status === 'fulfilled') {
+        results.push(r.value)
+      } else {
+        // If resolution failed, keep original link
+        results.push({ ...batch[resolved.indexOf(r)], resolvedLink: batch[resolved.indexOf(r)].link })
+      }
+    }
+  }
+  return results
+}
+
+
 // ============ RSS PARSING ============
 
 function parseRSSItems(xml: string): Array<{ title: string; link: string; pubDate: string }> {
@@ -230,18 +307,20 @@ async function scrapeGoogleNewsRSS(keyword: string, platformFilter: string): Pro
     const xml = await res.text()
     const items = parseRSSItems(xml)
 
-    for (const item of items.slice(0, 15)) {
-      if (!isWithinCutoff(item.pubDate)) continue
+    // Resolve Google News redirect URLs to real social media URLs
+    const resolved = await resolveUrls(items.slice(0, 15).filter(i => isWithinCutoff(i.pubDate)))
 
-      const platform = detectPlatform(item.link, item.title, platformFilter)
+    for (const item of resolved) {
+      const realUrl = item.resolvedLink
+      const platform = detectPlatform(realUrl, item.title, platformFilter)
       if (!platform) continue
 
-      const postId = extractPostId(item.link, platform)
-      const author = extractAuthor(item.link, platform, item.title)
+      const postId = extractPostId(realUrl, platform)
+      const author = extractAuthor(realUrl, platform, item.title)
 
-      posts.push(buildPost(platform, postId, item.title, keyword, item.link, {
+      posts.push(buildPost(platform, postId, item.title, keyword, realUrl, {
         authorName: author,
-        embedHtml: buildEmbed(item.link, platform),
+        embedHtml: buildEmbed(realUrl, platform),
         postedAt: item.pubDate ? new Date(item.pubDate) : undefined,
       }))
     }
@@ -263,18 +342,20 @@ async function scrapeGoogleNewsGeneral(keyword: string): Promise<any[]> {
     const xml = await res.text()
     const items = parseRSSItems(xml)
 
-    for (const item of items.slice(0, 25)) {
-      if (!isWithinCutoff(item.pubDate)) continue
+    // Resolve Google News redirect URLs to real social media URLs
+    const resolved = await resolveUrls(items.slice(0, 25).filter(i => isWithinCutoff(i.pubDate)))
 
-      let platform = detectPlatform(item.link, item.title)
-      if (!platform) continue // Only keep items we can tag to a social platform
+    for (const item of resolved) {
+      const realUrl = item.resolvedLink
+      let platform = detectPlatform(realUrl, item.title)
+      if (!platform) continue
 
-      const postId = extractPostId(item.link, platform)
-      const author = extractAuthor(item.link, platform, item.title)
+      const postId = extractPostId(realUrl, platform)
+      const author = extractAuthor(realUrl, platform, item.title)
 
-      posts.push(buildPost(platform, postId, item.title, keyword, item.link, {
+      posts.push(buildPost(platform, postId, item.title, keyword, realUrl, {
         authorName: author,
-        embedHtml: buildEmbed(item.link, platform),
+        embedHtml: buildEmbed(realUrl, platform),
         postedAt: item.pubDate ? new Date(item.pubDate) : undefined,
       }))
     }
@@ -289,7 +370,6 @@ async function scrapeGoogleNewsGeneral(keyword: string): Promise<any[]> {
 
 async function scrapeGoogleNewsSocialBoost(keyword: string): Promise<any[]> {
   const posts: any[] = []
-  // Search for keyword + social media platform names to catch news articles about social posts
   const boostQueries = [
     `"${keyword}" (twitter OR "x.com" OR tweet)`,
     `"${keyword}" (instagram OR facebook OR tiktok OR linkedin)`,
@@ -303,18 +383,20 @@ async function scrapeGoogleNewsSocialBoost(keyword: string): Promise<any[]> {
       const xml = await res.text()
       const items = parseRSSItems(xml)
 
-      for (const item of items.slice(0, 10)) {
-        if (!isWithinCutoff(item.pubDate)) continue
+      // Resolve Google News redirect URLs to real social media URLs
+      const resolved = await resolveUrls(items.slice(0, 10).filter(i => isWithinCutoff(i.pubDate)))
 
-        let platform = detectPlatform(item.link, item.title)
+      for (const item of resolved) {
+        const realUrl = item.resolvedLink
+        let platform = detectPlatform(realUrl, item.title)
         if (!platform) continue
 
-        const postId = extractPostId(item.link, platform)
-        const author = extractAuthor(item.link, platform, item.title)
+        const postId = extractPostId(realUrl, platform)
+        const author = extractAuthor(realUrl, platform, item.title)
 
-        posts.push(buildPost(platform, postId, item.title, keyword, item.link, {
+        posts.push(buildPost(platform, postId, item.title, keyword, realUrl, {
           authorName: author,
-          embedHtml: buildEmbed(item.link, platform),
+          embedHtml: buildEmbed(realUrl, platform),
           postedAt: item.pubDate ? new Date(item.pubDate) : undefined,
         }))
       }
