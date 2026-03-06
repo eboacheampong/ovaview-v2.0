@@ -103,43 +103,70 @@ export default function AddSocialPostPage() {
     setIsLoading(true)
 
     try {
-      const payload = {
-        platform: formData.platform,
-        postId: searchParams.get('postId') || `manual_${Date.now()}`,
-        content: formData.content,
-        authorName: formData.authorName,
-        authorHandle: formData.authorHandle,
-        postUrl: formData.postUrl,
-        embedUrl: formData.embedUrl,
-        embedHtml: formData.embedHtml,
-        keywords: formData.keywords,
-        likesCount: formData.likesCount,
-        commentsCount: formData.commentsCount,
-        sharesCount: formData.sharesCount,
-        viewsCount: formData.viewsCount,
-        postedAt: new Date(formData.postedAt).toISOString(),
-        industryId: formData.industryId || null,
-        clientId: formData.clientId || null,
-      }
+      const insightId = searchParams.get('insightId')
 
-      const res = await fetch('/api/social-posts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
+      // If we have an insightId, update the existing scraped post to 'accepted'
+      if (insightId) {
+        const res = await fetch(`/api/social-posts/${insightId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            status: 'accepted',
+            content: formData.content,
+            embedUrl: formData.embedUrl,
+            embedHtml: formData.embedHtml,
+            keywords: formData.keywords,
+            industryId: formData.industryId || null,
+          }),
+        })
 
-      if (res.ok) {
-        router.push('/media/social')
-      } else {
-        const error = await res.json()
-        if (error.error?.includes('already exists')) {
-          alert('This post has already been added.')
+        if (res.ok) {
+          router.push('/media/social')
         } else {
-          alert(error.error || 'Failed to create post')
+          const error = await res.json()
+          alert(error.error || 'Failed to accept post')
+        }
+      } else {
+        // Creating a brand new post — goes directly to 'accepted'
+        const payload = {
+          platform: formData.platform,
+          postId: searchParams.get('postId') || `manual_${Date.now()}`,
+          content: formData.content,
+          authorName: formData.authorName,
+          authorHandle: formData.authorHandle,
+          postUrl: formData.postUrl,
+          embedUrl: formData.embedUrl,
+          embedHtml: formData.embedHtml,
+          keywords: formData.keywords,
+          likesCount: formData.likesCount,
+          commentsCount: formData.commentsCount,
+          sharesCount: formData.sharesCount,
+          viewsCount: formData.viewsCount,
+          postedAt: new Date(formData.postedAt).toISOString(),
+          industryId: formData.industryId || null,
+          clientId: formData.clientId || null,
+          status: 'accepted',
+        }
+
+        const res = await fetch('/api/social-posts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+
+        if (res.ok) {
+          router.push('/media/social')
+        } else {
+          const error = await res.json()
+          if (error.error?.includes('already exists')) {
+            alert('This post has already been added.')
+          } else {
+            alert(error.error || 'Failed to create post')
+          }
         }
       }
     } catch (error) {
-      alert('Failed to create post')
+      alert('Failed to save post')
     } finally {
       setIsLoading(false)
     }

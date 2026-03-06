@@ -539,6 +539,12 @@ enum DailyInsightStatus {
   archived
 }
 
+enum SocialPostStatus {
+  pending
+  accepted
+  archived
+}
+
 enum SocialPlatform {
   TWITTER
   FACEBOOK
@@ -589,6 +595,7 @@ model SocialPost {
   hashtags         String[]
   mentions         String[]
   keywords         String?
+  status           SocialPostStatus @default(pending)
   postedAt         DateTime
   accountId        String?
   account          SocialAccount? @relation(fields: [accountId], references: [id])
@@ -609,6 +616,7 @@ model SocialPost {
 
   @@unique([platform, postId, clientId])
   @@index([platform])
+  @@index([status])
   @@index([postedAt(sort: Desc)])
   @@index([accountId])
   @@index([clientId])

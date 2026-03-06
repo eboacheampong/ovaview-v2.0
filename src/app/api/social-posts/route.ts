@@ -13,10 +13,20 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search') || ''
     const platform = searchParams.get('platform') as SocialPlatform | null
     const clientId = searchParams.get('clientId')
+    const status = searchParams.get('status') // 'pending' | 'accepted' | 'archived' | 'all'
 
     const skip = (page - 1) * limit
 
     const where: any = {}
+
+    // Status filter — default to 'accepted' (published posts) unless explicitly set
+    if (status === 'all') {
+      // No status filter
+    } else if (status) {
+      where.status = status
+    } else {
+      where.status = 'accepted'
+    }
     
     if (search) {
       where.OR = [
@@ -98,6 +108,7 @@ export async function POST(request: NextRequest) {
       sentimentNeutral,
       sentimentNegative,
       overallSentiment,
+      status,
     } = body
 
     if (!platform || !postId || !postUrl) {
@@ -113,6 +124,36 @@ export async function POST(request: NextRequest) {
     })
 
     if (existing) {
+      // If it exists as pending and we're creating as accepted, update it
+      if (existing.status === 'pending' && (status === 'accepted' || !status)) {
+        const updated = await prisma.socialPost.update({
+          where: { id: existing.id },
+          data: {
+            status: 'accepted',
+            summary,
+            embedUrl,
+            embedHtml,
+            industryId,
+            sentimentPositive,
+            sentimentNeutral,
+            sentimentNegative,
+            overallSentiment,
+            subIndustries: subIndustryIds?.length
+              ? {
+                  deleteMany: {},
+                  create: subIndustryIds.map((id: string) => ({ subIndustryId: id })),
+                }
+              : undefined,
+          },
+          include: {
+            account: true,
+            client: { select: { id: true, name: true } },
+            industry: true,
+            subIndustries: { include: { subIndustry: true } },
+          },
+        })
+        return NextResponse.json(updated, { status: 200 })
+      }
       return NextResponse.json(
         { error: 'Post already exists', id: existing.id },
         { status: 409 }
@@ -140,6 +181,7 @@ export async function POST(request: NextRequest) {
         hashtags: hashtags || [],
         mentions: mentions || [],
         keywords,
+        status: status || 'accepted', // Default to accepted when creating from form
         postedAt: new Date(postedAt),
         accountId,
         clientId,

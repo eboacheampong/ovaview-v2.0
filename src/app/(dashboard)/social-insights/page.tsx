@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
   Loader2, RefreshCw, ChevronRight, Share2,
-  Clock, Trash2, MessageCircle, Instagram
+  Clock, Trash2, MessageCircle
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -20,6 +20,8 @@ interface ClientSummary {
   name: string
   logoUrl?: string | null
   total: number
+  pending: number
+  accepted: number
   recent: number
   platforms: PlatformCount[]
 }
@@ -120,7 +122,8 @@ export default function SocialInsightsPage() {
     )
   }
 
-  const totalPosts = clients.reduce((s, c) => s + c.total, 0)
+  const totalPending = clients.reduce((s, c) => s + c.pending, 0)
+  const totalAccepted = clients.reduce((s, c) => s + c.accepted, 0)
   const totalRecent = clients.reduce((s, c) => s + c.recent, 0)
 
   // Aggregate platform counts across all clients
@@ -160,26 +163,26 @@ export default function SocialInsightsPage() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-purple-100"><Share2 className="h-5 w-5 text-purple-600" /></div>
-            <div><p className="text-2xl font-bold text-gray-800">{totalPosts}</p><p className="text-sm text-gray-500">Total Posts</p></div>
+            <div className="p-2 rounded-lg bg-amber-100"><Share2 className="h-5 w-5 text-amber-600" /></div>
+            <div><p className="text-2xl font-bold text-gray-800">{totalPending}</p><p className="text-sm text-gray-500">Pending Review</p></div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-emerald-100"><Clock className="h-5 w-5 text-emerald-600" /></div>
+            <div><p className="text-2xl font-bold text-gray-800">{totalAccepted}</p><p className="text-sm text-gray-500">Published</p></div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
             <div className="p-2 rounded-lg bg-green-100"><Clock className="h-5 w-5 text-green-600" /></div>
-            <div><p className="text-2xl font-bold text-gray-800">{totalRecent}</p><p className="text-sm text-gray-500">This Week</p></div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-pink-100"><Instagram className="h-5 w-5 text-pink-600" /></div>
-            <div><p className="text-2xl font-bold text-gray-800">{(allPlatforms['INSTAGRAM'] || 0) + (allPlatforms['FACEBOOK'] || 0)}</p><p className="text-sm text-gray-500">Meta Platforms</p></div>
+            <div><p className="text-2xl font-bold text-gray-800">{totalRecent}</p><p className="text-sm text-gray-500">New This Week</p></div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
             <div className="p-2 rounded-lg bg-sky-100"><MessageCircle className="h-5 w-5 text-sky-600" /></div>
-            <div><p className="text-2xl font-bold text-gray-800">{(allPlatforms['TWITTER'] || 0) + (allPlatforms['TIKTOK'] || 0) + (allPlatforms['LINKEDIN'] || 0)}</p><p className="text-sm text-gray-500">Other Social</p></div>
+            <div><p className="text-2xl font-bold text-gray-800">{Object.values(allPlatforms).reduce((s, c) => s + c, 0)}</p><p className="text-sm text-gray-500">Across Platforms</p></div>
           </CardContent>
         </Card>
       </div>
@@ -200,7 +203,12 @@ export default function SocialInsightsPage() {
                   )}
                   <div>
                     <p className="font-semibold text-gray-800">{client.name}</p>
-                    <p className="text-sm text-gray-500">{client.total} posts</p>
+                    <p className="text-sm text-gray-500">
+                      {client.pending > 0 && <span className="text-amber-600 font-medium">{client.pending} pending</span>}
+                      {client.pending > 0 && client.accepted > 0 && ' · '}
+                      {client.accepted > 0 && <span className="text-emerald-600">{client.accepted} published</span>}
+                      {client.pending === 0 && client.accepted === 0 && 'No posts'}
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">

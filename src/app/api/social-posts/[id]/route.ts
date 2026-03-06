@@ -49,6 +49,7 @@ export async function PUT(
       sentimentNeutral,
       sentimentNegative,
       overallSentiment,
+      status,
     } = body
 
     // Delete existing sub-industry relations
@@ -66,6 +67,7 @@ export async function PUT(
         mediaUrls,
         keywords,
         industryId,
+        ...(status && { status }),
         sentimentPositive,
         sentimentNeutral,
         sentimentNegative,

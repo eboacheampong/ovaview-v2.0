@@ -5,7 +5,6 @@ export const dynamic = 'force-dynamic'
 
 export async function GET() {
   try {
-    // Get all active clients
     const clients = await prisma.client.findMany({
       where: { isActive: true },
       select: { id: true, name: true, logoUrl: true },
@@ -14,18 +13,29 @@ export async function GET() {
 
     const clientSummaries = await Promise.all(
       clients.map(async (client) => {
-        const total = await prisma.socialPost.count({ where: { clientId: client.id } })
-        // Count posts from last 7 days as "recent"
+        // Total scraped (pending) posts — the inbox
+        const pending = await prisma.socialPost.count({
+          where: { clientId: client.id, status: 'pending' },
+        })
+        // Total accepted (published) posts
+        const accepted = await prisma.socialPost.count({
+          where: { clientId: client.id, status: 'accepted' },
+        })
+        // Total across all statuses
+        const total = await prisma.socialPost.count({
+          where: { clientId: client.id },
+        })
+        // Recent pending posts from last 7 days
         const weekAgo = new Date()
         weekAgo.setDate(weekAgo.getDate() - 7)
         const recent = await prisma.socialPost.count({
-          where: { clientId: client.id, createdAt: { gte: weekAgo } },
+          where: { clientId: client.id, status: 'pending', createdAt: { gte: weekAgo } },
         })
 
-        // Platform breakdown
+        // Platform breakdown (pending only — what's in the inbox)
         const platforms = await prisma.socialPost.groupBy({
           by: ['platform'],
-          where: { clientId: client.id },
+          where: { clientId: client.id, status: 'pending' },
           _count: true,
         })
 
@@ -34,6 +44,8 @@ export async function GET() {
           name: client.name,
           logoUrl: client.logoUrl,
           total,
+          pending,
+          accepted,
           recent,
           platforms: platforms.map(p => ({ platform: p.platform, count: p._count })),
         }
