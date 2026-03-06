@@ -1,7 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { generateSlug } from '@/lib/slug'
 
 export const dynamic = 'force-dynamic'
+
+/** Generate a unique slug for a social post */
+async function generateSocialSlug(content: string, platform: string, authorName?: string): Promise<string> {
+  // Build a title-like string from content
+  const prefix = platform.toLowerCase()
+  const snippet = (content || 'social-post').substring(0, 60).trim()
+  const author = authorName ? `-${authorName}` : ''
+  const raw = `${prefix}${author}-${snippet}`
+  const baseSlug = generateSlug(raw)
+
+  let slug = baseSlug
+  let counter = 1
+  while (await prisma.socialPost.findUnique({ where: { slug } })) {
+    slug = `${baseSlug}-${counter}`
+    counter++
+  }
+  return slug
+}
 
 // GET single social post
 export async function GET(
@@ -14,6 +33,7 @@ export async function GET(
       include: {
         account: true,
         industry: true,
+        client: { select: { id: true, name: true } },
         subIndustries: { include: { subIndustry: true } },
       },
     })
@@ -37,6 +57,7 @@ export async function PUT(
   try {
     const body = await request.json()
     const {
+      title,
       content,
       summary,
       embedUrl,
@@ -57,32 +78,50 @@ export async function PUT(
       where: { socialPostId: params.id },
     })
 
+    // If accepting (status → accepted), generate slug + title if not already set
+    const updateData: any = {
+      content,
+      summary,
+      embedUrl,
+      embedHtml,
+      mediaUrls,
+      keywords,
+      industryId,
+      sentimentPositive,
+      sentimentNeutral,
+      sentimentNegative,
+      overallSentiment,
+      subIndustries: subIndustryIds?.length
+        ? { create: subIndustryIds.map((id: string) => ({ subIndustryId: id })) }
+        : undefined,
+    }
+
+    if (status) {
+      updateData.status = status
+    }
+
+    if (title) {
+      updateData.title = title
+    }
+
+    // Generate slug when accepting if post doesn't have one yet
+    if (status === 'accepted') {
+      const existing = await prisma.socialPost.findUnique({ where: { id: params.id } })
+      if (existing && !existing.slug) {
+        const postContent = content || existing.content || ''
+        const postTitle = title || existing.title || postContent.substring(0, 80)
+        updateData.title = updateData.title || postTitle
+        updateData.slug = await generateSocialSlug(postContent, existing.platform, existing.authorName || undefined)
+      }
+    }
+
     const post = await prisma.socialPost.update({
       where: { id: params.id },
-      data: {
-        content,
-        summary,
-        embedUrl,
-        embedHtml,
-        mediaUrls,
-        keywords,
-        industryId,
-        ...(status && { status }),
-        sentimentPositive,
-        sentimentNeutral,
-        sentimentNegative,
-        overallSentiment,
-        subIndustries: subIndustryIds?.length
-          ? {
-              create: subIndustryIds.map((id: string) => ({
-                subIndustryId: id,
-              })),
-            }
-          : undefined,
-      },
+      data: updateData,
       include: {
         account: true,
         industry: true,
+        client: { select: { id: true, name: true } },
         subIndustries: { include: { subIndustry: true } },
       },
     })

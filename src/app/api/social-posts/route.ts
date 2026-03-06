@@ -1,8 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { SocialPlatform } from '@prisma/client'
+import { generateSlug } from '@/lib/slug'
 
 export const dynamic = 'force-dynamic'
+
+/** Generate a unique slug for a social post */
+async function generateSocialSlug(content: string, platform: string, authorName?: string): Promise<string> {
+  const prefix = platform.toLowerCase()
+  const snippet = (content || 'social-post').substring(0, 60).trim()
+  const author = authorName ? `-${authorName}` : ''
+  const raw = `${prefix}${author}-${snippet}`
+  const baseSlug = generateSlug(raw)
+
+  let slug = baseSlug
+  let counter = 1
+  while (await prisma.socialPost.findUnique({ where: { slug } })) {
+    slug = `${baseSlug}-${counter}`
+    counter++
+  }
+  return slug
+}
 
 // GET all social posts
 export async function GET(request: NextRequest) {
@@ -126,10 +144,17 @@ export async function POST(request: NextRequest) {
     if (existing) {
       // If it exists as pending and we're creating as accepted, update it
       if (existing.status === 'pending' && (status === 'accepted' || !status)) {
+        // Generate slug when accepting
+        const postTitle = content || existing.content || 'Social Post'
+        const slug = existing.slug || await generateSocialSlug(postTitle, existing.platform, existing.authorName || undefined)
+        const title = existing.title || postTitle.substring(0, 120)
+
         const updated = await prisma.socialPost.update({
           where: { id: existing.id },
           data: {
             status: 'accepted',
+            title,
+            slug,
             summary,
             embedUrl,
             embedHtml,
@@ -160,10 +185,19 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Generate slug + title for accepted posts
+    const effectiveStatus = status || 'accepted'
+    const postTitle = (content || 'Social Post').substring(0, 120)
+    const slug = effectiveStatus === 'accepted'
+      ? await generateSocialSlug(content || '', platform, authorName || undefined)
+      : undefined
+
     const post = await prisma.socialPost.create({
       data: {
         platform,
         postId,
+        title: postTitle,
+        slug,
         content,
         summary,
         authorHandle,
@@ -181,7 +215,7 @@ export async function POST(request: NextRequest) {
         hashtags: hashtags || [],
         mentions: mentions || [],
         keywords,
-        status: status || 'accepted', // Default to accepted when creating from form
+        status: effectiveStatus,
         postedAt: new Date(postedAt),
         accountId,
         clientId,

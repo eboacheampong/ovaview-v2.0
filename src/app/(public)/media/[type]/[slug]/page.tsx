@@ -1,11 +1,11 @@
 import { notFound } from 'next/navigation'
 import prisma from '@/lib/prisma'
 import { Badge } from '@/components/ui/badge'
-import { Calendar, User, Building2, Newspaper, Radio, Tv, Globe, Tag, ExternalLink, Play } from 'lucide-react'
+import { Calendar, User, Building2, Newspaper, Radio, Tv, Globe, Tag, ExternalLink, Play, Share2 } from 'lucide-react'
 import { formatContentForDisplay } from '@/lib/content-utils'
 import { ImageGallery } from './image-gallery'
 
-type MediaType = 'web' | 'tv' | 'radio' | 'print'
+type MediaType = 'web' | 'tv' | 'radio' | 'print' | 'social'
 
 interface PageProps {
   params: Promise<{
@@ -57,6 +57,15 @@ async function getStory(type: MediaType, slug: string) {
           images: true,
         },
       })
+    case 'social':
+      return prisma.socialPost.findUnique({
+        where: { slug },
+        include: {
+          industry: true,
+          client: { select: { id: true, name: true } },
+          subIndustries: { include: { subIndustry: true } },
+        },
+      })
     default:
       return null
   }
@@ -77,6 +86,7 @@ function getMediaIcon(type: MediaType) {
     case 'tv': return <Tv className="h-5 w-5" />
     case 'radio': return <Radio className="h-5 w-5" />
     case 'print': return <Newspaper className="h-5 w-5" />
+    case 'social': return <Share2 className="h-5 w-5" />
   }
 }
 
@@ -86,6 +96,7 @@ function getMediaLabel(type: MediaType) {
     case 'tv': return 'TV Story'
     case 'radio': return 'Radio Story'
     case 'print': return 'Print Article'
+    case 'social': return 'Social Media Post'
   }
 }
 
@@ -100,7 +111,7 @@ function getSentimentColor(sentiment: string | null) {
 export default async function PublicMediaPage({ params }: PageProps) {
   const { type, slug } = await params
   
-  if (!['web', 'tv', 'radio', 'print'].includes(type)) {
+  if (!['web', 'tv', 'radio', 'print', 'social'].includes(type)) {
     notFound()
   }
 
@@ -110,10 +121,10 @@ export default async function PublicMediaPage({ params }: PageProps) {
     notFound()
   }
 
-  const title = story.title
+  const title = 'title' in story && story.title ? story.title : ('content' in story ? (story.content || '').substring(0, 120) : 'Untitled')
   const content = story.content
   const summary = story.summary
-  const date = story.date
+  const date = 'date' in story ? story.date : ('postedAt' in story ? story.postedAt : new Date())
   const keywords = story.keywords
   const industry = story.industry
   const overallSentiment = story.overallSentiment
@@ -121,9 +132,9 @@ export default async function PublicMediaPage({ params }: PageProps) {
   const sentimentNeutral = story.sentimentNeutral
   const sentimentNegative = story.sentimentNegative
 
-  const author = 'author' in story ? story.author : null
+  const author = 'author' in story ? story.author : ('authorName' in story ? story.authorName : null)
   const presenters = 'presenters' in story ? story.presenters : null
-  const sourceUrl = 'sourceUrl' in story ? story.sourceUrl : null
+  const sourceUrl = 'sourceUrl' in story ? story.sourceUrl : ('postUrl' in story ? story.postUrl : null)
   const videoUrl = 'videoUrl' in story ? story.videoUrl : null
   const videoTitle = 'videoTitle' in story ? story.videoTitle : null
   const audioUrl = 'audioUrl' in story ? story.audioUrl : null
@@ -134,6 +145,13 @@ export default async function PublicMediaPage({ params }: PageProps) {
   const program = 'program' in story ? story.program : null
   const issue = 'issue' in story ? story.issue : null
   const images = 'images' in story ? story.images : []
+  const embedHtml = 'embedHtml' in story ? story.embedHtml : null
+  const platform = 'platform' in story ? story.platform : null
+  const authorHandle = 'authorHandle' in story ? story.authorHandle : null
+  const likesCount = 'likesCount' in story ? story.likesCount : null
+  const commentsCount = 'commentsCount' in story ? story.commentsCount : null
+  const sharesCount = 'sharesCount' in story ? story.sharesCount : null
+  const viewsCount = 'viewsCount' in story ? story.viewsCount : null
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-4 sm:py-8">
@@ -206,6 +224,62 @@ export default async function PublicMediaPage({ params }: PageProps) {
               }))} 
               title={title}
             />
+          </div>
+        )}
+
+        {/* Social Media Embed & Engagement */}
+        {type === 'social' && embedHtml && (
+          <div className="px-4 sm:px-8 mb-6">
+            <div className="border border-gray-200 rounded-xl overflow-hidden bg-gray-50 p-4">
+              <div dangerouslySetInnerHTML={{ __html: embedHtml }} />
+            </div>
+          </div>
+        )}
+
+        {type === 'social' && (platform || authorHandle || likesCount || commentsCount || sharesCount || viewsCount) && (
+          <div className="px-4 sm:px-8 mb-6">
+            <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl p-4 sm:p-5 border border-purple-100">
+              <div className="flex flex-wrap items-center gap-3 mb-3">
+                {platform && (
+                  <Badge variant="outline" className="bg-white text-purple-700 border-purple-200 font-medium">
+                    <Share2 className="h-3 w-3 mr-1" />{platform}
+                  </Badge>
+                )}
+                {authorHandle && (
+                  <span className="text-sm text-gray-600">
+                    <User className="h-3.5 w-3.5 inline mr-1" />{authorHandle}
+                  </span>
+                )}
+              </div>
+              {(likesCount || commentsCount || sharesCount || viewsCount) && (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+                  {viewsCount != null && viewsCount > 0 && (
+                    <div className="bg-white rounded-lg p-3 text-center shadow-sm border border-purple-100">
+                      <div className="text-lg font-bold text-purple-600">{viewsCount.toLocaleString()}</div>
+                      <div className="text-xs text-gray-500 mt-0.5">Views</div>
+                    </div>
+                  )}
+                  {likesCount != null && likesCount > 0 && (
+                    <div className="bg-white rounded-lg p-3 text-center shadow-sm border border-pink-100">
+                      <div className="text-lg font-bold text-pink-600">{likesCount.toLocaleString()}</div>
+                      <div className="text-xs text-gray-500 mt-0.5">Likes</div>
+                    </div>
+                  )}
+                  {commentsCount != null && commentsCount > 0 && (
+                    <div className="bg-white rounded-lg p-3 text-center shadow-sm border border-blue-100">
+                      <div className="text-lg font-bold text-blue-600">{commentsCount.toLocaleString()}</div>
+                      <div className="text-xs text-gray-500 mt-0.5">Comments</div>
+                    </div>
+                  )}
+                  {sharesCount != null && sharesCount > 0 && (
+                    <div className="bg-white rounded-lg p-3 text-center shadow-sm border border-green-100">
+                      <div className="text-lg font-bold text-green-600">{sharesCount.toLocaleString()}</div>
+                      <div className="text-xs text-gray-500 mt-0.5">Shares</div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         )}
 

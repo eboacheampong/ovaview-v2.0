@@ -578,6 +578,8 @@ model SocialPost {
   id               String         @id @default(cuid())
   platform         SocialPlatform
   postId           String         // Platform-specific post ID
+  title            String?        // Display title (auto-generated from content if not set)
+  slug             String?        @unique // URL-friendly slug for public page
   content          String?        @db.Text
   summary          String?        @db.Text
   authorHandle     String?
