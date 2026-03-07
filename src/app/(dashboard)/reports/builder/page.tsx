@@ -217,7 +217,6 @@ export default function ReportBuilderPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [reportTitle, setReportTitle] = useState('Media Analytics Report')
   const [showExportPanel, setShowExportPanel] = useState(false)
-  const slideRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLDivElement>(null)
 
   // Drag state
@@ -536,25 +535,25 @@ export default function ReportBuilderPage() {
     setSelectedElement(null)
   }
 
-  // Capture slide as image for export
-  const captureSlide = async (): Promise<string | null> => {
-    if (!slideRef.current) return null
-    try {
-      const html2canvas = (await import('html2canvas')).default
-      const canvas = await html2canvas(slideRef.current, {
-        backgroundColor: currentSlide?.background || '#ffffff',
-        scale: 3,
-        logging: false,
-        useCORS: true,
-        allowTaint: true,
-        imageTimeout: 15000,
-        windowWidth: CANVAS_W,
-        windowHeight: CANVAS_H,
-      })
-      return canvas.toDataURL('image/png', 1.0)
-    } catch (error) {
-      console.error('Failed to capture slide:', error)
-      return null
+  // Convert canvas px position/size to PPTX inches (LAYOUT_WIDE = 13.33 x 7.5 inches)
+  const pxToInchX = (px: number) => (px / CANVAS_W) * 13.33
+  const pxToInchY = (px: number) => (px / CANVAS_H) * 7.5
+  const pxToInchW = (px: number) => (px / CANVAS_W) * 13.33
+  const pxToInchH = (px: number) => (px / CANVAS_H) * 7.5
+  // Font size: canvas is 960px wide = 13.33 inches (LAYOUT_WIDE). That's 72 DPI, so 1 canvas-px ≈ 1 typographic point.
+  const pxToFontPt = (px: number) => Math.round(px)
+
+  // Get chart data for a given dataKey
+  const getChartData = (dataKey: string) => {
+    if (!analyticsData) return []
+    switch (dataKey) {
+      case 'coverageTrend': return analyticsData.coverageTrendData || []
+      case 'mediaDistribution': return analyticsData.mediaDistributionData || []
+      case 'sentiment': return analyticsData.sentimentData || []
+      case 'industryPerformance': return analyticsData.industryPerformanceData || []
+      case 'journalists':
+        return (analyticsData.journalistData || []).map((j: any) => ({ name: `${j.name} - ${j.outlet}`, value: j.articles }))
+      default: return []
     }
   }
 
@@ -566,50 +565,677 @@ export default function ReportBuilderPage() {
     router.push(`/reports/pr-preview?clientId=${selectedClient}&dateRange=${dateRange}`)
   }
 
+  // Native PPTX export - renders each element as real text/shapes/charts (not screenshots)
+  const exportPptxNative = async (fileName: string) => {
+    const PptxGenJS = (await import('pptxgenjs')).default
+    const pptx = new PptxGenJS()
+    pptx.author = 'Ovaview'
+    pptx.title = reportTitle
+    pptx.subject = 'Media Analytics Report'
+    pptx.layout = 'LAYOUT_WIDE'
+
+    for (const slideData of slides) {
+      const pptxSlide = pptx.addSlide()
+      // Background
+      if (slideData.background && slideData.background !== '#ffffff') {
+        pptxSlide.background = { fill: slideData.background.replace('#', '') }
+      }
+
+      for (const el of slideData.elements) {
+        const x = pxToInchX(el.position.x)
+        const y = pxToInchY(el.position.y)
+        const w = pxToInchW(el.size.width)
+        const h = pxToInchH(el.size.height)
+
+        switch (el.type) {
+          case 'title': {
+            pptxSlide.addText(el.content.text || '', {
+              x, y, w, h,
+              fontSize: pxToFontPt(el.content.fontSize || 22),
+              color: (el.content.color || '#1f2937').replace('#', ''),
+              fontFace: 'Arial',
+              bold: true,
+              valign: 'top',
+              wrap: true,
+              lineSpacingMultiple: 1.15,
+            })
+            break
+          }
+          case 'text': {
+            pptxSlide.addText(el.content.text || '', {
+              x, y, w, h,
+              fontSize: pxToFontPt(el.content.fontSize || 14),
+              color: (el.content.color || '#4b5563').replace('#', ''),
+              fontFace: 'Arial',
+              valign: 'top',
+              wrap: true,
+              lineSpacingMultiple: 1.4,
+            })
+            break
+          }
+          case 'chart': {
+            const data = getChartData(el.content.dataKey)
+            if (data.length === 0) {
+              pptxSlide.addText('No data available', { x, y, w, h, fontSize: 12, color: '999999', fontFace: 'Arial', align: 'center', valign: 'middle' })
+              break
+            }
+            const chartColors = ['F97316', '3B82F6', '10B981', '8B5CF6', '06B6D4', 'EC4899']
+            const chartType = el.content.chartType
+
+            if (chartType === 'pie') {
+              pptxSlide.addChart(pptx.ChartType.pie, [
+                { name: 'Data', labels: data.map((d: any) => d.name || d.label || ''), values: data.map((d: any) => d.value || 0) }
+              ], {
+                x, y, w, h,
+                showLegend: true, legendPos: 'b', legendFontSize: 9,
+                showValue: true, showPercent: true,
+                dataLabelPosition: 'outEnd', dataLabelFontSize: 10,
+                chartColors,
+              })
+            } else if (chartType === 'bar') {
+              pptxSlide.addChart(pptx.ChartType.bar, [
+                { name: 'Value', labels: data.map((d: any) => d.name || d.month || d.label || ''), values: data.map((d: any) => d.value || d.total || 0) }
+              ], {
+                x, y, w, h,
+                showLegend: false,
+                showValue: true, dataLabelFontSize: 9,
+                chartColors: ['F97316'],
+                catAxisLabelFontSize: 9,
+                valAxisLabelFontSize: 8,
+              })
+            } else if (chartType === 'area') {
+              // Area chart with stacked series
+              const seriesData = []
+              const labels = data.map((d: any) => d.month || d.name || '')
+              if (data[0]?.web !== undefined) {
+                seriesData.push({ name: 'Web', labels, values: data.map((d: any) => d.web || 0) })
+                seriesData.push({ name: 'Print', labels, values: data.map((d: any) => d.print || 0) })
+                seriesData.push({ name: 'Radio', labels, values: data.map((d: any) => d.radio || 0) })
+                seriesData.push({ name: 'TV', labels, values: data.map((d: any) => d.tv || 0) })
+              } else {
+                seriesData.push({ name: 'Value', labels, values: data.map((d: any) => d.value || 0) })
+              }
+              pptxSlide.addChart(pptx.ChartType.area, seriesData, {
+                x, y, w, h,
+                showLegend: true, legendPos: 'b', legendFontSize: 9,
+                chartColors,
+                catAxisLabelFontSize: 9,
+                valAxisLabelFontSize: 8,
+              })
+            } else if (chartType === 'radar') {
+              const labels = data.map((d: any) => d.industry || d.name || '')
+              const seriesData = [
+                { name: 'Coverage', labels, values: data.map((d: any) => d.coverage || d.value || 0) },
+              ]
+              if (data[0]?.sentiment !== undefined) {
+                seriesData.push({ name: 'Sentiment', labels, values: data.map((d: any) => d.sentiment || 0) })
+              }
+              pptxSlide.addChart(pptx.ChartType.radar, seriesData, {
+                x, y, w, h,
+                showLegend: true, legendPos: 'b', legendFontSize: 9,
+                chartColors,
+              })
+            }
+            break
+          }
+          case 'kpi': {
+            const metrics = el.content.metrics || []
+            if (metrics.length === 0) break
+            const cols = 2
+            const cellW = w / cols
+            const cellH = h / Math.ceil(metrics.length / cols)
+            metrics.forEach((metric: any, i: number) => {
+              const col = i % cols
+              const row = Math.floor(i / cols)
+              const cx = x + col * cellW + 0.05
+              const cy = y + row * cellH + 0.05
+              const cw = cellW - 0.1
+              const ch = cellH - 0.1
+              // Card background
+              pptxSlide.addShape(pptx.ShapeType.roundRect, {
+                x: cx, y: cy, w: cw, h: ch,
+                fill: { color: 'F9FAFB' },
+                line: { color: 'E5E7EB', width: 0.5 },
+                rectRadius: 0.08,
+              })
+              // Label
+              pptxSlide.addText(metric.label || '', {
+                x: cx + 0.1, y: cy + 0.05, w: cw - 0.2, h: 0.25,
+                fontSize: 9, color: '6B7280', fontFace: 'Arial',
+              })
+              // Value
+              pptxSlide.addText(metric.value?.toString() || '0', {
+                x: cx + 0.1, y: cy + 0.3, w: cw - 0.2, h: 0.35,
+                fontSize: 18, color: '1F2937', fontFace: 'Arial', bold: true,
+              })
+              // Change
+              if (metric.change && metric.change !== 0) {
+                const changeColor = metric.change > 0 ? '16A34A' : 'DC2626'
+                const changeText = `${metric.change > 0 ? '+' : ''}${metric.change}%`
+                pptxSlide.addText(changeText, {
+                  x: cx + 0.1, y: cy + 0.6, w: cw - 0.2, h: 0.2,
+                  fontSize: 8, color: changeColor, fontFace: 'Arial',
+                })
+              }
+            })
+            break
+          }
+          case 'table': {
+            const headers = el.content.headers || []
+            const rows = el.content.rows || []
+            if (headers.length === 0) break
+            const tableRows = [headers, ...rows]
+            pptxSlide.addTable(
+              tableRows.map((row: string[], ri: number) =>
+                row.map((cell: string) => ({
+                  text: cell,
+                  options: {
+                    fontSize: 10,
+                    color: ri === 0 ? '374151' : '4B5563',
+                    bold: ri === 0,
+                    fill: { color: ri === 0 ? 'FFF7ED' : ri % 2 === 0 ? 'FFFFFF' : 'F9FAFB' },
+                    border: { type: 'solid' as const, color: 'E5E7EB', pt: 0.5 },
+                    fontFace: 'Arial',
+                  }
+                }))
+              ),
+              { x, y, w, h, colW: Array(headers.length).fill(w / headers.length) }
+            )
+            break
+          }
+          case 'image': {
+            if (el.content.src) {
+              try {
+                pptxSlide.addImage({ path: el.content.src, x, y, w, h, sizing: { type: 'contain', w, h } })
+              } catch {
+                pptxSlide.addText('Image', { x, y, w, h, fontSize: 10, color: '999999', fontFace: 'Arial', align: 'center', valign: 'middle' })
+              }
+            } else {
+              pptxSlide.addShape(pptx.ShapeType.rect, { x, y, w, h, fill: { color: 'F3F4F6' } })
+              pptxSlide.addText('Image', { x, y, w, h, fontSize: 10, color: '9CA3AF', fontFace: 'Arial', align: 'center', valign: 'middle' })
+            }
+            break
+          }
+        }
+      }
+    }
+
+    await pptx.writeFile({ fileName: `${fileName}.pptx` })
+  }
+
+  // Native PDF export - renders each element as real text/shapes (not screenshots)
+  const exportPdfNative = async (fileName: string) => {
+    const { default: jsPDF } = await import('jspdf')
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'in', format: [13.33, 7.5] })
+
+    // Helper: draw a filled triangle using jsPDF lines() method
+    const fillTriangle = (x1: number, y1: number, x2: number, y2: number, x3: number, y3: number) => {
+      doc.lines(
+        [[x2 - x1, y2 - y1], [x3 - x2, y3 - y2], [x1 - x3, y1 - y3]],
+        x1, y1, [1, 1], 'F', true
+      )
+    }
+
+    for (let si = 0; si < slides.length; si++) {
+      if (si > 0) doc.addPage([13.33, 7.5], 'landscape')
+      const slideData = slides[si]
+
+      // Background
+      if (slideData.background && slideData.background !== '#ffffff') {
+        const bg = slideData.background.replace('#', '')
+        const r = parseInt(bg.substring(0, 2), 16)
+        const g = parseInt(bg.substring(2, 4), 16)
+        const b = parseInt(bg.substring(4, 6), 16)
+        doc.setFillColor(r, g, b)
+        doc.rect(0, 0, 13.33, 7.5, 'F')
+      }
+
+      for (const el of slideData.elements) {
+        const x = pxToInchX(el.position.x)
+        const y = pxToInchY(el.position.y)
+        const w = pxToInchW(el.size.width)
+        const h = pxToInchH(el.size.height)
+
+        switch (el.type) {
+          case 'title': {
+            const color = el.content.color || '#1f2937'
+            const hex = color.replace('#', '')
+            doc.setTextColor(parseInt(hex.substring(0, 2), 16), parseInt(hex.substring(2, 4), 16), parseInt(hex.substring(4, 6), 16))
+            doc.setFontSize(pxToFontPt(el.content.fontSize || 22))
+            doc.setFont('helvetica', 'bold')
+            const lines = doc.splitTextToSize(el.content.text || '', w)
+            doc.text(lines, x, y + 0.25, { maxWidth: w })
+            break
+          }
+          case 'text': {
+            const color = el.content.color || '#4b5563'
+            const hex = color.replace('#', '')
+            doc.setTextColor(parseInt(hex.substring(0, 2), 16), parseInt(hex.substring(2, 4), 16), parseInt(hex.substring(4, 6), 16))
+            doc.setFontSize(pxToFontPt(el.content.fontSize || 14))
+            doc.setFont('helvetica', 'normal')
+            const lines = doc.splitTextToSize(el.content.text || '', w)
+            doc.text(lines, x, y + 0.2, { maxWidth: w, lineHeightFactor: 1.5 })
+            break
+          }
+          case 'kpi': {
+            const metrics = el.content.metrics || []
+            const cols = 2
+            const cellW = w / cols
+            const cellH = h / Math.ceil(metrics.length / cols)
+            metrics.forEach((metric: any, i: number) => {
+              const col = i % cols
+              const row = Math.floor(i / cols)
+              const cx = x + col * cellW + 0.03
+              const cy = y + row * cellH + 0.03
+              const cw = cellW - 0.06
+              const ch = cellH - 0.06
+              // Card bg
+              doc.setFillColor(249, 250, 251)
+              doc.roundedRect(cx, cy, cw, ch, 0.05, 0.05, 'F')
+              doc.setDrawColor(229, 231, 235)
+              doc.setLineWidth(0.01)
+              doc.roundedRect(cx, cy, cw, ch, 0.05, 0.05, 'S')
+              // Label
+              doc.setFontSize(8)
+              doc.setTextColor(107, 114, 128)
+              doc.setFont('helvetica', 'normal')
+              doc.text(metric.label || '', cx + 0.1, cy + 0.2)
+              // Value
+              doc.setFontSize(16)
+              doc.setTextColor(31, 41, 55)
+              doc.setFont('helvetica', 'bold')
+              doc.text(metric.value?.toString() || '0', cx + 0.1, cy + 0.5)
+            })
+            break
+          }
+          case 'table': {
+            const headers = el.content.headers || []
+            const rows = el.content.rows || []
+            if (headers.length === 0) break
+            const colW = w / headers.length
+            const rowH = 0.3
+            // Header
+            doc.setFillColor(255, 247, 237)
+            doc.rect(x, y, w, rowH, 'F')
+            doc.setFontSize(9)
+            doc.setFont('helvetica', 'bold')
+            doc.setTextColor(55, 65, 81)
+            headers.forEach((hdr: string, ci: number) => {
+              doc.text(hdr, x + ci * colW + 0.05, y + 0.2)
+            })
+            // Rows
+            doc.setFont('helvetica', 'normal')
+            doc.setTextColor(75, 85, 99)
+            rows.forEach((row: string[], ri: number) => {
+              const ry = y + (ri + 1) * rowH
+              if (ri % 2 === 1) {
+                doc.setFillColor(249, 250, 251)
+                doc.rect(x, ry, w, rowH, 'F')
+              }
+              row.forEach((cell: string, ci: number) => {
+                doc.text(cell, x + ci * colW + 0.05, ry + 0.2)
+              })
+            })
+            break
+          }
+          case 'chart': {
+            const chartData = getChartData(el.content.dataKey)
+            const chartType = el.content.chartType
+            const colors: [number, number, number][] = [
+              [249, 115, 22], [59, 130, 246], [16, 185, 129],
+              [139, 92, 246], [6, 182, 212], [236, 72, 153]
+            ]
+
+            if (chartData.length === 0) {
+              doc.setFillColor(249, 250, 251)
+              doc.roundedRect(x, y, w, h, 0.05, 0.05, 'F')
+              doc.setFontSize(10)
+              doc.setTextColor(156, 163, 175)
+              doc.text('No data available', x + w / 2, y + h / 2, { align: 'center' })
+              break
+            }
+
+            // Shared chart area with padding
+            const pad = { top: 0.35, right: 0.15, bottom: 0.45, left: 0.45 }
+            const chartX = x + pad.left
+            const chartY = y + pad.top
+            const chartW = w - pad.left - pad.right
+            const chartH = h - pad.top - pad.bottom
+
+            if (chartType === 'pie') {
+              const total = chartData.reduce((s: number, d: any) => s + (d.value || 0), 0)
+              if (total === 0) break
+              const cx = x + w * 0.35
+              const cy = y + h * 0.5
+              const radius = Math.min(w * 0.28, h * 0.38)
+              let startAngle = -Math.PI / 2
+
+              chartData.forEach((d: any, i: number) => {
+                const sliceAngle = (d.value / total) * 2 * Math.PI
+                const endAngle = startAngle + sliceAngle
+                const c = colors[i % colors.length]
+                doc.setFillColor(c[0], c[1], c[2])
+
+                // Draw pie slice as triangle fan
+                const steps = Math.max(20, Math.ceil(sliceAngle / 0.05))
+                for (let s = 0; s < steps; s++) {
+                  const a1 = startAngle + (sliceAngle * s) / steps
+                  const a2 = startAngle + (sliceAngle * (s + 1)) / steps
+                  fillTriangle(
+                    cx, cy,
+                    cx + radius * Math.cos(a1), cy + radius * Math.sin(a1),
+                    cx + radius * Math.cos(a2), cy + radius * Math.sin(a2)
+                  )
+                }
+                // White border between slices
+                doc.setDrawColor(255, 255, 255)
+                doc.setLineWidth(0.02)
+                doc.line(cx, cy, cx + radius * Math.cos(startAngle), cy + radius * Math.sin(startAngle))
+
+                startAngle = endAngle
+              })
+
+              // Legend on the right
+              const legendX = x + w * 0.68
+              let legendY = y + h * 0.2
+              doc.setFontSize(7)
+              chartData.forEach((d: any, i: number) => {
+                const c = colors[i % colors.length]
+                doc.setFillColor(c[0], c[1], c[2])
+                doc.rect(legendX, legendY - 0.06, 0.12, 0.12, 'F')
+                doc.setTextColor(55, 65, 81)
+                const pct = total > 0 ? ((d.value / total) * 100).toFixed(0) : '0'
+                doc.text(`${d.name} (${pct}%)`, legendX + 0.18, legendY + 0.02)
+                legendY += 0.2
+              })
+
+            } else if (chartType === 'bar') {
+              const values = chartData.map((d: any) => d.value || 0)
+              const maxVal = Math.max(...values, 1)
+
+              // Y-axis
+              doc.setDrawColor(229, 231, 235)
+              doc.setLineWidth(0.01)
+              doc.line(chartX, chartY, chartX, chartY + chartH)
+              // X-axis
+              doc.line(chartX, chartY + chartH, chartX + chartW, chartY + chartH)
+
+              // Y-axis labels
+              const yTicks = 5
+              doc.setFontSize(6)
+              doc.setTextColor(156, 163, 175)
+              for (let t = 0; t <= yTicks; t++) {
+                const val = Math.round((maxVal * t) / yTicks)
+                const ty = chartY + chartH - (chartH * t) / yTicks
+                doc.text(val.toString(), chartX - 0.05, ty + 0.02, { align: 'right' })
+                if (t > 0) {
+                  doc.setDrawColor(243, 244, 246)
+                  doc.line(chartX, ty, chartX + chartW, ty)
+                }
+              }
+
+              // Bars
+              const barGap = 0.05
+              const barW = Math.min((chartW - barGap * (chartData.length + 1)) / chartData.length, 0.5)
+              const totalBarsW = chartData.length * barW + (chartData.length - 1) * barGap
+              const offsetX = (chartW - totalBarsW) / 2
+
+              chartData.forEach((d: any, i: number) => {
+                const c = colors[i % colors.length]
+                const barH = (d.value / maxVal) * chartH
+                const bx = chartX + offsetX + i * (barW + barGap)
+                const by = chartY + chartH - barH
+
+                doc.setFillColor(c[0], c[1], c[2])
+                doc.roundedRect(bx, by, barW, barH, 0.02, 0.02, 'F')
+
+                // X-axis label
+                doc.setFontSize(5.5)
+                doc.setTextColor(75, 85, 99)
+                const label = (d.name || '').length > 12 ? (d.name || '').substring(0, 11) + '…' : (d.name || '')
+                doc.text(label, bx + barW / 2, chartY + chartH + 0.15, { align: 'center' })
+              })
+
+            } else if (chartType === 'area') {
+              // Area chart - stacked areas for coverage trend data
+              const dataKeys = ['web', 'print', 'radio', 'tv']
+              const areaColors: [number, number, number][] = [
+                [6, 182, 212], [59, 130, 246], [16, 185, 129], [139, 92, 246]
+              ]
+              const labels = ['Web', 'Print', 'Radio', 'TV']
+
+              // Calculate max stacked value
+              let maxVal = 1
+              chartData.forEach((d: any) => {
+                const sum = dataKeys.reduce((s, k) => s + (d[k] || 0), 0)
+                if (sum > maxVal) maxVal = sum
+              })
+
+              // Axes
+              doc.setDrawColor(229, 231, 235)
+              doc.setLineWidth(0.01)
+              doc.line(chartX, chartY, chartX, chartY + chartH)
+              doc.line(chartX, chartY + chartH, chartX + chartW, chartY + chartH)
+
+              // Y-axis labels
+              const yTicks = 5
+              doc.setFontSize(6)
+              doc.setTextColor(156, 163, 175)
+              for (let t = 0; t <= yTicks; t++) {
+                const val = Math.round((maxVal * t) / yTicks)
+                const ty = chartY + chartH - (chartH * t) / yTicks
+                doc.text(val.toString(), chartX - 0.05, ty + 0.02, { align: 'right' })
+                if (t > 0) {
+                  doc.setDrawColor(243, 244, 246)
+                  doc.line(chartX, ty, chartX + chartW, ty)
+                }
+              }
+
+              // Draw stacked areas (back to front)
+              const n = chartData.length
+              if (n > 1) {
+                const stepW = chartW / (n - 1)
+
+                // Build cumulative stacks
+                for (let ki = dataKeys.length - 1; ki >= 0; ki--) {
+                  const c = areaColors[ki]
+                  doc.setFillColor(c[0], c[1], c[2])
+                  doc.setDrawColor(c[0], c[1], c[2])
+                  doc.setLineWidth(0.015)
+
+                  // For each segment, draw filled area from baseline to stacked top
+                  for (let di = 0; di < n - 1; di++) {
+                    const stackTop1 = dataKeys.slice(0, ki + 1).reduce((s, k) => s + (chartData[di][k] || 0), 0)
+                    const stackTop2 = dataKeys.slice(0, ki + 1).reduce((s, k) => s + (chartData[di + 1][k] || 0), 0)
+                    const stackBot1 = dataKeys.slice(0, ki).reduce((s, k) => s + (chartData[di][k] || 0), 0)
+                    const stackBot2 = dataKeys.slice(0, ki).reduce((s, k) => s + (chartData[di + 1][k] || 0), 0)
+
+                    const x1 = chartX + di * stepW
+                    const x2 = chartX + (di + 1) * stepW
+                    const yt1 = chartY + chartH - (stackTop1 / maxVal) * chartH
+                    const yt2 = chartY + chartH - (stackTop2 / maxVal) * chartH
+                    const yb1 = chartY + chartH - (stackBot1 / maxVal) * chartH
+                    const yb2 = chartY + chartH - (stackBot2 / maxVal) * chartH
+
+                    // Draw as two triangles to fill the quad
+                    fillTriangle(x1, yt1, x2, yt2, x2, yb2)
+                    fillTriangle(x1, yt1, x2, yb2, x1, yb1)
+                  }
+
+                  // Draw top line
+                  for (let di = 0; di < n - 1; di++) {
+                    const stackTop1 = dataKeys.slice(0, ki + 1).reduce((s, k) => s + (chartData[di][k] || 0), 0)
+                    const stackTop2 = dataKeys.slice(0, ki + 1).reduce((s, k) => s + (chartData[di + 1][k] || 0), 0)
+                    const lx1 = chartX + di * stepW
+                    const lx2 = chartX + (di + 1) * stepW
+                    const ly1 = chartY + chartH - (stackTop1 / maxVal) * chartH
+                    const ly2 = chartY + chartH - (stackTop2 / maxVal) * chartH
+                    doc.line(lx1, ly1, lx2, ly2)
+                  }
+                }
+
+                // X-axis labels
+                doc.setFontSize(5.5)
+                doc.setTextColor(75, 85, 99)
+                chartData.forEach((d: any, i: number) => {
+                  if (i % Math.ceil(n / 6) === 0 || i === n - 1) {
+                    doc.text(d.month || '', chartX + i * stepW, chartY + chartH + 0.15, { align: 'center' })
+                  }
+                })
+              }
+
+              // Legend
+              let lx = chartX
+              doc.setFontSize(6)
+              labels.forEach((label, i) => {
+                const c = areaColors[i]
+                doc.setFillColor(c[0], c[1], c[2])
+                doc.rect(lx, y + 0.08, 0.1, 0.1, 'F')
+                doc.setTextColor(75, 85, 99)
+                doc.text(label, lx + 0.14, y + 0.17)
+                lx += 0.55
+              })
+
+            } else if (chartType === 'radar') {
+              // Radar chart
+              const rcx = x + w / 2
+              const rcy = y + h * 0.5
+              const maxR = Math.min(w, h) * 0.32
+              const axes = chartData.length
+
+              if (axes >= 3) {
+                // Find max values
+                const maxCov = Math.max(...chartData.map((d: any) => d.coverage || 0), 1)
+                const maxSent = Math.max(...chartData.map((d: any) => d.sentiment || 0), 1)
+                const maxScale = Math.max(maxCov, maxSent)
+
+                // Draw grid rings
+                const rings = 4
+                doc.setDrawColor(229, 231, 235)
+                doc.setLineWidth(0.005)
+                for (let r = 1; r <= rings; r++) {
+                  const ringR = (maxR * r) / rings
+                  for (let i = 0; i < axes; i++) {
+                    const a1 = (2 * Math.PI * i) / axes - Math.PI / 2
+                    const a2 = (2 * Math.PI * ((i + 1) % axes)) / axes - Math.PI / 2
+                    doc.line(
+                      rcx + ringR * Math.cos(a1), rcy + ringR * Math.sin(a1),
+                      rcx + ringR * Math.cos(a2), rcy + ringR * Math.sin(a2)
+                    )
+                  }
+                }
+
+                // Draw axis lines and labels
+                doc.setFontSize(5)
+                doc.setTextColor(75, 85, 99)
+                chartData.forEach((d: any, i: number) => {
+                  const angle = (2 * Math.PI * i) / axes - Math.PI / 2
+                  doc.setDrawColor(229, 231, 235)
+                  doc.line(rcx, rcy, rcx + maxR * Math.cos(angle), rcy + maxR * Math.sin(angle))
+                  const labelR = maxR + 0.12
+                  const lbl = (d.industry || d.name || '').substring(0, 10)
+                  doc.text(lbl, rcx + labelR * Math.cos(angle), rcy + labelR * Math.sin(angle), { align: 'center' })
+                })
+
+                // Draw coverage polygon (orange)
+                doc.setDrawColor(249, 115, 22)
+                doc.setLineWidth(0.015)
+                for (let i = 0; i < axes; i++) {
+                  const a1 = (2 * Math.PI * i) / axes - Math.PI / 2
+                  const a2 = (2 * Math.PI * ((i + 1) % axes)) / axes - Math.PI / 2
+                  const r1 = ((chartData[i].coverage || 0) / maxScale) * maxR
+                  const r2 = ((chartData[(i + 1) % axes].coverage || 0) / maxScale) * maxR
+                  doc.line(rcx + r1 * Math.cos(a1), rcy + r1 * Math.sin(a1), rcx + r2 * Math.cos(a2), rcy + r2 * Math.sin(a2))
+                }
+                // Fill coverage with triangles
+                doc.setFillColor(249, 115, 22)
+                for (let i = 0; i < axes; i++) {
+                  const a1 = (2 * Math.PI * i) / axes - Math.PI / 2
+                  const a2 = (2 * Math.PI * ((i + 1) % axes)) / axes - Math.PI / 2
+                  const r1 = ((chartData[i].coverage || 0) / maxScale) * maxR
+                  const r2 = ((chartData[(i + 1) % axes].coverage || 0) / maxScale) * maxR
+                  // Semi-transparent fill via opacity trick: draw with lighter color
+                  doc.setFillColor(253, 200, 160)
+                  fillTriangle(rcx, rcy, rcx + r1 * Math.cos(a1), rcy + r1 * Math.sin(a1), rcx + r2 * Math.cos(a2), rcy + r2 * Math.sin(a2))
+                }
+
+                // Draw sentiment polygon (blue)
+                doc.setDrawColor(59, 130, 246)
+                doc.setLineWidth(0.015)
+                for (let i = 0; i < axes; i++) {
+                  const a1 = (2 * Math.PI * i) / axes - Math.PI / 2
+                  const a2 = (2 * Math.PI * ((i + 1) % axes)) / axes - Math.PI / 2
+                  const r1 = ((chartData[i].sentiment || 0) / maxScale) * maxR
+                  const r2 = ((chartData[(i + 1) % axes].sentiment || 0) / maxScale) * maxR
+                  doc.line(rcx + r1 * Math.cos(a1), rcy + r1 * Math.sin(a1), rcx + r2 * Math.cos(a2), rcy + r2 * Math.sin(a2))
+                }
+                doc.setFillColor(191, 219, 254)
+                for (let i = 0; i < axes; i++) {
+                  const a1 = (2 * Math.PI * i) / axes - Math.PI / 2
+                  const a2 = (2 * Math.PI * ((i + 1) % axes)) / axes - Math.PI / 2
+                  const r1 = ((chartData[i].sentiment || 0) / maxScale) * maxR
+                  const r2 = ((chartData[(i + 1) % axes].sentiment || 0) / maxScale) * maxR
+                  doc.setFillColor(191, 219, 254)
+                  fillTriangle(rcx, rcy, rcx + r1 * Math.cos(a1), rcy + r1 * Math.sin(a1), rcx + r2 * Math.cos(a2), rcy + r2 * Math.sin(a2))
+                }
+
+                // Legend
+                doc.setFontSize(6)
+                doc.setFillColor(249, 115, 22)
+                doc.rect(x + 0.1, y + 0.1, 0.1, 0.1, 'F')
+                doc.setTextColor(75, 85, 99)
+                doc.text('Coverage', x + 0.25, y + 0.19)
+                doc.setFillColor(59, 130, 246)
+                doc.rect(x + 0.85, y + 0.1, 0.1, 0.1, 'F')
+                doc.text('Sentiment', x + 1.0, y + 0.19)
+              }
+
+            } else {
+              // Fallback for unknown chart types
+              doc.setFillColor(249, 250, 251)
+              doc.roundedRect(x, y, w, h, 0.05, 0.05, 'F')
+              doc.setFontSize(10)
+              doc.setTextColor(156, 163, 175)
+              doc.text(`Chart: ${chartType || 'unknown'}`, x + w / 2, y + h / 2, { align: 'center' })
+            }
+            break
+          }
+          case 'image': {
+            if (el.content.src) {
+              try {
+                doc.addImage(el.content.src, 'AUTO', x, y, w, h)
+              } catch {
+                doc.setFillColor(243, 244, 246)
+                doc.rect(x, y, w, h, 'F')
+              }
+            } else {
+              doc.setFillColor(243, 244, 246)
+              doc.rect(x, y, w, h, 'F')
+              doc.setFontSize(9)
+              doc.setTextColor(156, 163, 175)
+              doc.text('Image', x + w / 2, y + h / 2, { align: 'center' })
+            }
+            break
+          }
+        }
+      }
+    }
+
+    doc.save(`${fileName}.pdf`)
+  }
+
   const handleExport = async (format: 'pdf' | 'pptx') => {
     setIsExporting(true)
-    const originalSlideIndex = currentSlideIndex
-
     try {
       const clientName = selectedClient !== 'all'
         ? clients.find(c => c.id === selectedClient)?.name || 'Client'
         : 'All Clients'
       const fileName = `${reportTitle.replace(/\s+/g, '_')}_${clientName}`
 
-      const slideImages: string[] = []
-      for (let i = 0; i < slides.length; i++) {
-        setCurrentSlideIndex(i)
-        await new Promise(resolve => setTimeout(resolve, 800))
-        const img = await captureSlide()
-        if (img) slideImages.push(img)
-      }
-
-      setCurrentSlideIndex(originalSlideIndex)
-
-      if (format === 'pdf') {
-        const { default: jsPDF } = await import('jspdf')
-        const doc = new jsPDF({ orientation: 'landscape', unit: 'px', format: [CANVAS_W, CANVAS_H] })
-
-        slideImages.forEach((img, index) => {
-          if (index > 0) doc.addPage()
-          doc.addImage(img, 'PNG', 0, 0, CANVAS_W, CANVAS_H)
-        })
-
-        doc.save(`${fileName}.pdf`)
-      } else if (format === 'pptx') {
-        const PptxGenJS = (await import('pptxgenjs')).default
-        const pptx = new PptxGenJS()
-        pptx.author = 'Ovaview'
-        pptx.title = reportTitle
-        pptx.subject = 'Media Analytics Report'
-        pptx.layout = 'LAYOUT_WIDE'
-
-        slideImages.forEach((img) => {
-          const slide = pptx.addSlide()
-          slide.addImage({ data: img, x: 0, y: 0, w: '100%', h: '100%' })
-        })
-
-        await pptx.writeFile({ fileName: `${fileName}.pptx` })
+      if (format === 'pptx') {
+        await exportPptxNative(fileName)
+      } else {
+        await exportPdfNative(fileName)
       }
     } catch (error) {
       console.error('Export error:', error)
@@ -1129,10 +1755,7 @@ export default function ReportBuilderPage() {
             )}
             {/* Slide Canvas - 16:9 aspect ratio */}
             <div
-              ref={(el) => {
-                (slideRef as any).current = el;
-                (canvasRef as any).current = el
-              }}
+              ref={canvasRef}
               className="bg-white shadow-2xl rounded-lg overflow-hidden aspect-[16/9] w-full"
               style={{
                 backgroundColor: currentSlide?.background || '#ffffff',
