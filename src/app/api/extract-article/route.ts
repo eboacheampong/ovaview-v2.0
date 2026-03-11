@@ -3,7 +3,6 @@ import { parseHTML } from 'linkedom'
 import { Readability } from '@mozilla/readability'
 
 const FETCH_TIMEOUT = 15000 // 15 seconds
-const MAX_REDIRECTS = 5
 const MAX_HTML_SIZE = 5 * 1024 * 1024 // 5MB
 
 // Modern User-Agent strings to rotate through
@@ -85,6 +84,180 @@ async function fetchWithRetry(url: string, retries = 2): Promise<Response> {
   throw lastError || new Error('Failed to fetch after retries')
 }
 
+// Clean markdown content from Jina Reader — strips nav, ads, social links, tracking, etc.
+function cleanJinaMarkdown(content: string, title: string): string {
+  let lines = content.split('\n')
+
+  // 1. Find where the actual article starts (after the title heading)
+  let articleStartIdx = 0
+  if (title) {
+    // Look for the title as a heading (# or === underline)
+    const titleLower = title.toLowerCase().trim()
+    for (let i = 0; i < lines.length; i++) {
+      const lineLower = lines[i].toLowerCase().trim()
+      // Match heading that contains the title text
+      if (lineLower.includes(titleLower) || 
+          (lineLower.replace(/^#+\s*/, '') === titleLower) ||
+          (lineLower === titleLower && i + 1 < lines.length && /^=+$/.test(lines[i + 1].trim()))) {
+        // Skip past the title heading and any immediately following share/social lines
+        articleStartIdx = i + 1
+        if (i + 1 < lines.length && /^=+$/.test(lines[i + 1].trim())) {
+          articleStartIdx = i + 2
+        }
+        // Skip share buttons, social links, image right after title
+        while (articleStartIdx < lines.length) {
+          const nextLine = lines[articleStartIdx].trim().toLowerCase()
+          if (nextLine === '' || nextLine === 'share' || 
+              nextLine.startsWith('[facebook]') || nextLine.startsWith('[twitter]') ||
+              nextLine.startsWith('[pinterest]') || nextLine.startsWith('[whatsapp]') ||
+              nextLine.startsWith('[![') || nextLine.startsWith('[](') ||
+              /^\[image \d+/.test(nextLine)) {
+            articleStartIdx++
+          } else {
+            break
+          }
+        }
+        break
+      }
+    }
+  }
+
+  // If we couldn't find the title, try to skip past obvious nav/header content
+  if (articleStartIdx === 0) {
+    for (let i = 0; i < Math.min(lines.length, 100); i++) {
+      const line = lines[i].trim()
+      // First substantial paragraph (not a link, not a heading, not empty)
+      if (line.length > 80 && !line.startsWith('[') && !line.startsWith('#') && 
+          !line.startsWith('*') && !line.startsWith('!') && !line.startsWith('|')) {
+        articleStartIdx = i
+        break
+      }
+    }
+  }
+
+  lines = lines.slice(articleStartIdx)
+
+  // 2. Filter out junk lines
+  const cleanedLines: string[] = []
+  let hitFooter = false
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    const trimmed = line.trim()
+    const lower = trimmed.toLowerCase()
+
+    // Stop at footer/related content markers
+    if (hitFooter) continue
+    if (/^(related articles|related posts|you may also like|more stories|previous article|next article)/i.test(trimmed)) {
+      hitFooter = true
+      continue
+    }
+    if (/^(navigation links|useful links|download our app|copyright ©)/i.test(trimmed)) {
+      hitFooter = true
+      continue
+    }
+    // "RELATED ARTICLES" as heading
+    if (/^#+\s*(related|more from|you might|also read)/i.test(trimmed)) {
+      hitFooter = true
+      continue
+    }
+    // Tags section
+    if (trimmed === '* Tags' || lower === 'tags') {
+      hitFooter = true
+      continue
+    }
+
+    // Skip individual junk lines
+    // Navigation menu items (bullet links to site sections)
+    if (/^\*\s+\[.+\]\(https?:\/\/.+\)$/.test(trimmed) && trimmed.length < 150) continue
+    // Standalone links that are just navigation
+    if (/^\[.+\]\(https?:\/\/.+\)$/.test(trimmed) && !lower.includes('see also') && trimmed.length < 100) continue
+    // Social share buttons
+    if (/^\[(facebook|twitter|pinterest|whatsapp|linkedin|share|more)\]/i.test(trimmed)) continue
+    if (lower === 'share' || lower === 'shares') continue
+    // Image references (tracking pixels, icons, logos)
+    if (/^!\[image \d+\]\(https?:\/\/pl\.primis\.tech/i.test(trimmed)) continue
+    if (/^!\[image \d+\]\(https?:\/\/cdn\./i.test(trimmed)) continue
+    if (/^!\[image \d+.*\]\(.*(?:icon|logo|pixel|tracker|beacon)/i.test(trimmed)) continue
+    // Tracking pixel images (base64-like URLs)
+    if (/^!\[.*\]\(https?:\/\/.*(?:liveView|pixel|track|beacon)/i.test(trimmed)) continue
+    // Empty markdown links
+    if (trimmed === '[](') continue
+    if (/^\[\]\(https?:\/\//.test(trimmed)) continue
+    // Ad/promo content
+    if (lower.includes('sponsored') || lower.includes('taboola') || lower.includes('advertisement')) continue
+    if (lower.includes('| sponsored') || lower.includes('[sponsored]')) continue
+    // Login/signup modals
+    if (/^(sign in|sign up|login|register|create an account|forgot password|reset password)/i.test(trimmed)) continue
+    if (lower.includes('sign in to continue') || lower.includes('sign up to get started')) continue
+    // Terms and conditions blocks
+    if (lower.includes('terms and conditions') || lower.includes('privacy policy')) continue
+    if (lower.includes('cookie policy') || lower.includes('terms of service')) continue
+    // WhatsApp channel promos
+    if (lower.includes('join our whatsapp') || lower.includes('whatsapp channel')) continue
+    if (lower.includes('join here:')) continue
+    // "Get the news" promos
+    if (lower.includes('get the news that matters')) continue
+    // Undo buttons (Taboola)
+    if (trimmed === 'Undo') continue
+    // "Read More" / "Learn More" / "Shop Now" / "Discover" standalone
+    if (/^(read more|learn more|shop now|discover|skip)$/i.test(trimmed)) continue
+    // Comments section
+    if (/^(comments?:|this article has \d+ comment)/i.test(lower)) continue
+    if (lower.includes('give your comment')) continue
+    // "Listen to Article"
+    if (lower.includes('listen to article')) continue
+    // Breadcrumb navigation
+    if (lower.startsWith('you are here:')) continue
+    // "See also" links — keep the text but strip the link formatting
+    if (/^\[see also/i.test(trimmed)) {
+      const textMatch = trimmed.match(/^\[See also (.+?)\]\(.+\)$/i)
+      if (textMatch) {
+        // Skip "see also" cross-links entirely — they're not part of the article
+        continue
+      }
+    }
+    // Self-service advert links
+    if (lower.includes('self service advert') || lower.includes('sitemap') && lower.includes('partners')) continue
+    // Disclaimer links
+    if (/^\[disclaimer\]/i.test(trimmed)) continue
+    // "Prev" / "Next" navigation
+    if (/^(\[« prev\]|\[next »\])/i.test(trimmed)) continue
+    // Heading-only lines that are just "Welcome," or "Hello,"
+    if (/^(welcome|hello),?\s*$/i.test(trimmed)) continue
+    // "x" close buttons
+    if (trimmed === 'x') continue
+    // Lines that are just "Business" or "News" section headers from nav
+    if (/^(business|news|sports|entertainment|africa|opinions|home)\s*$/i.test(trimmed) && i < 20) continue
+    // Date-only breadcrumb lines
+    if (/^\[\d{4}-\d{2}-\d{2}\]/.test(trimmed)) continue
+    // "Ads by" lines
+    if (lower.startsWith('ads by') || lower.startsWith('x ads by')) continue
+
+    cleanedLines.push(line)
+  }
+
+  // 3. Final cleanup — remove leading/trailing empty lines and excessive blank lines
+  let result = cleanedLines.join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+
+  // 4. Strip remaining markdown image references that look like tracking (very long base64-ish URLs)
+  result = result.replace(/!\[Image \d+\]\([^)]{500,}\)/g, '')
+
+  // 5. Remove any remaining markdown link-only lines (lines that are just [text](url) with no surrounding content)
+  result = result.split('\n').filter(line => {
+    const t = line.trim()
+    // Keep lines that have actual text content beyond just a link
+    if (/^\[.+\]\(.+\)$/.test(t) && t.length < 120) return false
+    // Keep lines that are just image references to small icons
+    if (/^!\[.*(?:icon|logo)\]/.test(t)) return false
+    return true
+  }).join('\n')
+
+  return result.replace(/\n{3,}/g, '\n\n').trim()
+}
+
 // Fallback: use Jina Reader API for JS-rendered sites
 async function fetchViaJinaReader(url: string): Promise<{ title: string; content: string; textContent: string; author: string; publishDate: string; images: string[] } | null> {
   try {
@@ -105,12 +278,42 @@ async function fetchViaJinaReader(url: string): Promise<{ title: string; content
 
     const data = await response.json()
 
-    if (!data.data?.content || data.data.content.trim().length < 100) return null
+    const rawContent = data.data?.content || ''
+    const title = data.data?.title || ''
+
+    if (rawContent.trim().length < 100) return null
+
+    // Clean the Jina markdown output
+    const cleanedContent = cleanJinaMarkdown(rawContent, title)
+
+    if (cleanedContent.trim().length < 100) return null
+
+    // Convert cleaned markdown to simple HTML paragraphs for consistency
+    const htmlContent = cleanedContent
+      .split('\n\n')
+      .filter((p: string) => p.trim().length > 0)
+      .map((p: string) => {
+        const trimmed = p.trim()
+        // Skip lines that are just markdown headings used as section breaks
+        if (/^#+\s/.test(trimmed)) {
+          const headingText = trimmed.replace(/^#+\s*/, '')
+          return `<h3>${headingText}</h3>`
+        }
+        return `<p>${trimmed}</p>`
+      })
+      .join('\n')
+
+    const textContent = cleanedContent
+      .replace(/!\[.*?\]\(.*?\)/g, '') // Remove image markdown
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Convert links to text
+      .replace(/[#*_~`]/g, '') // Remove markdown formatting
+      .replace(/\n{2,}/g, '\n\n')
+      .trim()
 
     return {
-      title: data.data.title || '',
-      content: data.data.content || '',
-      textContent: data.data.content?.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() || '',
+      title,
+      content: htmlContent,
+      textContent,
       author: data.data.author || '',
       publishDate: data.data.publishedTime || '',
       images: data.data.images || [],
