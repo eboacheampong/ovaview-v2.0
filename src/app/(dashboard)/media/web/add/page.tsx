@@ -13,6 +13,7 @@ import { Camera, ChevronRight, ChevronLeft, Link2, Loader2, Sparkles, X, Globe, 
 interface Publication {
   id: string
   name: string
+  website?: string | null
 }
 
 interface SubIndustry {
@@ -43,7 +44,7 @@ export default function AddWebStoryPage() {
     title: '',
     author: '',
     publicationId: '',
-    publicationDate: '',
+    publicationDate: new Date().toISOString().split('T')[0],
     sourceUrl: insightUrl || '',
     summary: '',
     keywords: '',
@@ -99,6 +100,32 @@ export default function AddWebStoryPage() {
     }, 500)
     return () => clearTimeout(timer)
   }, [formData.sourceUrl, checkUrlDuplicate])
+
+  // Auto-select publication based on URL domain matching
+  useEffect(() => {
+    if (!formData.sourceUrl || publications.length === 0) return
+    try {
+      const url = new URL(formData.sourceUrl)
+      const hostname = url.hostname.replace(/^www\./, '').toLowerCase()
+      const matched = publications.find(pub => {
+        if (!pub.website) return false
+        try {
+          // Handle both full URLs and bare domains stored in the website field
+          const pubDomain = pub.website.includes('://')
+            ? new URL(pub.website).hostname.replace(/^www\./, '').toLowerCase()
+            : pub.website.replace(/^www\./, '').toLowerCase().split('/')[0]
+          return hostname === pubDomain || hostname.endsWith('.' + pubDomain)
+        } catch {
+          return false
+        }
+      })
+      if (matched && formData.publicationId !== matched.id) {
+        setFormData(prev => ({ ...prev, publicationId: matched.id }))
+      }
+    } catch {
+      // Invalid URL, skip matching
+    }
+  }, [formData.sourceUrl, publications])
 
   useEffect(() => {
     const fetchData = async () => {
@@ -180,7 +207,7 @@ export default function AddWebStoryPage() {
       title: '',
       author: '',
       publicationId: '',
-      publicationDate: '',
+      publicationDate: new Date().toISOString().split('T')[0],
       sourceUrl: '',
       summary: '',
       keywords: '',

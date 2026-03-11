@@ -62,7 +62,7 @@ export default function AddPrintStoryPage() {
     pageNumbers: '',
     publicationId: '',
     issueName: '',
-    publicationDate: '',
+    publicationDate: new Date().toISOString().split('T')[0],
     summary: '',
     keywords: '',
     content: '',

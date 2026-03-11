@@ -67,7 +67,7 @@ export default function AddTVStoryPage() {
     stationId: '',
     presenters: '',
     programId: '',
-    dateAired: '',
+    dateAired: new Date().toISOString().split('T')[0],
     content: '',
     summary: '',
     keywords: '',

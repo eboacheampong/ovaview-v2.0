@@ -920,11 +920,12 @@ export async function POST(request: NextRequest) {
     }
 
     // ---- STEP 3: If local extraction failed, try Google Cache ----
+    let cacheHtml: string | null = null
     if (!extractedContent || !extractedContent.content || extractedContent.content.trim().length < 100) {
       console.log('Local extraction failed, trying Google Cache for:', url)
-      const cachedHtml = await fetchViaGoogleCache(url)
-      if (cachedHtml) {
-        extractedContent = extractFromHTML(cachedHtml, url)
+      cacheHtml = await fetchViaGoogleCache(url)
+      if (cacheHtml) {
+        extractedContent = extractFromHTML(cacheHtml, url)
         if (extractedContent?.content) {
           console.log('Google Cache extraction succeeded for:', url)
         }
@@ -936,6 +937,7 @@ export async function POST(request: NextRequest) {
       console.log('Google Cache failed, trying Wayback Machine for:', url)
       const waybackHtml = await fetchViaWaybackMachine(url)
       if (waybackHtml) {
+        cacheHtml = waybackHtml
         extractedContent = extractFromHTML(waybackHtml, url)
         if (extractedContent?.content) {
           console.log('Wayback Machine extraction succeeded for:', url)
@@ -975,10 +977,11 @@ export async function POST(request: NextRequest) {
     }
 
     // ---- STEP 7: Extract metadata ----
-    // Re-parse original HTML for metadata extraction (only if we have it)
+    // Re-parse HTML for metadata extraction — prefer direct fetch, fall back to cached HTML
     let metaDoc: any = null
-    if (!fetchFailed && html!) {
-      const parsed = parseHTML(html)
+    const metaHtml = (!fetchFailed && html!) ? html : cacheHtml
+    if (metaHtml) {
+      const parsed = parseHTML(metaHtml)
       metaDoc = parsed.document
     }
 
