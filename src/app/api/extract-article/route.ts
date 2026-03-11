@@ -355,28 +355,185 @@ function cleanJinaMarkdown(content: string, title: string): string {
 
 
 
+// Fallback: fetch from Google Cache and extract with Readability
+async function fetchViaGoogleCache(url: string): Promise<string | null> {
+  try {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 12000)
+
+    const cacheUrl = `https://webcache.googleusercontent.com/search?q=cache:${encodeURIComponent(url)}&strip=1`
+    const response = await fetch(cacheUrl, {
+      signal: controller.signal,
+      redirect: 'follow',
+      headers: {
+        'User-Agent': getRandomUA(),
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+      },
+    })
+
+    clearTimeout(timeoutId)
+
+    if (!response.ok) {
+      console.log(`Google Cache returned ${response.status} for:`, url)
+      return null
+    }
+
+    const html = await response.text()
+
+    // Google Cache wraps content in a div — check it's not an error page
+    if (html.length < 500 || html.includes('was not found on this server') || html.includes('cache:')) {
+      return null
+    }
+
+    return html
+  } catch (err) {
+    console.log('Google Cache fetch failed:', err instanceof Error ? err.message : 'unknown')
+    return null
+  }
+}
+
+// Fallback: fetch from Wayback Machine (Internet Archive) and extract with Readability
+async function fetchViaWaybackMachine(url: string): Promise<string | null> {
+  try {
+    // Step 1: Check if a snapshot exists via the Availability API
+    const controller1 = new AbortController()
+    const timeoutId1 = setTimeout(() => controller1.abort(), 8000)
+
+    const availabilityUrl = `https://archive.org/wayback/available?url=${encodeURIComponent(url)}`
+    const availResp = await fetch(availabilityUrl, {
+      signal: controller1.signal,
+      headers: { 'Accept': 'application/json' },
+    })
+
+    clearTimeout(timeoutId1)
+
+    if (!availResp.ok) return null
+
+    const availData = await availResp.json()
+    const snapshot = availData?.archived_snapshots?.closest
+
+    if (!snapshot?.available || !snapshot?.url) {
+      console.log('No Wayback Machine snapshot for:', url)
+      return null
+    }
+
+    // Ensure we get the raw page (not the Wayback toolbar version)
+    // Change the snapshot URL to use "id_" flag which returns raw content
+    let snapshotUrl: string = snapshot.url
+    snapshotUrl = snapshotUrl.replace(/\/web\/(\d+)\//, '/web/$1id_/')
+
+    // Step 2: Fetch the actual archived page
+    const controller2 = new AbortController()
+    const timeoutId2 = setTimeout(() => controller2.abort(), 12000)
+
+    const pageResp = await fetch(snapshotUrl, {
+      signal: controller2.signal,
+      redirect: 'follow',
+      headers: {
+        'User-Agent': getRandomUA(),
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      },
+    })
+
+    clearTimeout(timeoutId2)
+
+    if (!pageResp.ok) {
+      console.log(`Wayback Machine returned ${pageResp.status} for snapshot:`, snapshotUrl)
+      return null
+    }
+
+    const html = await pageResp.text()
+
+    if (html.length < 500) return null
+
+    return html
+  } catch (err) {
+    console.log('Wayback Machine fetch failed:', err instanceof Error ? err.message : 'unknown')
+    return null
+  }
+}
+
+// Helper: run Readability + fallback extractors on HTML string
+function extractFromHTML(html: string, url: string): any {
+  try {
+    const { document } = parseHTML(html)
+    const { document: fallbackDoc } = parseHTML(html)
+
+    // Try Readability
+    try {
+      const reader = new Readability(document as unknown as Document)
+      const article = reader.parse()
+      if (article?.content && article.content.trim().length >= 100) {
+        return article
+      }
+    } catch { /* skip */ }
+
+    // Try RSC
+    const rscResult = extractFromNextJsRSC(fallbackDoc, url)
+    if (rscResult?.content && rscResult.content.trim().length >= 100) {
+      return rscResult
+    }
+
+    // Try DOM fallback
+    const domResult = fallbackExtract(fallbackDoc, url)
+    if (domResult?.content && domResult.content.trim().length >= 100) {
+      return domResult
+    }
+
+    return null
+  } catch {
+    return null
+  }
+}
+
 // Fallback: use Jina Reader API for JS-rendered sites
 async function fetchViaJinaReader(url: string): Promise<{ title: string; content: string; textContent: string; author: string; publishDate: string; images: string[] } | null> {
   try {
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 20000)
 
+    const headers: Record<string, string> = {
+      'Accept': 'application/json',
+      'X-Return-Format': 'json',
+      'X-No-Cache': 'true',
+    }
+
+    // Use API key if available — authenticated requests bypass anonymous rate limits
+    const jinaApiKey = process.env.JINA_API_KEY
+    if (jinaApiKey) {
+      headers['Authorization'] = `Bearer ${jinaApiKey}`
+    }
+
     const response = await fetch(`https://r.jina.ai/${url}`, {
       signal: controller.signal,
-      headers: {
-        'Accept': 'application/json',
-        'X-Return-Format': 'json',
-      },
+      headers,
     })
 
     clearTimeout(timeoutId)
 
-    if (!response.ok) return null
+    if (!response.ok) {
+      // Try to read error body for better diagnostics
+      try {
+        const errBody = await response.json()
+        const errMsg = errBody?.message || errBody?.readableMessage || `HTTP ${response.status}`
+        console.log(`Jina Reader returned ${response.status}:`, errMsg)
+      } catch {
+        console.log(`Jina Reader returned ${response.status}`)
+      }
+      return null
+    }
 
     const data = await response.json()
 
-    const rawContent = data.data?.content || ''
-    const title = data.data?.title || ''
+    // Handle Jina error responses that come with 200 status but null data
+    if (!data?.data) {
+      console.log('Jina Reader returned empty data:', data?.message || data?.readableMessage || 'unknown')
+      return null
+    }
+
+    const rawContent = data.data.content || ''
+    const title = data.data.title || ''
 
     if (rawContent.trim().length < 100) return null
 
@@ -411,9 +568,9 @@ async function fetchViaJinaReader(url: string): Promise<{ title: string; content
       title,
       content: htmlContent,
       textContent,
-      author: data.data.author || '',
-      publishDate: data.data.publishedTime || '',
-      images: data.data.images || [],
+      author: data.data?.author || '',
+      publishDate: data.data?.publishedTime || '',
+      images: data.data?.images || [],
     }
   } catch (err) {
     console.log('Jina Reader fallback failed:', err instanceof Error ? err.message : 'unknown error')
@@ -762,9 +919,33 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // ---- STEP 3: If local extraction failed, try Jina Reader (handles JS-rendered sites) ----
+    // ---- STEP 3: If local extraction failed, try Google Cache ----
     if (!extractedContent || !extractedContent.content || extractedContent.content.trim().length < 100) {
-      console.log('Local extraction failed, trying Jina Reader for:', url)
+      console.log('Local extraction failed, trying Google Cache for:', url)
+      const cachedHtml = await fetchViaGoogleCache(url)
+      if (cachedHtml) {
+        extractedContent = extractFromHTML(cachedHtml, url)
+        if (extractedContent?.content) {
+          console.log('Google Cache extraction succeeded for:', url)
+        }
+      }
+    }
+
+    // ---- STEP 4: If Google Cache failed, try Wayback Machine ----
+    if (!extractedContent || !extractedContent.content || extractedContent.content.trim().length < 100) {
+      console.log('Google Cache failed, trying Wayback Machine for:', url)
+      const waybackHtml = await fetchViaWaybackMachine(url)
+      if (waybackHtml) {
+        extractedContent = extractFromHTML(waybackHtml, url)
+        if (extractedContent?.content) {
+          console.log('Wayback Machine extraction succeeded for:', url)
+        }
+      }
+    }
+
+    // ---- STEP 5: If all else failed, try Jina Reader (handles JS-rendered sites) ----
+    if (!extractedContent || !extractedContent.content || extractedContent.content.trim().length < 100) {
+      console.log('Cache fallbacks failed, trying Jina Reader for:', url)
       const jinaResult = await fetchViaJinaReader(url)
 
       if (jinaResult && jinaResult.content.length >= 100) {
@@ -782,18 +963,18 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // ---- STEP 4: If everything failed, return helpful error ----
+    // ---- STEP 6: If everything failed, return helpful error ----
     if (!extractedContent || !extractedContent.content) {
       let errorMsg = 'Could not extract article content.'
       if (fetchFailed) {
         errorMsg = `Could not reach the website: ${fetchError}`
       } else {
-        errorMsg += ' The page may require JavaScript, be behind a paywall, or have an unusual structure.'
+        errorMsg += ' The page may require JavaScript, be behind a paywall, or have an unusual structure. Try a different URL or source.'
       }
       return NextResponse.json({ error: errorMsg }, { status: 400 })
     }
 
-    // ---- STEP 5: Extract metadata ----
+    // ---- STEP 7: Extract metadata ----
     // Re-parse original HTML for metadata extraction (only if we have it)
     let metaDoc: any = null
     if (!fetchFailed && html!) {
@@ -900,7 +1081,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // ---- STEP 6: Clean content (skip if Jina already cleaned it) ----
+    // ---- STEP 8: Clean content (skip if Jina already cleaned it) ----
     let cleanedContent = extractedContent.content || ''
     if (!usedJina && cleanedContent) {
       try {
