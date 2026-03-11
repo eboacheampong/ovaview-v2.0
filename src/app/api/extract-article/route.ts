@@ -146,6 +146,28 @@ function cleanJinaMarkdown(content: string, title: string): string {
     { pattern: /### Opinions!\[/,              minPos: 100 },
     { pattern: /Nominate now/i,                minPos: 100 },
     { pattern: /_The wait is over!/i,          minPos: 100 },
+    { pattern: /\* {0,3}Tags\b/,              minPos: 100 },
+    { pattern: /Tags:[A-Z]/,                  minPos: 100 },
+    { pattern: /\bLEAVE A REPLY\b/i,          minPos: 100 },
+    { pattern: /\bRELATED ARTICLES\b/i,        minPos: 100 },
+    { pattern: /\bRelated\*\*Posts\*\*/i,      minPos: 100 },
+    { pattern: /\bPrevious article\b/i,        minPos: 100 },
+    { pattern: /\bPrevious Post\b/i,           minPos: 100 },
+    { pattern: /\bNext Post\b/i,               minPos: 100 },
+    { pattern: /\bMost Popular\b/i,            minPos: 100 },
+    { pattern: /\bRecent Comments\b/i,         minPos: 100 },
+    { pattern: /\bADVERTISEMENT\b/,           minPos: 100 },
+    { pattern: /- Advertisment -/i,            minPos: 100 },
+    { pattern: /\bABOUT US\b/,                minPos: 100 },
+    { pattern: /\bFOLLOW US\b/,               minPos: 100 },
+    { pattern: /#### Explore\b/,               minPos: 100 },
+    { pattern: /#### Green Economy\b/,         minPos: 100 },
+    { pattern: /#### Sustainability\b/,        minPos: 100 },
+    { pattern: /\bLoad more\b/i,               minPos: 100 },
+    { pattern: /\bNo Result\b/i,               minPos: 100 },
+    { pattern: /\bView All Result\b/i,         minPos: 100 },
+    { pattern: /All Rights Reserved/i,         minPos: 100 },
+    { pattern: /Get the news that matters!/i,  minPos: 100 },
   ]
 
   let earliestCut = text.length
@@ -203,6 +225,31 @@ function cleanJinaMarkdown(content: string, title: string): string {
   // Remove "Ads by" text
   text = text.replace(/x?\s*Ads by[^\n]*/gi, '')
 
+  // Remove [See also ...] cross-links (Surveillance Ghana pattern)
+  text = text.replace(/\[See also [^\]]*\]\([^)]*\)/gi, '')
+
+  // Remove "Author:" bylines at end of articles
+  text = text.replace(/Author:\s*[^\n]*/gi, '')
+
+  // Remove reading time / byline metadata
+  text = text.replace(/Reading Time:\s*\d+\s*min read/gi, '')
+  text = text.replace(/by[A-Z][a-zA-Z]+\s+[A-Z][a-zA-Z]+\s*$/gm, '')
+
+  // Remove "Share" standalone word
+  text = text.replace(/(?:^|\s)Share(?:\s|$)/g, ' ')
+
+  // Remove category breadcrumbs like [Agribusiness][Headline]
+  text = text.replace(/\[(Agribusiness|Headline|Featured|Breaking|Opinion|Editorial)\]\([^)]*\)/gi, '')
+
+  // Remove "Tweet" standalone
+  text = text.replace(/\bTweet\b/g, '')
+
+  // Remove "0" standalone (share count)
+  text = text.replace(/(?:^|\n)\s*0\s*(?:\n|$)/g, '\n')
+
+  // Remove "Search" standalone
+  text = text.replace(/(?:^|\n)\s*Search\s*(?:\n|$)/g, '\n')
+
   // Remove Taboola/sponsored junk
   text = text.replace(/\[Sponsored\]\([^)]*\)/gi, '')
   text = text.replace(/\bSponsored\b/g, '')
@@ -230,6 +277,19 @@ function cleanJinaMarkdown(content: string, title: string): string {
   // Remove terms and conditions blocks
   text = text.replace(/### Terms and conditions[\s\S]*?Terms & Privacy Policy/gi, '')
 
+  // Remove comment form text
+  text = text.replace(/Comment:\s*Please enter your comment!/gi, '')
+  text = text.replace(/Name:\*\s*Please enter your name here/gi, '')
+  text = text.replace(/Email:\*\s*You have entered an incorrect email address!/gi, '')
+  text = text.replace(/Please enter your email address here/gi, '')
+  text = text.replace(/Website:\s*/gi, '')
+  text = text.replace(/- \[x\] Save my name.*?next time I comment\./gi, '')
+  text = text.replace(/Cancel reply/gi, '')
+
+  // Remove WhatsApp channel promos
+  text = text.replace(/Get the news that matters![^\n]*/gi, '')
+  text = text.replace(/Join Here:[^\n]*/gi, '')
+
   // Remove form field labels
   text = text.replace(/\*\s*(Surname|Other names|Email|Phone|Select your date of birth|Gender|Do you accept the terms\?)\s*/gi, '')
 
@@ -246,7 +306,7 @@ function cleanJinaMarkdown(content: string, title: string): string {
     // Remove if it looks like a nav item, button, or short label
     if (t.length < 5) return ''
     // Remove if it's a site section name
-    if (/^(Home|News|Sports|Business|Entertainment|Africa|Opinions|More|Login|Sign up|Sitemap|Partners|About Us|FAQ|Advertising|Privacy Policy)$/i.test(t)) return ''
+    if (/^(Home|News|Sports|Business|Entertainment|Africa|Opinions|More|Login|Sign up|Sitemap|Partners|About Us|FAQ|Advertising|Privacy Policy|Contact Us|Newsletter|Editorial Team|Archives|Marketplace|Property|Podcast|Don't Miss|Lifestyle|Events|How To Spend|Load more|No Result|View All Result|Terms of Use|Breaking News|Explainers|Listen Live|Submit an Opinion)$/i.test(t)) return ''
     // Remove if it starts with "Image" (image alt text)
     if (/^Image \d+/i.test(t)) return ''
     // Otherwise keep the text (it might be meaningful)
@@ -257,10 +317,15 @@ function cleanJinaMarkdown(content: string, title: string): string {
   text = text.replace(/\*\s+\[[^\]]+\]\([^)]+\)\s*/g, '')
 
   // Remove standalone heading-style section names
-  text = text.replace(/#{1,3}\s*(Home|News|Sports|Business|Entertainment|Africa|Opinions|Cartoon|Country|Memories|Cartoons|Say It Loud|GhanaWeb TV)\s*/gi, '')
+  text = text.replace(/#{1,3}\s*(Home|News|Sports|Business|Entertainment|Africa|Opinions|Cartoon|Country|Memories|Cartoons|Say It Loud|GhanaWeb TV|Agribusiness|Headline|Featured|Sustainability|Climate Change|Artificial Intelligence|Renewable Energy|Mining|Education|Technology|Entrepreneurship|Insurance|Crypto Currency)\s*/gi, '')
 
   // Remove "x" close buttons (standalone)
   text = text.replace(/\bx\b(?=\s+[A-Z])/g, '')
+
+  // Remove standalone dates that are part of related article listings
+  // (e.g., "11 March 2026" or "March 11, 2026" on their own)
+  text = text.replace(/(?:^|\n)\s*\d{1,2}\s+(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4}\s*(?:\n|$)/gi, '\n')
+  text = text.replace(/(?:^|\n)\s*(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s+\d{4}\s*(?:\n|$)/gi, '\n')
 
   // Remove tracking pixel images (long base64/encoded URLs)
   text = text.replace(/!\[Image \d+\]\([^)]{200,}\)/g, '')
@@ -712,6 +777,7 @@ export async function POST(request: NextRequest) {
           byline: jinaResult.author,
           siteName: extractSiteName({ querySelector: () => null }, url),
           publishDate: jinaResult.publishDate,
+          jinaImages: jinaResult.images || [],
         }
       }
     }
@@ -801,6 +867,36 @@ export async function POST(request: NextRequest) {
             if (imageUrl && !images.includes(imageUrl)) images.push(imageUrl)
           }
         } catch { /* skip */ }
+      }
+    }
+
+    // If no images from meta tags and Jina was used, extract from Jina response
+    if (images.length === 0 && usedJina && extractedContent.jinaImages?.length > 0) {
+      // Jina images array — filter for likely article images (skip tiny icons/logos)
+      for (const imgUrl of extractedContent.jinaImages) {
+        if (imgUrl && typeof imgUrl === 'string' && imgUrl.startsWith('http') && !images.includes(imgUrl)) {
+          // Skip common non-article images (logos, icons, tracking pixels)
+          const lower = imgUrl.toLowerCase()
+          if (lower.includes('logo') || lower.includes('icon') || lower.includes('favicon') ||
+              lower.includes('pixel') || lower.includes('tracking') || lower.includes('primis.tech') ||
+              lower.includes('1x1') || lower.includes('spacer')) continue
+          images.push(imgUrl)
+        }
+      }
+    }
+
+    // Last resort: extract image URLs from the raw Jina markdown content
+    if (images.length === 0 && usedJina) {
+      const imgRegex = /!\[[^\]]*\]\((https?:\/\/[^)]+)\)/g
+      const rawContent = extractedContent.content || ''
+      let imgMatch
+      while ((imgMatch = imgRegex.exec(rawContent)) !== null) {
+        const imgUrl = imgMatch[1]
+        const lower = imgUrl.toLowerCase()
+        if (lower.includes('logo') || lower.includes('icon') || lower.includes('favicon') ||
+            lower.includes('primis.tech') || lower.includes('1x1') || lower.includes('spacer') ||
+            lower.includes('searchIcon') || lower.includes('design/newtop')) continue
+        if (!images.includes(imgUrl)) images.push(imgUrl)
       }
     }
 
