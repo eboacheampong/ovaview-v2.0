@@ -8,6 +8,9 @@ export const maxDuration = 60
 const SUPPORTED_PLATFORMS = ['twitter', 'instagram', 'facebook', 'linkedin', 'tiktok']
 const HOURS_CUTOFF = 72 // 3 days — Google News RSS indexes with delay
 
+// Python scraper API URL (scrapy_crawler Flask server)
+const SCRAPER_API_URL = process.env.SCRAPER_API_URL || 'http://localhost:5000'
+
 const USER_AGENTS = [
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
@@ -466,6 +469,67 @@ async function scrapeGoogleNewsSocialBoost(keyword: string): Promise<any[]> {
 }
 
 
+// ============ SOURCE 4: Python Scraper API (twscrape, facebook-scraper, instaloader, etc.) ============
+
+async function scrapePythonAPI(keywords: string[], platforms: string[]): Promise<any[]> {
+  const posts: any[] = []
+  try {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 60000)
+
+    const res = await fetch(`${SCRAPER_API_URL}/api/scrape/social`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ keywords, platforms, save: false }),
+      signal: controller.signal,
+    })
+    clearTimeout(timeout)
+
+    if (!res.ok) {
+      console.log(`[Python Scraper] HTTP ${res.status}`)
+      return posts
+    }
+
+    const data = await res.json()
+    if (!data.success || !data.posts) return posts
+
+    for (const p of data.posts) {
+      const platform = (p.platform || '').toUpperCase()
+      if (!['TWITTER', 'FACEBOOK', 'INSTAGRAM', 'LINKEDIN', 'TIKTOK'].includes(platform)) continue
+
+      posts.push({
+        platform: platform as SocialPlatform,
+        postId: p.post_id || '',
+        content: (p.content || '').substring(0, 500),
+        summary: '',
+        authorHandle: p.author_handle || '',
+        authorName: p.author_name || '',
+        postUrl: p.post_url || '',
+        embedUrl: p.embed_url || p.post_url || '',
+        embedHtml: p.embed_html || buildEmbed(p.post_url || '', platform),
+        mediaUrls: p.media_urls || [],
+        mediaType: p.media_type || 'text',
+        viewsCount: p.views_count || 0,
+        likesCount: p.likes_count || 0,
+        commentsCount: p.comments_count || 0,
+        sharesCount: p.shares_count || 0,
+        hashtags: p.hashtags || [],
+        mentions: p.mentions || [],
+        keywords: p.keywords || '',
+        postedAt: p.posted_at ? new Date(p.posted_at) : new Date(),
+      })
+    }
+
+    if (posts.length > 0) {
+      console.log(`[Python Scraper] Found ${posts.length} posts via dedicated scrapers`)
+    }
+  } catch (e) {
+    console.log(`[Python Scraper] Not available:`, e instanceof Error ? e.message : 'unknown')
+  }
+  return posts
+}
+
+
 // ============ CLIENT KEYWORDS ============
 
 async function getClientKeywords(clientId: string): Promise<string[]> {
@@ -520,9 +584,13 @@ export async function POST(request: NextRequest) {
 
     console.log(`[Social Scraper] Client: ${clientId} | Keywords: ${keywords.join(', ')} | Platforms: ${platforms.join(', ')}`)
 
-    // Run all Google News RSS queries in parallel
+    // ── PRIMARY: Call Python scraper API (twscrape, facebook-scraper, instaloader, etc.) ──
     const scrapePromises: Promise<any[]>[] = []
 
+    // Python scraper runs dedicated per-platform libraries
+    scrapePromises.push(scrapePythonAPI(keywords, platforms))
+
+    // ── SUPPLEMENTARY: Google News RSS (catches news articles linking to social posts) ──
     for (const keyword of keywords.slice(0, 5)) {
       // Per-platform site-filtered searches
       for (const plat of platforms) {
