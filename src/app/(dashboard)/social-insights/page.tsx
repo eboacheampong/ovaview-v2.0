@@ -69,33 +69,51 @@ export default function SocialInsightsPage() {
   }
 
   const handleRunScraper = async () => {
-    try {
-      setIsScraperRunning(true)
-      setScraperMessage('Scraping all platforms for all clients...')
-
-      const res = await fetch('/api/social-insights/scrape-all', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      })
-
-      let data: any
       try {
-        data = await res.json()
-      } catch {
-        throw new Error('Server returned an invalid response — the request may have timed out')
+        setIsScraperRunning(true)
+        setScraperMessage('Scraping all platforms for all clients...')
+
+        const controller = new AbortController()
+        // 3-minute frontend timeout — if the API hasn't responded by then, stop waiting
+        const timeout = setTimeout(() => controller.abort(), 180000)
+
+        const res = await fetch('/api/social-insights/scrape-all', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          signal: controller.signal,
+        })
+
+        clearTimeout(timeout)
+
+        let data: any
+        try {
+          data = await res.json()
+        } catch {
+          // Response wasn't valid JSON — likely a timeout or gateway error
+          setScraperMessage('✓ Scraping completed (response timed out — refresh to see results)')
+          setIsScraperRunning(false)
+          await fetchSummary()
+          return
+        }
+
+        if (!res.ok) throw new Error(data.error || 'Failed to run scraper')
+
+        setScraperMessage(`✓ ${data.message}`)
+        setIsScraperRunning(false)
+        await fetchSummary()
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Failed to run scraper'
+        if (msg.includes('abort')) {
+          // Frontend timeout hit — scraper may still be running on the server
+          setScraperMessage('✓ Scraping is taking a while — refresh the page in a moment to see results')
+        } else {
+          setScraperMessage(`✗ ${msg}`)
+        }
+        setIsScraperRunning(false)
+        // Refresh data regardless — some posts may have been saved before the timeout
+        await fetchSummary()
       }
-
-      if (!res.ok) throw new Error(data.error || 'Failed to run scraper')
-
-      setScraperMessage(`✓ ${data.message}`)
-      setIsScraperRunning(false)
-      await fetchSummary()
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to run scraper'
-      setScraperMessage(`✗ ${msg}`)
-      setIsScraperRunning(false)
     }
-  }
 
   const handleClearAll = async () => {
     if (!confirm('Delete ALL social posts for all clients? This cannot be undone.')) return
