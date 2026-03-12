@@ -17,7 +17,7 @@ export async function POST() {
 
     let totalSaved = 0
     let totalFound = 0
-    const clientResults: Record<string, { found: number; saved: number; error?: string }> = {}
+    const clientResults: Record<string, { found: number; saved: number; error?: string; sources?: Record<string, string> }> = {}
 
     // Build the internal URL for the scraper
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
@@ -37,7 +37,7 @@ export async function POST() {
         console.log(`[Scrape-All] Scraping for ${client.name} (keywords: ${Array.from(keywords).join(', ')})`)
 
         const controller = new AbortController()
-        const timeout = setTimeout(() => controller.abort(), 50000) // 50s per client max
+        const timeout = setTimeout(() => controller.abort(), 100000) // 100s per client — Python scraper needs time
 
         const res = await fetch(`${baseUrl}/api/social-posts/scrape`, {
           method: 'POST',
@@ -58,8 +58,9 @@ export async function POST() {
           clientResults[client.name] = {
             found: data.postsFound || 0,
             saved: data.postsSaved || 0,
+            sources: data.sources || {},
           }
-          console.log(`[Scrape-All] ${client.name}: found ${data.postsFound}, saved ${data.postsSaved}`)
+          console.log(`[Scrape-All] ${client.name}: found ${data.postsFound}, saved ${data.postsSaved}, sources: ${JSON.stringify(data.sources || {})}`)
         } else {
           const errText = await res.text().catch(() => 'Unknown error')
           console.error(`[Scrape-All] ${client.name} failed: ${res.status} ${errText}`)
