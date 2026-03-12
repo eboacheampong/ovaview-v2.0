@@ -283,13 +283,35 @@ async function getClientKeywords(clientId: string): Promise<string[]> {
 
 // ============ MAIN POST HANDLER ============
 
+// ============ SCRAPE COOLDOWN (prevents burning credits on repeated clicks) ============
+// Tracks last scrape time per client. Minimum 30 minutes between scrapes for the same client.
+const SCRAPE_COOLDOWN_MS = 30 * 60 * 1000 // 30 minutes
+const lastScrapeMap = new Map<string, number>()
+
 export async function POST(request: NextRequest) {
   const startTime = Date.now()
   const sourceReport: Record<string, string> = {}
 
   try {
     const body = await request.json()
-    const { clientId, platforms: requestedPlatforms } = body
+    const { clientId, platforms: requestedPlatforms, force } = body
+
+    // Cooldown check — skip if force=true (manual override)
+    if (clientId && !force) {
+      const lastScrape = lastScrapeMap.get(clientId)
+      if (lastScrape && (Date.now() - lastScrape) < SCRAPE_COOLDOWN_MS) {
+        const minutesLeft = Math.ceil((SCRAPE_COOLDOWN_MS - (Date.now() - lastScrape)) / 60000)
+        return NextResponse.json({
+          success: true,
+          message: `Scrape cooldown active — last scraped ${Math.floor((Date.now() - lastScrape) / 60000)} minutes ago. Try again in ${minutesLeft} min, or pass force=true to override.`,
+          postsFound: 0,
+          postsSaved: 0,
+          duplicates: 0,
+          cooldown: true,
+          cooldownMinutesLeft: minutesLeft,
+        })
+      }
+    }
 
     let keywords: string[] = []
     if (clientId) {
@@ -404,6 +426,11 @@ export async function POST(request: NextRequest) {
     const message = `Found ${uniquePosts.length} posts, saved ${savedCount} new, ${duplicateCount} duplicates (${elapsed}s)`
     console.log(`[Social Scraper] ${message}`)
     console.log(`[Social Scraper] Sources:`, JSON.stringify(sourceReport))
+
+    // Mark cooldown timestamp for this client
+    if (clientId) {
+      lastScrapeMap.set(clientId, Date.now())
+    }
 
     return NextResponse.json({
       success: true,
