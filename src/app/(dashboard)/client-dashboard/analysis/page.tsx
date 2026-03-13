@@ -49,9 +49,9 @@ export default function AnalysisPage() {
     if (!reachByType[day]) reachByType[day] = {}
     reachByType[day][key] = (reachByType[day][key] || 0) + m.reach
   })
-  const mediaTypes = [...new Set(data.mentions.map(m =>
+  const mediaTypes = Array.from(new Set(data.mentions.map(m =>
     m.type === 'social' ? 'Social' : m.type.charAt(0).toUpperCase() + m.type.slice(1)
-  ))]
+  )))
   const reachChart = data.chart.map(c => {
     const row: Record<string, number | string> = { date: c.date }
     mediaTypes.forEach(t => { row[t] = reachByType[c.date]?.[t] || 0 })
@@ -82,7 +82,7 @@ export default function AnalysisPage() {
     if (!smReachMap[day]) smReachMap[day] = {}
     smReachMap[day][plat] = (smReachMap[day][plat] || 0) + m.reach
   })
-  const smPlatforms = [...new Set(socialMentions.map(m => m.platform || 'Other'))]
+  const smPlatforms = Array.from(new Set(socialMentions.map(m => m.platform || 'Other')))
   const smReachChart = data.chart.map(c => {
     const row: Record<string, number | string> = { date: c.date }
     smPlatforms.forEach(p => { row[p] = smReachMap[c.date]?.[p] || 0 })

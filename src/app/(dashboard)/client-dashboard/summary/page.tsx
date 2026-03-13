@@ -46,7 +46,7 @@ export default function SummaryPage() {
     if (!smReachMap[day]) smReachMap[day] = {}
     smReachMap[day][plat] = (smReachMap[day][plat] || 0) + m.reach
   })
-  const smPlatforms = [...new Set(socialMentions.map(m => m.platform || 'Other'))]
+  const smPlatforms = Array.from(new Set(socialMentions.map(m => m.platform || 'Other')))
   const smReachChart = data.chart.map(c => {
     const row: Record<string, number | string> = { date: c.date }
     smPlatforms.forEach(p => { row[p] = smReachMap[c.date]?.[p] || 0 })
