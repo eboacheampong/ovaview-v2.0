@@ -187,28 +187,7 @@ export async function GET(request: NextRequest) {
         count,
       }))
 
-    // Key personalities for client specifically
-    const clientPersonalityMap = new Map<string, number>()
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    clientStories.forEach((s: any) => {
-      if (s.keyPersonalities) {
-        s.keyPersonalities.split(',').forEach((name: string) => {
-          const trimmed = name.trim()
-          if (trimmed) {
-            const key = trimmed.toLowerCase()
-            clientPersonalityMap.set(key, (clientPersonalityMap.get(key) || 0) + 1)
-          }
-        })
-      }
-    })
-
-    const keyPersonalitiesClient = Array.from(clientPersonalityMap.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 10)
-      .map(([name, count]) => ({
-        name: name.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
-        count,
-      }))
+    // NOTE: Client key personalities are computed after clientStories is defined below
 
     // ===== KEY JOURNALISTS - TOP 5 =====
     const journalistCounts = new Map<string, { name: string; count: number; outlet: string }>()
@@ -244,6 +223,29 @@ export async function GET(request: NextRequest) {
     const clientRadioStories = allRadioStories.filter(matchesClient)
     const clientStories = [...clientWebStories, ...clientPrintStories, ...clientTvStories, ...clientRadioStories]
     const totalClientMentions = clientStories.length
+
+    // Key personalities for client specifically
+    const clientPersonalityMap = new Map<string, number>()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    clientStories.forEach((s: any) => {
+      if (s.keyPersonalities) {
+        s.keyPersonalities.split(',').forEach((name: string) => {
+          const trimmed = name.trim()
+          if (trimmed) {
+            const key = trimmed.toLowerCase()
+            clientPersonalityMap.set(key, (clientPersonalityMap.get(key) || 0) + 1)
+          }
+        })
+      }
+    })
+
+    const keyPersonalitiesClient = Array.from(clientPersonalityMap.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([name, count]) => ({
+        name: name.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
+        count,
+      }))
 
     // Client sources of mentions
     const clientSourcesOfMentions = {
