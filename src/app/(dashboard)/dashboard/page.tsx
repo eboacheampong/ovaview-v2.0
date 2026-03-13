@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { 
   Newspaper, 
   Radio, 
@@ -26,8 +27,16 @@ interface DashboardStats {
 
 export default function DashboardPage() {
   const { user, hasRole } = useAuth()
+  const router = useRouter()
   const isAdmin = hasRole('admin')
   const isDataEntry = user?.role === 'data_entry'
+
+  // Redirect client_user to their dedicated dashboard
+  useEffect(() => {
+    if (user?.role === 'client_user') {
+      router.replace('/client-dashboard')
+    }
+  }, [user, router])
   
   const [stats, setStats] = useState<DashboardStats>({
     totalCoverage: 0,

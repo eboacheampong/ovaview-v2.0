@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
     const token = {
       accessToken: `token-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
       refreshToken: `refresh-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
-      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
     }
 
     const userResponse = {

@@ -11,7 +11,7 @@ interface AuthProviderProps {
 const publicPaths = ['/login']
 
 export function AuthProvider({ children }: AuthProviderProps) {
-  const { isAuthenticated, isLoading } = useAuth()
+  const { isAuthenticated, isLoading, user } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
 
@@ -22,10 +22,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
       if (!isAuthenticated && !isPublicPath) {
         router.push(`/login?redirect=${encodeURIComponent(pathname)}`)
       } else if (isAuthenticated && pathname === '/login') {
-        router.push('/dashboard')
+        // Client users go to their dedicated dashboard
+        router.push(user?.role === 'client_user' ? '/client-dashboard' : '/dashboard')
       }
     }
-  }, [isAuthenticated, isLoading, pathname, router])
+  }, [isAuthenticated, isLoading, pathname, router, user])
 
   if (isLoading) {
     return (

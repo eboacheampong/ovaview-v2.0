@@ -17,7 +17,8 @@ interface SidebarProps {
 
 export function Sidebar({ isOpen, isDesktop, onClose }: SidebarProps) {
   const pathname = usePathname()
-  const { logout, hasRole } = useAuth()
+  const { logout, hasRole, user } = useAuth()
+  const isClientUser = user?.role === 'client_user'
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({})
   const [expandedSubSections, setExpandedSubSections] = useState<Record<string, boolean>>({})
 
@@ -88,11 +89,11 @@ export function Sidebar({ isOpen, isDesktop, onClose }: SidebarProps) {
       {/* Dashboard Link */}
       <div className="px-3 py-3">
         <Link
-          href={dashboardItem.href}
+          href={isClientUser ? '/client-dashboard' : dashboardItem.href}
           onClick={handleNavClick}
           className={cn(
             'flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200',
-            isActive(dashboardItem.href)
+            (isActive(dashboardItem.href) || isActive('/client-dashboard'))
               ? 'gradient-primary text-white shadow-md'
               : 'text-gray-600 hover:bg-gray-50'
           )}
@@ -102,7 +103,8 @@ export function Sidebar({ isOpen, isDesktop, onClose }: SidebarProps) {
         </Link>
       </div>
 
-      {/* Navigation Sections */}
+      {/* Navigation Sections — hidden for client users */}
+      {!isClientUser && (
       <nav className="flex-1 overflow-y-auto px-3 py-2 space-y-1">
         {navigationSections.map((section) => {
           const filteredItems = section.items ? filterItemsByRole(section.items) : []
@@ -189,7 +191,10 @@ export function Sidebar({ isOpen, isDesktop, onClose }: SidebarProps) {
           )
         })}
       </nav>
+      )}
 
+      {/* Spacer for client users */}
+      {isClientUser && <div className="flex-1" />}
 
       {/* Bottom Navigation */}
       <div className="border-t border-gray-100 px-3 py-4 space-y-1">

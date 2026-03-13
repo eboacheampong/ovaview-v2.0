@@ -112,34 +112,23 @@ export default function ClientSocialInsightsPage() {
     fetchClient()
   }, [clientId])
 
-  // Accept a scraped post — redirect to add page for review before publishing
   const handleAcceptPost = (post: SocialPost) => {
     const p = new URLSearchParams({
-      platform: post.platform,
-      postId: post.postId,
-      postUrl: post.postUrl,
-      content: post.content || '',
-      authorName: post.authorName || '',
-      authorHandle: post.authorHandle || '',
-      embedUrl: post.embedUrl || '',
-      embedHtml: post.embedHtml || '',
-      likesCount: String(post.likesCount || 0),
-      commentsCount: String(post.commentsCount || 0),
-      sharesCount: String(post.sharesCount || 0),
-      viewsCount: String(post.viewsCount || 0),
-      clientId,
-      insightId: post.id,
+      platform: post.platform, postId: post.postId, postUrl: post.postUrl,
+      content: post.content || '', authorName: post.authorName || '',
+      authorHandle: post.authorHandle || '', embedUrl: post.embedUrl || '',
+      embedHtml: post.embedHtml || '', likesCount: String(post.likesCount || 0),
+      commentsCount: String(post.commentsCount || 0), sharesCount: String(post.sharesCount || 0),
+      viewsCount: String(post.viewsCount || 0), clientId, insightId: post.id,
     })
     router.push(`/media/social/add?${p.toString()}`)
   }
 
-  // Archive a post — hides it from both insights and published
   const handleArchivePost = async (post: SocialPost) => {
     try {
       setIsDeleting(post.id)
       const res = await fetch(`/api/social-posts/${post.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'archived' }),
       })
       if (!res.ok) throw new Error('Failed to archive')
@@ -162,47 +151,19 @@ export default function ClientSocialInsightsPage() {
     finally { setIsDeleting(null) }
   }
 
-  // Accept post and open edit form for additional details
-  const handleAcceptAndEdit = (post: SocialPost) => {
-    const p = new URLSearchParams({
-      platform: post.platform,
-      postId: post.postId,
-      postUrl: post.postUrl,
-      content: post.content || '',
-      authorName: post.authorName || '',
-      authorHandle: post.authorHandle || '',
-      embedUrl: post.embedUrl || '',
-      embedHtml: post.embedHtml || '',
-      likesCount: String(post.likesCount || 0),
-      commentsCount: String(post.commentsCount || 0),
-      sharesCount: String(post.sharesCount || 0),
-      viewsCount: String(post.viewsCount || 0),
-      clientId,
-      insightId: post.id, // Pass the ID so the form can update status
-    })
-    router.push(`/media/social/add?${p.toString()}`)
-  }
-
   const handleRunScraper = async () => {
     try {
       setIsScraperRunning(true)
       setScraperMessage('🔄 Scraping social media platforms...')
-
       const res = await fetch('/api/social-posts/scrape', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          clientId,
-          platforms: ['twitter', 'tiktok', 'instagram', 'linkedin', 'facebook'],
-        }),
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clientId, platforms: ['twitter', 'tiktok', 'instagram', 'linkedin', 'facebook'] }),
       })
-
       let data: any
       try { data = await res.json() } catch {
         throw new Error('Server returned an invalid response — request may have timed out')
       }
       if (!res.ok) throw new Error(data.error || 'Failed')
-
       if (data.postsSaved > 0) {
         setScraperMessage(`✓ ${data.message}`)
       } else if (data.postsFound > 0) {
@@ -210,7 +171,6 @@ export default function ClientSocialInsightsPage() {
       } else {
         setScraperMessage(`⚠️ No posts found. Keywords: ${clientKeywords.slice(0, 3).join(', ')}`)
       }
-
       setIsScraperRunning(false)
       await fetchPosts()
     } catch (err) {
@@ -301,8 +261,7 @@ export default function ClientSocialInsightsPage() {
             </Button>
             {isPending && (
               <>
-                <Button variant="ghost" size="sm" onClick={() => handleAcceptPost(post)}
-                  title="Accept (review & publish)">
+                <Button variant="ghost" size="sm" onClick={() => handleAcceptPost(post)} title="Accept (review & publish)">
                   <CheckCircle className="h-4 w-4 text-emerald-600" />
                 </Button>
                 <Button variant="ghost" size="sm" onClick={() => handleArchivePost(post)}
@@ -366,7 +325,6 @@ export default function ClientSocialInsightsPage() {
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-4">
-        {/* Status Filter */}
         <div className="flex gap-2 flex-wrap">
           <span className="text-sm text-gray-500 self-center mr-1">Status:</span>
           {statuses.map(s => (
@@ -377,7 +335,6 @@ export default function ClientSocialInsightsPage() {
             </Button>
           ))}
         </div>
-        {/* Platform Filter */}
         <div className="flex gap-2 flex-wrap">
           <span className="text-sm text-gray-500 self-center mr-1">Platform:</span>
           {platforms.map(p => (
@@ -411,7 +368,7 @@ export default function ClientSocialInsightsPage() {
         )}
       </div>
 
-      {/* Preview Modal with Embed */}
+      {/* Preview Modal */}
       {previewPost && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setPreviewPost(null)}>
           <div className="bg-white rounded-xl max-w-lg w-full max-h-[80vh] overflow-y-auto p-6" onClick={e => e.stopPropagation()}>
@@ -428,20 +385,16 @@ export default function ClientSocialInsightsPage() {
                 </Button>
               </div>
             </div>
-
             <p className="text-sm text-gray-800 mb-3">{previewPost.content}</p>
             <p className="text-xs text-gray-500 mb-4">
               By {previewPost.authorName || previewPost.authorHandle || 'Unknown'} • {format(new Date(previewPost.postedAt), 'MMM d, yyyy')}
             </p>
-
-            {/* Embed preview */}
             {previewPost.embedHtml && (
               <div className="mb-4 border rounded-lg p-2 bg-gray-50">
                 <p className="text-xs text-gray-400 mb-2">Embed Preview</p>
                 <div dangerouslySetInnerHTML={{ __html: previewPost.embedHtml }} />
               </div>
             )}
-
             <div className="flex gap-2 flex-wrap">
               <Button size="sm" variant="outline" onClick={() => window.open(previewPost.postUrl, '_blank')} className="gap-1">
                 <ExternalLink className="h-3 w-3" /> View Source
