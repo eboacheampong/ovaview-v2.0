@@ -4,7 +4,10 @@ import { useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
-import { ChevronDown, ChevronRight, LogOut, X } from 'lucide-react'
+import {
+  ChevronDown, ChevronRight, LogOut, X,
+  MessageCircle, BarChart3, PieChart, Globe, Quote, Mail, FileText, FileSpreadsheet
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/use-auth'
 import { navigationSections, bottomNavItems, dashboardItem, NavItem, NavSubSection } from '@/constants/navigation'
@@ -193,8 +196,59 @@ export function Sidebar({ isOpen, isDesktop, onClose }: SidebarProps) {
       </nav>
       )}
 
-      {/* Spacer for client users */}
-      {isClientUser && <div className="flex-1" />}
+      {/* Client user navigation */}
+      {isClientUser && (
+      <nav className="flex-1 overflow-y-auto px-3 py-2 space-y-1">
+        {/* Main nav items */}
+        {[
+          { label: 'Mentions', href: '/client-dashboard', icon: MessageCircle },
+          { label: 'Summary', href: '/client-dashboard/summary', icon: BarChart3 },
+          { label: 'Analysis', href: '/client-dashboard/analysis', icon: PieChart },
+          { label: 'Sources', href: '/client-dashboard/sources', icon: Globe },
+          { label: 'Quotes', href: '/client-dashboard/quotes', icon: Quote },
+        ].map(item => (
+          <Link
+            key={item.href}
+            href={item.href}
+            onClick={handleNavClick}
+            className={cn(
+              'flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm transition-all duration-200',
+              isActive(item.href) && pathname === item.href
+                ? 'bg-orange-50 text-orange-600 font-medium'
+                : 'text-gray-600 hover:bg-gray-50'
+            )}
+          >
+            <item.icon className={cn('h-4 w-4', isActive(item.href) && pathname === item.href ? 'text-orange-500' : 'text-gray-400')} />
+            {item.label}
+          </Link>
+        ))}
+
+        {/* Reports section */}
+        <div className="pt-4">
+          <p className="px-3 py-2 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Reports</p>
+          {[
+            { label: 'Email Reports', href: '/client-dashboard/reports/email', icon: Mail },
+            { label: 'PDF Report', href: '/client-dashboard/reports/pdf', icon: FileText },
+            { label: 'Excel Report', href: '/client-dashboard/reports/excel', icon: FileSpreadsheet },
+          ].map(item => (
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={handleNavClick}
+              className={cn(
+                'flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm transition-all duration-200',
+                isActive(item.href)
+                  ? 'bg-orange-50 text-orange-600 font-medium'
+                  : 'text-gray-600 hover:bg-gray-50'
+              )}
+            >
+              <item.icon className={cn('h-4 w-4', isActive(item.href) ? 'text-orange-500' : 'text-gray-400')} />
+              {item.label}
+            </Link>
+          ))}
+        </div>
+      </nav>
+      )}
 
       {/* Bottom Navigation */}
       <div className="border-t border-gray-100 px-3 py-4 space-y-1">
