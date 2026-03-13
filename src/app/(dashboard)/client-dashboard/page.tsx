@@ -140,16 +140,6 @@ export default function ClientDashboardPage() {
   const [clientName, setClientName] = useState('')
   const [summary, setSummary] = useState<Summary | null>(null)
   const [chart, setChart] = useState<ChartPoint[]>([])
-  const [mentions, setMentions] = useState
-
-/* ── main page ── */
-export default function ClientDashboardPage() {
-  const { user, isLoading: authLoading } = useAuth()
-  const router = useRouter()
-
-  const [clientName, setClientName] = useState('')
-  const [summary, setSummary] = useState<Summary | null>(null)
-  const [chart, setChart] = useState<ChartPoint[]>([])
   const [mentions, setMentions] = useState<Mention[]>([])
   const [sourceCounts, setSourceCounts] = useState<Record<string, number>>({})
   const [isLoading, setIsLoading] = useState(true)
