@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { calculateDailyReach } from '@/lib/reach-utils'
 import { subDays, subMonths, startOfDay, endOfDay, format } from 'date-fns'
 
 export const dynamic = 'force-dynamic'
@@ -93,11 +94,11 @@ export async function GET(request: NextRequest) {
     // Calculate total coverage
     const totalCoverage = webStories.length + tvStories.length + radioStories.length + printStories.length + socialPosts.length
 
-    // Calculate total reach
-    const webReach = webStories.reduce((sum, s) => sum + (s.publication?.reach || 0), 0)
-    const tvReach = tvStories.reduce((sum, s) => sum + (s.station?.reach || 0), 0)
-    const radioReach = radioStories.reduce((sum, s) => sum + (s.station?.reach || 0), 0)
-    const printReach = printStories.reduce((sum, s) => sum + (s.publication?.reach || 0), 0)
+    // Calculate total reach (daily reach per article from monthly reach)
+    const webReach = webStories.reduce((sum, s) => sum + calculateDailyReach(s.publication?.reach || 0, s.date), 0)
+    const tvReach = tvStories.reduce((sum, s) => sum + calculateDailyReach(s.station?.reach || 0, s.date), 0)
+    const radioReach = radioStories.reduce((sum, s) => sum + calculateDailyReach(s.station?.reach || 0, s.date), 0)
+    const printReach = printStories.reduce((sum, s) => sum + calculateDailyReach(s.publication?.reach || 0, s.date), 0)
     const socialReach = socialPosts.reduce((sum, s) => sum + (s.viewsCount || s.likesCount || 0), 0)
     const totalReach = webReach + tvReach + radioReach + printReach + socialReach
 
@@ -383,24 +384,24 @@ export async function GET(request: NextRequest) {
       ? Math.round(((totalCoverage - prevTotalCoverage) / prevTotalCoverage) * 100 * 10) / 10
       : 0
 
-    // Region data (based on publication/station locations and reach)
+    // Region data (based on publication/station locations and daily reach)
     const locationCounts = new Map<string, number>()
     
     webStories.forEach(s => {
       const location = s.publication?.location || 'Unknown'
-      locationCounts.set(location, (locationCounts.get(location) || 0) + (s.publication?.reach || 0))
+      locationCounts.set(location, (locationCounts.get(location) || 0) + calculateDailyReach(s.publication?.reach || 0, s.date))
     })
     tvStories.forEach(s => {
       const location = s.station?.location || 'Unknown'
-      locationCounts.set(location, (locationCounts.get(location) || 0) + (s.station?.reach || 0))
+      locationCounts.set(location, (locationCounts.get(location) || 0) + calculateDailyReach(s.station?.reach || 0, s.date))
     })
     radioStories.forEach(s => {
       const location = s.station?.location || 'Unknown'
-      locationCounts.set(location, (locationCounts.get(location) || 0) + (s.station?.reach || 0))
+      locationCounts.set(location, (locationCounts.get(location) || 0) + calculateDailyReach(s.station?.reach || 0, s.date))
     })
     printStories.forEach(s => {
       const location = s.publication?.location || 'Unknown'
-      locationCounts.set(location, (locationCounts.get(location) || 0) + (s.publication?.reach || 0))
+      locationCounts.set(location, (locationCounts.get(location) || 0) + calculateDailyReach(s.publication?.reach || 0, s.date))
     })
 
     const totalLocationReach = Array.from(locationCounts.values()).reduce((a, b) => a + b, 0)

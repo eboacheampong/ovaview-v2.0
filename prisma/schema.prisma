@@ -173,7 +173,7 @@ model WebPublication {
   name         String   @unique
   website      String?
   location     String?  // Location/City
-  reach        Int      @default(0) // Monthly unique visitors
+  reach        Int      @default(0) // Monthly unique visitors (daily reach = reach / days in month)
   region       String?  // Geographic region
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
@@ -187,7 +187,7 @@ model TVStation {
   id        String   @id @default(cuid())
   name      String   @unique
   location  String?  // Location/City
-  reach     Int      @default(0) // Average viewership
+  reach     Int      @default(0) // Monthly average viewership (daily reach = reach / days in month)
   region    String?  // Geographic region
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
@@ -219,7 +219,7 @@ model RadioStation {
   name      String   @unique
   frequency String?
   location  String?  // Location/City
-  reach     Int      @default(0) // Average listenership
+  reach     Int      @default(0) // Monthly average listenership (daily reach = reach / days in month)
   region    String?  // Geographic region
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
@@ -250,7 +250,7 @@ model PrintPublication {
   id          String   @id @default(cuid())
   name        String   @unique
   location    String?  // Location/City
-  reach       Int      @default(0) // Daily/weekly circulation (readership)
+  reach       Int      @default(0) // Monthly readership/circulation (daily reach = reach / days in month)
   region      String?  // Geographic region
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())

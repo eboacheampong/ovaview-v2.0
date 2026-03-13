@@ -126,7 +126,7 @@ export default function PrintPublicationsPage() {
     },
     {
       accessorKey: 'reach',
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Reach/Coverage" />,
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Monthly Reach" />,
       cell: ({ row }) => {
         const reach = row.getValue('reach') as number | undefined
         return reach ? <span className="text-amber-600 font-medium">{formatReach(reach)}</span> : '-'
@@ -181,7 +181,7 @@ export default function PrintPublicationsPage() {
         />
       </div>
       <div>
-        <Label className="text-gray-600 text-sm">Reach/Coverage</Label>
+        <Label className="text-gray-600 text-sm">Monthly Reach</Label>
         <Input 
           type="number" 
           value={formData.reach} 
@@ -189,6 +189,7 @@ export default function PrintPublicationsPage() {
           placeholder="e.g., 150000"
           className="mt-1"
         />
+        <p className="text-xs text-gray-400 mt-1">Daily reach per article = monthly reach ÷ days in month</p>
       </div>
       <div className="flex items-center gap-2">
         <input 

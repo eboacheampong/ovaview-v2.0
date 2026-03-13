@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { calculateDailyReach } from '@/lib/reach-utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -36,7 +37,7 @@ export async function GET(request: NextRequest) {
         select: {
           id: true, title: true, sourceUrl: true, author: true, date: true,
           summary: true, overallSentiment: true,
-          publication: { select: { name: true, website: true } },
+          publication: { select: { name: true, website: true, reach: true } },
         },
       }),
       prisma.tVStory.findMany({
@@ -94,7 +95,7 @@ export async function GET(request: NextRequest) {
         source: s.publication?.name || 'Web', sourceUrl: s.sourceUrl || undefined,
         author: s.author || '', date: s.date.toISOString(),
         summary: s.summary || '', sentiment: s.overallSentiment || 'neutral',
-        reach: 0,
+        reach: calculateDailyReach(s.publication?.reach || 0, s.date),
       })
     }
     for (const s of tvStories) {
@@ -102,7 +103,7 @@ export async function GET(request: NextRequest) {
         id: s.id, type: 'tv', title: s.title,
         source: s.station?.name || 'TV', author: s.presenters || '',
         date: s.date.toISOString(), summary: s.summary || '',
-        sentiment: s.overallSentiment || 'neutral', reach: s.station?.reach || 0,
+        sentiment: s.overallSentiment || 'neutral', reach: calculateDailyReach(s.station?.reach || 0, s.date),
       })
     }
     for (const s of radioStories) {
@@ -110,7 +111,7 @@ export async function GET(request: NextRequest) {
         id: s.id, type: 'radio', title: s.title,
         source: s.station?.name || 'Radio', author: s.presenters || '',
         date: s.date.toISOString(), summary: s.summary || '',
-        sentiment: s.overallSentiment || 'neutral', reach: s.station?.reach || 0,
+        sentiment: s.overallSentiment || 'neutral', reach: calculateDailyReach(s.station?.reach || 0, s.date),
       })
     }
     for (const s of printStories) {
@@ -118,7 +119,7 @@ export async function GET(request: NextRequest) {
         id: s.id, type: 'print', title: s.title,
         source: s.publication?.name || 'Print', author: s.author || '',
         date: s.date.toISOString(), summary: s.summary || '',
-        sentiment: s.overallSentiment || 'neutral', reach: s.publication?.reach || 0,
+        sentiment: s.overallSentiment || 'neutral', reach: calculateDailyReach(s.publication?.reach || 0, s.date),
       })
     }
     for (const s of socialPosts) {

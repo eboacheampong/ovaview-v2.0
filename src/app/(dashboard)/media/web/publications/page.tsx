@@ -124,7 +124,7 @@ export default function WebPublicationsPage() {
     },
     {
       accessorKey: 'reach',
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Reach" />,
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Monthly Reach" />,
       cell: ({ row }) => {
         const reach = row.getValue('reach') as number | undefined
         return reach ? <span className="text-blue-600 font-medium">{formatReach(reach)}</span> : '-'
@@ -179,8 +179,9 @@ export default function WebPublicationsPage() {
         <Input value={formData.location} onChange={(e) => setFormData({ ...formData, location: e.target.value })} placeholder="e.g., Accra, Ghana" className="mt-1" />
       </div>
       <div>
-        <Label className="text-gray-600 text-sm">Reach</Label>
+        <Label className="text-gray-600 text-sm">Monthly Reach</Label>
         <Input type="number" value={formData.reach} onChange={(e) => setFormData({ ...formData, reach: e.target.value })} placeholder="Monthly unique visitors" className="mt-1" />
+        <p className="text-xs text-gray-400 mt-1">Daily reach per article = monthly reach ÷ days in month</p>
       </div>
       <div className="flex items-center gap-2">
         <input type="checkbox" id="isActive" checked={formData.isActive} onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })} className="rounded border-gray-300" />

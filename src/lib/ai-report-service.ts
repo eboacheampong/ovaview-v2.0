@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { calculateDailyReach } from '@/lib/reach-utils'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = prisma as any
@@ -175,7 +176,7 @@ async function gatherMentionStats(
   const platformMap = new Map<string, { count: number; reach: number }>()
   const dailyMap = new Map<string, number>()
   for (const s of webStories) {
-    const reach = s.publication?.reach || 0
+    const reach = calculateDailyReach(s.publication?.reach || 0, s.date)
     totalReach += reach
     countSentiment(s.overallSentiment)
     addSource(s.publication?.name || 'Unknown', reach)
@@ -188,7 +189,7 @@ async function gatherMentionStats(
     })
   }
   for (const s of tvStories) {
-    const reach = s.station?.reach || 0
+    const reach = calculateDailyReach(s.station?.reach || 0, s.date)
     totalReach += reach
     countSentiment(s.overallSentiment)
     addSource(s.station?.name || 'Unknown', reach)
@@ -201,7 +202,7 @@ async function gatherMentionStats(
     })
   }
   for (const s of radioStories) {
-    const reach = s.station?.reach || 0
+    const reach = calculateDailyReach(s.station?.reach || 0, s.date)
     totalReach += reach
     countSentiment(s.overallSentiment)
     addSource(s.station?.name || 'Unknown', reach)
@@ -214,7 +215,7 @@ async function gatherMentionStats(
     })
   }
   for (const s of printStories) {
-    const reach = s.publication?.reach || 0
+    const reach = calculateDailyReach(s.publication?.reach || 0, s.date)
     totalReach += reach
     countSentiment(s.overallSentiment)
     addSource(s.publication?.name || 'Unknown', reach)
