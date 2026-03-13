@@ -93,7 +93,6 @@ export async function PUT(
       sentimentNeutral,
       sentimentNegative,
       overallSentiment,
-      keyPersonalities,
       subIndustries: subIndustryIds?.length
         ? { create: subIndustryIds.map((id: string) => ({ subIndustryId: id })) }
         : undefined,
