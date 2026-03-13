@@ -134,7 +134,7 @@ export default function SummaryPage() {
           <ResponsiveContainer width="100%" height={200}>
             <PieChart>
               <Pie data={sentimentData} cx="50%" cy="50%" innerRadius={50} outerRadius={80}
-                dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
+                dataKey="value" label={({ name, percent }: { name: string; percent: number }) => `${name} ${(percent * 100).toFixed(0)}%`}>
                 {sentimentData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i]} />)}
               </Pie>
               <Tooltip />
