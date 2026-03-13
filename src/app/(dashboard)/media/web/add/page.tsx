@@ -48,6 +48,7 @@ export default function AddWebStoryPage() {
     sourceUrl: insightUrl || '',
     summary: '',
     keywords: '',
+    keyPersonalities: '',
     articleText: '',
     industryId: '',
   })
@@ -211,6 +212,7 @@ export default function AddWebStoryPage() {
       sourceUrl: '',
       summary: '',
       keywords: '',
+      keyPersonalities: '',
       articleText: '',
       industryId: '',
     })
@@ -257,6 +259,9 @@ export default function AddWebStoryPage() {
       }
       if (data.suggestedKeywords?.length > 0) {
         setFormData(prev => ({ ...prev, keywords: data.suggestedKeywords.join(', ') }))
+      }
+      if (data.keyPersonalities?.length > 0) {
+        setFormData(prev => ({ ...prev, keyPersonalities: data.keyPersonalities.join(', ') }))
       }
       if (data.suggestedSubIndustryIds?.length > 0) {
         setSelectedSubIndustries(data.suggestedSubIndustryIds)
@@ -318,6 +323,7 @@ export default function AddWebStoryPage() {
           date: formData.publicationDate,
           publicationId: formData.publicationId || null,
           industryId: formData.industryId || null,
+          keyPersonalities: formData.keyPersonalities || null,
           subIndustryIds: selectedSubIndustries,
           images: uploadedImages.map(url => ({ url })),
           sentimentPositive: sentimentData.positive,
@@ -471,6 +477,11 @@ export default function AddWebStoryPage() {
                 availableKeywords={availableKeywords}
                 placeholder="Search keywords..."
               />
+            </div>
+            <div>
+              <Label htmlFor="keyPersonalities" className="text-gray-600 mb-2 block">Key Personalities</Label>
+              <Input id="keyPersonalities" value={formData.keyPersonalities} onChange={(e) => setFormData({ ...formData, keyPersonalities: e.target.value })} placeholder="Dr. John Smith, Minister Jane Doe" className="h-11" />
+              <p className="text-xs text-gray-400 mt-1">Comma-separated. Auto-detected by AI analysis.</p>
             </div>
           </div>
         </div>

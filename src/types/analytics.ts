@@ -102,6 +102,11 @@ export interface CompetitorComparisonItem {
   competitor2?: number
 }
 
+export interface KeyPersonalityItem {
+  name: string
+  count: number
+}
+
 export interface AnalyticsData {
   kpiData: KPIData
   coverageTrendData: CoverageTrendItem[]
@@ -110,6 +115,7 @@ export interface AnalyticsData {
   industryPerformanceData: IndustryPerformanceItem[]
   topPublicationsData: PublicationItem[]
   topKeywordsData: KeywordItem[]
+  keyPersonalitiesData: KeyPersonalityItem[]
   hourlyEngagementData: HourlyEngagementItem[]
   reachByRegionData: RegionItem[]
   topClientsData: ClientItem[]

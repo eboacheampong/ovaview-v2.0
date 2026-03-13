@@ -62,6 +62,7 @@ export default function AddRadioStoryPage() {
     content: '',
     summary: '',
     keywords: '',
+    keyPersonalities: '',
     audioTitle: '',
     audioUrl: '',
     industryId: '',
@@ -203,6 +204,7 @@ export default function AddRadioStoryPage() {
         summary: data.summary || prev.summary,
         industryId: data.suggestedIndustryId || prev.industryId,
         keywords: data.suggestedKeywords?.length > 0 ? data.suggestedKeywords.join(', ') : prev.keywords,
+        keyPersonalities: data.keyPersonalities?.length > 0 ? data.keyPersonalities.join(', ') : prev.keyPersonalities,
       }))
       
       if (data.suggestedSubIndustryIds?.length > 0) {
@@ -253,6 +255,7 @@ export default function AddRadioStoryPage() {
           stationId: formData.stationId || null,
           programId: formData.programId || null,
           industryId: formData.industryId || null,
+          keyPersonalities: formData.keyPersonalities || null,
           subIndustryIds: selectedSubIndustries,
           sentimentPositive: sentimentData.positive,
           sentimentNeutral: sentimentData.neutral,
@@ -510,6 +513,11 @@ export default function AddRadioStoryPage() {
                 availableKeywords={availableKeywords}
                 placeholder="Search keywords..."
               />
+            </div>
+            <div className="md:col-span-2">
+              <Label htmlFor="keyPersonalities" className="text-gray-600 mb-2 block">Key Personalities</Label>
+              <Input id="keyPersonalities" value={formData.keyPersonalities} onChange={(e) => setFormData({ ...formData, keyPersonalities: e.target.value })} placeholder="Dr. John Smith, Minister Jane Doe" className="h-11" />
+              <p className="text-xs text-gray-400 mt-1">Comma-separated. Auto-detected by AI analysis.</p>
             </div>
           </div>
         </div>

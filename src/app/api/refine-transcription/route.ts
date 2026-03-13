@@ -74,6 +74,8 @@ Please:
 6. Select the most appropriate industry and sub-industries from this list:
    Available industries: ${industryList || 'None available'}
 
+7. Identify key personalities mentioned in the content - extract their FULL OFFICIAL NAMES (e.g., "Dr. John Smith", "President Jane Doe", "Minister Robert Kapito"). If you cannot determine the full official name, use the name as it appears.
+
 CRITICAL KEYWORD SELECTION RULES - READ CAREFULLY:
 - You can ONLY select keywords from the "Available keywords" list above
 - If a keyword is not in that list, DO NOT suggest it under any circumstances
@@ -105,7 +107,8 @@ Respond in this exact JSON format only, no other text:
   "overallSentiment": "positive" | "neutral" | "negative",
   "suggestedKeywords": ["keyword1", "keyword2"],
   "suggestedIndustry": "Industry Name or null if none match",
-  "suggestedSubIndustries": ["SubIndustry1", "SubIndustry2"]
+  "suggestedSubIndustries": ["SubIndustry1", "SubIndustry2"],
+  "keyPersonalities": ["Full Name 1", "Full Name 2"]
 }
 
 The sentiment percentages must add up to 100. Only include keywords from the provided list that are truly the main topic.`
@@ -181,6 +184,7 @@ The sentiment percentages must add up to 100. Only include keywords from the pro
       suggestedKeywords: filteredKeywords,
       suggestedIndustryId: industryId,
       suggestedSubIndustryIds: subIndustryIds,
+      keyPersonalities: Array.isArray(result.keyPersonalities) ? result.keyPersonalities.filter((p: string) => typeof p === 'string' && p.trim().length > 0) : [],
     })
 
   } catch (error) {

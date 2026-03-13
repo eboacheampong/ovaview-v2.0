@@ -21,6 +21,7 @@ interface AnalysisResponse {
   suggestedKeywords: string[];
   suggestedIndustryId: string | null;
   suggestedSubIndustryIds: string[];
+  keyPersonalities: string[];
 }
 
 interface AIResponse {
@@ -34,6 +35,7 @@ interface AIResponse {
   suggestedKeywords?: string[];
   suggestedIndustry?: string;
   suggestedSubIndustries?: string[];
+  keyPersonalities?: string[];
 }
 
 interface IndustryData {
@@ -198,6 +200,7 @@ export async function POST(request: NextRequest) {
 4. Select keywords ONLY from this exact list - DO NOT suggest any keyword not in this list:
    Available keywords: ${keywordList || 'None available'}
 5. Select the most appropriate industry and sub-industries from: ${industryList || 'None available'}
+6. Identify key personalities mentioned in the article - extract their FULL OFFICIAL NAMES (e.g., "Dr. John Smith", "President Jane Doe", "Minister Robert Kapito"). If you cannot determine the full official name, use the name as it appears in the text.
 
 CRITICAL KEYWORD SELECTION RULES - READ CAREFULLY:
 - You can ONLY select keywords from the "Available keywords" list above
@@ -210,6 +213,13 @@ CRITICAL KEYWORD SELECTION RULES - READ CAREFULLY:
 - Do NOT select keywords based on vague associations or tangential mentions
 - The article must spend significant paragraphs discussing the keyword topic to qualify
 
+KEY PERSONALITIES RULES:
+- Include people who are quoted, mentioned as key actors, or are central to the story
+- Use their full official name with title if available (e.g., "Hon. John Doe", "Dr. Jane Smith")
+- Do NOT include generic references like "the president" without a name
+- Maximum 10 personalities
+- If no specific people are mentioned, return an empty array []
+
 Return ONLY valid JSON in this exact format:
 {
   "summary": "...",
@@ -221,7 +231,8 @@ Return ONLY valid JSON in this exact format:
   "overallSentiment": "positive" | "neutral" | "negative",
   "suggestedKeywords": ["keyword1", "keyword2"],
   "suggestedIndustry": "Industry Name or null",
-  "suggestedSubIndustries": ["SubIndustry1", "SubIndustry2"]
+  "suggestedSubIndustries": ["SubIndustry1", "SubIndustry2"],
+  "keyPersonalities": ["Full Name 1", "Full Name 2"]
 }
 
 Article:
@@ -350,6 +361,7 @@ ${truncatedContent}`
             suggestedKeywords: filteredKeywords,
             suggestedIndustryId: industryId,
             suggestedSubIndustryIds: subIndustryIds,
+            keyPersonalities: Array.isArray(aiResponse.keyPersonalities) ? aiResponse.keyPersonalities.filter((p: string) => typeof p === 'string' && p.trim().length > 0) : [],
           }
 
           console.log(`Successfully generated analysis using ${model}`)

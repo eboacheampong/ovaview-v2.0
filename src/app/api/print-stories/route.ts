@@ -169,6 +169,7 @@ export async function POST(request: NextRequest) {
         sentimentNeutral: sentimentNeutral ?? null,
         sentimentNegative: sentimentNegative ?? null,
         overallSentiment: overallSentiment ?? null,
+        keyPersonalities: body.keyPersonalities || null,
         subIndustries: subIndustryIds?.length
           ? { create: subIndustryIds.map((id: string) => ({ subIndustryId: id })) }
           : undefined,

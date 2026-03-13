@@ -356,6 +356,25 @@ export default function AdvancedReportsPage() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Key Personalities */}
+          {(analyticsData?.keyPersonalitiesData?.length ?? 0) > 0 && (
+            <Card className="bg-white border border-gray-100 shadow-sm">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-semibold text-gray-700">Key Personalities</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-wrap gap-2">
+                  {(analyticsData?.keyPersonalitiesData || []).map((p: { name: string; count: number }, i: number) => (
+                    <span key={i} className="inline-flex items-center gap-1.5 bg-amber-50 border border-amber-200 rounded-full px-3 py-1.5 text-sm font-medium text-amber-800">
+                      {p.name}
+                      <span className="text-[10px] text-amber-500 font-bold bg-amber-100 rounded-full px-1.5 py-0.5">{p.count}</span>
+                    </span>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </>
       )}
     </div>

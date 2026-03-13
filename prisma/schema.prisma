@@ -298,6 +298,7 @@ model WebStory {
   sentimentNeutral  Float?
   sentimentNegative Float?
   overallSentiment  String?
+  keyPersonalities  String?
 
   subIndustries WebStorySubIndustry[]
   images        WebStoryImage[]
@@ -348,6 +349,7 @@ model TVStory {
   sentimentNeutral  Float?
   sentimentNegative Float?
   overallSentiment  String?
+  keyPersonalities  String?
 
   subIndustries TVStorySubIndustry[]
 }
@@ -388,6 +390,7 @@ model RadioStory {
   sentimentNeutral  Float?
   sentimentNegative Float?
   overallSentiment  String?
+  keyPersonalities  String?
 
   subIndustries RadioStorySubIndustry[]
 }
@@ -427,6 +430,7 @@ model PrintStory {
   sentimentNeutral  Float?
   sentimentNegative Float?
   overallSentiment  String?
+  keyPersonalities  String?
 
   subIndustries PrintStorySubIndustry[]
   images        PrintStoryImage[]
@@ -611,6 +615,7 @@ model SocialPost {
   sentimentNeutral  Float?
   sentimentNegative Float?
   overallSentiment  String?
+  keyPersonalities  String?
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
 

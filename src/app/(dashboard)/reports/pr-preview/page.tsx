@@ -23,6 +23,8 @@ interface PRData {
   mediaSourcesIndustry: any
   monthlyTrend: any[]
   thematicAreas: any[]
+  keyPersonalitiesIndustry: { name: string; count: number }[]
+  keyPersonalitiesClient: { name: string; count: number }[]
   topJournalists: any[]
   totalClientMentions: number
   clientSourcesOfMentions: any
@@ -323,6 +325,12 @@ function buildSlides(data: PRData): React.ReactNode[] {
 
   // 7. Thematic Areas
   slides.push(<ThematicSlide key="thematic" areas={data.thematicAreas} />)
+
+  // 7b. Key Personalities - Industry
+  slides.push(<KeyPersonalitiesSlide key="kp-industry" title="Key Personalities (Industry) – Top 10" personalities={data.keyPersonalitiesIndustry || []} />)
+
+  // 7c. Key Personalities - Client
+  slides.push(<KeyPersonalitiesSlide key="kp-client" title={`Key Personalities (${data.clientName}) – Top 10`} personalities={data.keyPersonalitiesClient || []} />)
 
   // 8. Key Journalists
   slides.push(<JournalistsSlide key="journalists" journalists={data.topJournalists} />)
@@ -630,6 +638,46 @@ function ThematicSlide({ areas }: { areas: any[] }) {
               </span>
             )
           })}
+        </div>
+      </div>
+      <SlideFooter />
+    </SlideWrapper>
+  )
+}
+
+// --- Key Journalists ---
+function KeyPersonalitiesSlide({ title, personalities }: { title: string; personalities: { name: string; count: number }[] }) {
+  if (!personalities?.length) return (
+    <SlideWrapper>
+      <SlideHeader title={title} />
+      <div className="flex-1 flex items-center justify-center text-gray-400">No key personalities data</div>
+      <SlideFooter />
+    </SlideWrapper>
+  )
+
+  const maxCount = Math.max(...personalities.map(p => p.count), 1)
+
+  return (
+    <SlideWrapper>
+      <SlideHeader title={title} />
+      <div className="flex-1 p-6 overflow-hidden">
+        <div className="grid grid-cols-2 gap-4 h-full content-start">
+          {personalities.slice(0, 10).map((p, i) => (
+            <div key={i} className="flex items-center gap-3 bg-gray-50 rounded-xl px-4 py-3 border border-gray-100">
+              <div className="w-10 h-10 rounded-full bg-[#D4941A] text-white flex items-center justify-center font-bold text-sm shrink-0">
+                {i + 1}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-gray-800 text-sm truncate">{p.name}</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <div className="flex-1 bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                    <div className="h-full bg-[#D4941A] rounded-full" style={{ width: `${(p.count / maxCount) * 100}%` }} />
+                  </div>
+                  <span className="text-xs text-gray-500 font-medium">{p.count}</span>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
       <SlideFooter />

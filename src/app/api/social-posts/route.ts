@@ -126,6 +126,7 @@ export async function POST(request: NextRequest) {
       sentimentNeutral,
       sentimentNegative,
       overallSentiment,
+      keyPersonalities,
       status,
     } = body
 
@@ -163,6 +164,7 @@ export async function POST(request: NextRequest) {
             sentimentNeutral,
             sentimentNegative,
             overallSentiment,
+            keyPersonalities: keyPersonalities || null,
             subIndustries: subIndustryIds?.length
               ? {
                   deleteMany: {},
@@ -224,6 +226,7 @@ export async function POST(request: NextRequest) {
         sentimentNeutral,
         sentimentNegative,
         overallSentiment,
+        keyPersonalities: keyPersonalities || null,
         subIndustries: subIndustryIds?.length
           ? {
               create: subIndustryIds.map((id: string) => ({

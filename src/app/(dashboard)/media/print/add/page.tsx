@@ -65,6 +65,7 @@ export default function AddPrintStoryPage() {
     publicationDate: new Date().toISOString().split('T')[0],
     summary: '',
     keywords: '',
+    keyPersonalities: '',
     content: '',
     industryId: '',
   })
@@ -270,6 +271,7 @@ export default function AddPrintStoryPage() {
         summary: summary || prev.summary,
         industryId: data.suggestedIndustryId || prev.industryId,
         keywords: data.suggestedKeywords?.length > 0 ? data.suggestedKeywords.join(', ') : prev.keywords,
+        keyPersonalities: data.keyPersonalities?.length > 0 ? data.keyPersonalities.join(', ') : prev.keyPersonalities,
       }))
       
       if (data.suggestedSubIndustryIds?.length > 0) {
@@ -319,6 +321,7 @@ export default function AddPrintStoryPage() {
           publicationId: formData.publicationId || null,
           issueName: formData.issueName || null,
           industryId: formData.industryId || null,
+          keyPersonalities: formData.keyPersonalities || null,
           subIndustryIds: selectedSubIndustries,
           images: uploadedUrls,
           sentimentPositive: sentimentData.positive,
@@ -591,6 +594,11 @@ export default function AddPrintStoryPage() {
                 availableKeywords={availableKeywords}
                 placeholder="Search keywords..."
               />
+            </div>
+            <div>
+              <Label htmlFor="keyPersonalities" className="text-gray-600 mb-2 block">Key Personalities</Label>
+              <Input id="keyPersonalities" value={formData.keyPersonalities} onChange={(e) => setFormData({ ...formData, keyPersonalities: e.target.value })} placeholder="Dr. John Smith, Minister Jane Doe" className="h-11" />
+              <p className="text-xs text-gray-400 mt-1">Comma-separated. Auto-detected by AI analysis.</p>
             </div>
           </div>
         </div>

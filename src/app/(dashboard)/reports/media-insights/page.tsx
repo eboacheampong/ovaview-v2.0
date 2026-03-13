@@ -444,6 +444,21 @@ export default function MediaInsightsPage() {
             </div>
           )}
 
+          {/* Key Personalities */}
+          {stats.keyPersonalities?.length > 0 && (
+            <div className="px-4 sm:px-6 pb-5">
+              <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-3">👤 Key Personalities</div>
+              <div className="flex flex-wrap gap-2">
+                {stats.keyPersonalities.map((p: { name: string; count: number }, i: number) => (
+                  <span key={i} className="inline-flex items-center gap-1.5 bg-amber-50 border border-amber-200 rounded-full px-3 py-1.5 text-sm font-medium text-amber-800">
+                    {p.name}
+                    <span className="text-[10px] text-amber-500 font-bold">({p.count})</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Footer */}
           <div className="bg-gray-50 p-4 text-center border-t">
             <p className="text-xs text-gray-400 uppercase tracking-wider font-semibold">Powered by Ovaview Media Monitoring</p>

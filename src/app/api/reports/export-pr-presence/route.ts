@@ -263,6 +263,52 @@ export async function POST(request: NextRequest) {
     }
 
     // ===== SLIDE 8: KEY JOURNALISTS - TOP 5 =====
+    // ===== SLIDE 7b: KEY PERSONALITIES - INDUSTRY =====
+    const kpIndustry = data.keyPersonalitiesIndustry || []
+    if (kpIndustry.length > 0) {
+      const kpIndSlide = pptx.addSlide()
+      addSlideHeader(pptx, kpIndSlide, 'Key Personalities (Industry) – Top 10', clientName, logoBase64)
+      const kpMaxCount = Math.max(...kpIndustry.map((p: any) => p.count), 1)
+      kpIndustry.slice(0, 10).forEach((p: any, i: number) => {
+        const col = i % 2
+        const row = Math.floor(i / 2)
+        const cardX = 0.3 + col * 4.85
+        const cardY = 0.85 + row * 0.85
+        const cardW = 4.55
+        const cardH = 0.72
+        kpIndSlide.addShape(pptx.ShapeType.roundRect, { x: cardX, y: cardY, w: cardW, h: cardH, fill: { color: 'F9FAFB' }, line: { color: 'E5E7EB', width: 0.5 }, rectRadius: 0.08 })
+        kpIndSlide.addShape(pptx.ShapeType.ellipse, { x: cardX + 0.12, y: cardY + 0.12, w: 0.48, h: 0.48, fill: { color: GOLD } })
+        kpIndSlide.addText((i + 1).toString(), { x: cardX + 0.12, y: cardY + 0.12, w: 0.48, h: 0.48, fontSize: 14, color: WHITE, fontFace: 'Arial', bold: true, align: 'center', valign: 'middle' })
+        kpIndSlide.addText(p.name, { x: cardX + 0.72, y: cardY + 0.08, w: cardW - 1.0, h: 0.3, fontSize: 12, color: DARK_TEXT, fontFace: 'Arial', bold: true })
+        const barW = ((p.count / kpMaxCount) * (cardW - 1.2))
+        kpIndSlide.addShape(pptx.ShapeType.roundRect, { x: cardX + 0.72, y: cardY + 0.42, w: Math.max(barW, 0.2), h: 0.16, fill: { color: GOLD }, rectRadius: 0.06 })
+        kpIndSlide.addText(p.count.toString(), { x: cardX + 0.72 + barW + 0.08, y: cardY + 0.38, w: 0.5, h: 0.22, fontSize: 10, color: GRAY_TEXT, fontFace: 'Arial' })
+      })
+    }
+
+    // ===== SLIDE 7c: KEY PERSONALITIES - CLIENT =====
+    const kpClient = data.keyPersonalitiesClient || []
+    if (kpClient.length > 0) {
+      const kpCliSlide = pptx.addSlide()
+      addSlideHeader(pptx, kpCliSlide, `Key Personalities (${clientName}) – Top 10`, clientName, logoBase64)
+      const kpMaxCount = Math.max(...kpClient.map((p: any) => p.count), 1)
+      kpClient.slice(0, 10).forEach((p: any, i: number) => {
+        const col = i % 2
+        const row = Math.floor(i / 2)
+        const cardX = 0.3 + col * 4.85
+        const cardY = 0.85 + row * 0.85
+        const cardW = 4.55
+        const cardH = 0.72
+        kpCliSlide.addShape(pptx.ShapeType.roundRect, { x: cardX, y: cardY, w: cardW, h: cardH, fill: { color: 'F9FAFB' }, line: { color: 'E5E7EB', width: 0.5 }, rectRadius: 0.08 })
+        kpCliSlide.addShape(pptx.ShapeType.ellipse, { x: cardX + 0.12, y: cardY + 0.12, w: 0.48, h: 0.48, fill: { color: GOLD } })
+        kpCliSlide.addText((i + 1).toString(), { x: cardX + 0.12, y: cardY + 0.12, w: 0.48, h: 0.48, fontSize: 14, color: WHITE, fontFace: 'Arial', bold: true, align: 'center', valign: 'middle' })
+        kpCliSlide.addText(p.name, { x: cardX + 0.72, y: cardY + 0.08, w: cardW - 1.0, h: 0.3, fontSize: 12, color: DARK_TEXT, fontFace: 'Arial', bold: true })
+        const barW = ((p.count / kpMaxCount) * (cardW - 1.2))
+        kpCliSlide.addShape(pptx.ShapeType.roundRect, { x: cardX + 0.72, y: cardY + 0.42, w: Math.max(barW, 0.2), h: 0.16, fill: { color: GOLD }, rectRadius: 0.06 })
+        kpCliSlide.addText(p.count.toString(), { x: cardX + 0.72 + barW + 0.08, y: cardY + 0.38, w: 0.5, h: 0.22, fontSize: 10, color: GRAY_TEXT, fontFace: 'Arial' })
+      })
+    }
+
     const slide8 = pptx.addSlide()
     addSlideHeader(pptx, slide8, 'Key Journalists – Top 5', clientName, logoBase64)
 

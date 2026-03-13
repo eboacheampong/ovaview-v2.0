@@ -306,6 +306,28 @@ export async function GET(request: NextRequest) {
         trend: index < 3 ? 'up' : index < 5 ? 'stable' : 'down',
       }))
 
+    // Top key personalities from stories
+    const personalityCounts = new Map<string, number>()
+    allStories.forEach((s: any) => {
+      if (s.keyPersonalities) {
+        s.keyPersonalities.split(',').forEach((name: string) => {
+          const trimmed = name.trim()
+          if (trimmed) {
+            const key = trimmed.toLowerCase()
+            personalityCounts.set(key, (personalityCounts.get(key) || 0) + 1)
+          }
+        })
+      }
+    })
+
+    const keyPersonalitiesData = Array.from(personalityCounts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([name, count]) => ({
+        name: name.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
+        count,
+      }))
+
     // Hourly engagement (based on story creation times)
     const hourlyEngagement = new Array(24).fill(0)
     allStories.forEach(s => {
@@ -588,6 +610,7 @@ export async function GET(request: NextRequest) {
       industryPerformanceData,
       topPublicationsData,
       topKeywordsData,
+      keyPersonalitiesData,
       hourlyEngagementData,
       reachByRegionData,
       topClientsData,

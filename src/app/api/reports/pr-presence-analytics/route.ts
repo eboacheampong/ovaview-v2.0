@@ -164,18 +164,58 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // ===== KEY PERSONALITIES - INDUSTRY (from story content mentions) =====
-    // We'll extract from author fields and content analysis
-    const personalityCounts = new Map<string, { name: string; count: number; title: string }>()
-    
-    // Count authors as key personalities
+    // ===== KEY PERSONALITIES - INDUSTRY (from keyPersonalities field) =====
+    const industryPersonalityMap = new Map<string, number>()
+    const extractPersonalities = (kp: string | null | undefined) => {
+      if (!kp) return
+      kp.split(',').forEach(name => {
+        const trimmed = name.trim()
+        if (trimmed) {
+          const key = trimmed.toLowerCase()
+          industryPersonalityMap.set(key, (industryPersonalityMap.get(key) || 0) + 1)
+        }
+      })
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    allIndustryStories.forEach((s: any) => extractPersonalities(s.keyPersonalities))
+
+    const keyPersonalitiesIndustry = Array.from(industryPersonalityMap.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([name, count]) => ({
+        name: name.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
+        count,
+      }))
+
+    // Key personalities for client specifically
+    const clientPersonalityMap = new Map<string, number>()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    clientStories.forEach((s: any) => {
+      if (s.keyPersonalities) {
+        s.keyPersonalities.split(',').forEach((name: string) => {
+          const trimmed = name.trim()
+          if (trimmed) {
+            const key = trimmed.toLowerCase()
+            clientPersonalityMap.set(key, (clientPersonalityMap.get(key) || 0) + 1)
+          }
+        })
+      }
+    })
+
+    const keyPersonalitiesClient = Array.from(clientPersonalityMap.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([name, count]) => ({
+        name: name.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
+        count,
+      }))
+
+    // ===== KEY JOURNALISTS - TOP 5 =====
+    const journalistCounts = new Map<string, { name: string; count: number; outlet: string }>()
     const allAuthors = [
       ...allWebStories.filter(s => s.author).map(s => ({ author: s.author!, outlet: s.publication?.name || '' })),
       ...allPrintStories.filter(s => s.author).map(s => ({ author: s.author!, outlet: s.publication?.name || '' })),
     ]
-
-    // ===== KEY JOURNALISTS - TOP 5 =====
-    const journalistCounts = new Map<string, { name: string; count: number; outlet: string }>()
     allAuthors.forEach(({ author, outlet }) => {
       const key = author.toLowerCase().trim()
       if (key.length > 3) {
@@ -369,6 +409,8 @@ export async function GET(request: NextRequest) {
       mediaSourcesIndustry,
       monthlyTrend,
       thematicAreas,
+      keyPersonalitiesIndustry,
+      keyPersonalitiesClient,
       topJournalists,
       totalClientMentions,
       clientSourcesOfMentions,

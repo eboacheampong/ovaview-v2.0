@@ -118,6 +118,7 @@ export async function POST(request: NextRequest) {
       sentimentNeutral,
       sentimentNegative,
       overallSentiment,
+      keyPersonalities,
     } = body
 
     // Validate required fields
@@ -175,6 +176,7 @@ export async function POST(request: NextRequest) {
         sentimentNeutral: sentimentNeutral ?? null,
         sentimentNegative: sentimentNegative ?? null,
         overallSentiment: overallSentiment ?? null,
+        keyPersonalities: keyPersonalities || null,
         subIndustries: subIndustryIds?.length
           ? {
               create: subIndustryIds.map((id: string) => ({

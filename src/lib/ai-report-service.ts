@@ -29,6 +29,7 @@ export interface MentionStats {
   bySource: { name: string; count: number; reach: number }[]
   socialByPlatform: { platform: string; count: number; reach: number }[]
   dailyActivity: { date: string; count: number }[]
+  keyPersonalities: { name: string; count: number }[]
   topMentions: {
     title: string
     source: string
@@ -261,6 +262,34 @@ async function gatherMentionStats(
     .map(([date, count]) => ({ date, count }))
     .sort((a, b) => a.date.localeCompare(b.date))
 
+  // Aggregate key personalities across all stories
+  const personalityMap = new Map<string, number>()
+  const extractPersonalities = (kp: string | null | undefined) => {
+    if (!kp) return
+    kp.split(',').forEach(name => {
+      const trimmed = name.trim()
+      if (trimmed) {
+        const key = trimmed.toLowerCase()
+        personalityMap.set(key, (personalityMap.get(key) || 0) + 1)
+      }
+    })
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  for (const s of webStories as any[]) extractPersonalities(s.keyPersonalities)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  for (const s of tvStories as any[]) extractPersonalities(s.keyPersonalities)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  for (const s of radioStories as any[]) extractPersonalities(s.keyPersonalities)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  for (const s of printStories as any[]) extractPersonalities(s.keyPersonalities)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  for (const p of socialPosts as any[]) extractPersonalities(p.keyPersonalities)
+
+  const keyPersonalities = Array.from(personalityMap.entries())
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 20)
+
   return {
     total: webStories.length + tvStories.length + radioStories.length + printStories.length + socialPosts.length,
     web: webStories.length,
@@ -273,6 +302,7 @@ async function gatherMentionStats(
     bySource,
     socialByPlatform,
     dailyActivity,
+    keyPersonalities,
     topMentions: topMentions.slice(0, 10),
   }
 }

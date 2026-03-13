@@ -475,6 +475,80 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    // ===== SLIDE 7b: KEY PERSONALITIES - INDUSTRY =====
+    const kpIndustry = data.keyPersonalitiesIndustry || []
+    if (kpIndustry.length > 0) {
+      addNewSlide(doc)
+      addSlideHeader(doc, 'Key Personalities (Industry) – Top 10', clientName, logoBase64)
+      const kpMaxCount = Math.max(...kpIndustry.map((p: any) => p.count), 1)
+      kpIndustry.slice(0, 10).forEach((p: any, i: number) => {
+        const col = i % 2
+        const row = Math.floor(i / 2)
+        const cardX = 40 + col * 470
+        const cardY = 80 + row * 80
+        const cardW = 430
+        const cardH = 65
+        doc.setFillColor(249, 250, 251)
+        doc.roundedRect(cardX, cardY, cardW, cardH, 6, 6, 'F')
+        doc.setDrawColor(229, 231, 235)
+        doc.setLineWidth(0.5)
+        doc.roundedRect(cardX, cardY, cardW, cardH, 6, 6, 'S')
+        doc.setFillColor(GOLD[0], GOLD[1], GOLD[2])
+        doc.circle(cardX + 28, cardY + 32, 18, 'F')
+        doc.setFontSize(13)
+        doc.setTextColor(255, 255, 255)
+        doc.text((i + 1).toString(), cardX + 28, cardY + 37, { align: 'center' })
+        doc.setFontSize(12)
+        doc.setTextColor(DARK_TEXT[0], DARK_TEXT[1], DARK_TEXT[2])
+        doc.setFont('helvetica', 'bold')
+        doc.text(p.name, cardX + 56, cardY + 24)
+        const barW = Math.max((p.count / kpMaxCount) * (cardW - 80), 10)
+        doc.setFillColor(GOLD[0], GOLD[1], GOLD[2])
+        doc.roundedRect(cardX + 56, cardY + 36, barW, 12, 4, 4, 'F')
+        doc.setFontSize(9)
+        doc.setTextColor(GRAY_TEXT[0], GRAY_TEXT[1], GRAY_TEXT[2])
+        doc.setFont('helvetica', 'normal')
+        doc.text(p.count.toString(), cardX + 56 + barW + 8, cardY + 46)
+      })
+    }
+
+    // ===== SLIDE 7c: KEY PERSONALITIES - CLIENT =====
+    const kpClient = data.keyPersonalitiesClient || []
+    if (kpClient.length > 0) {
+      addNewSlide(doc)
+      addSlideHeader(doc, `Key Personalities (${clientName}) – Top 10`, clientName, logoBase64)
+      const kpMaxCount = Math.max(...kpClient.map((p: any) => p.count), 1)
+      kpClient.slice(0, 10).forEach((p: any, i: number) => {
+        const col = i % 2
+        const row = Math.floor(i / 2)
+        const cardX = 40 + col * 470
+        const cardY = 80 + row * 80
+        const cardW = 430
+        const cardH = 65
+        doc.setFillColor(249, 250, 251)
+        doc.roundedRect(cardX, cardY, cardW, cardH, 6, 6, 'F')
+        doc.setDrawColor(229, 231, 235)
+        doc.setLineWidth(0.5)
+        doc.roundedRect(cardX, cardY, cardW, cardH, 6, 6, 'S')
+        doc.setFillColor(GOLD[0], GOLD[1], GOLD[2])
+        doc.circle(cardX + 28, cardY + 32, 18, 'F')
+        doc.setFontSize(13)
+        doc.setTextColor(255, 255, 255)
+        doc.text((i + 1).toString(), cardX + 28, cardY + 37, { align: 'center' })
+        doc.setFontSize(12)
+        doc.setTextColor(DARK_TEXT[0], DARK_TEXT[1], DARK_TEXT[2])
+        doc.setFont('helvetica', 'bold')
+        doc.text(p.name, cardX + 56, cardY + 24)
+        const barW = Math.max((p.count / kpMaxCount) * (cardW - 80), 10)
+        doc.setFillColor(GOLD[0], GOLD[1], GOLD[2])
+        doc.roundedRect(cardX + 56, cardY + 36, barW, 12, 4, 4, 'F')
+        doc.setFontSize(9)
+        doc.setTextColor(GRAY_TEXT[0], GRAY_TEXT[1], GRAY_TEXT[2])
+        doc.setFont('helvetica', 'normal')
+        doc.text(p.count.toString(), cardX + 56 + barW + 8, cardY + 46)
+      })
+    }
+
     // ===== SLIDE 8: KEY JOURNALISTS =====
     addNewSlide(doc)
     addSlideHeader(doc, 'Key Journalists – Top 5', clientName, logoBase64)
