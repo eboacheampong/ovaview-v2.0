@@ -5,7 +5,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { useRouter } from 'next/navigation'
 import { Badge } from '@/components/ui/badge'
 import {
-  Loader2, ExternalLink, Heart, MessageCircle, Share2,
+  Loader2, ExternalLink, Heart,
   Globe, Tv, Radio, Newspaper, Eye
 } from 'lucide-react'
 import { format } from 'date-fns'

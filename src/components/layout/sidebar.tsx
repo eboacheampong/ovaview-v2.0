@@ -6,7 +6,7 @@ import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import {
   ChevronDown, ChevronRight, LogOut, X,
-  MessageCircle, BarChart3, PieChart, Globe, Quote, Mail, FileText, FileSpreadsheet
+  MessageCircle, BarChart3, PieChart, Globe, Mail, FileText, FileSpreadsheet
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/use-auth'
@@ -205,7 +205,6 @@ export function Sidebar({ isOpen, isDesktop, onClose }: SidebarProps) {
           { label: 'Summary', href: '/client-dashboard/summary', icon: BarChart3 },
           { label: 'Analysis', href: '/client-dashboard/analysis', icon: PieChart },
           { label: 'Sources', href: '/client-dashboard/sources', icon: Globe },
-          { label: 'Quotes', href: '/client-dashboard/quotes', icon: Quote },
         ].map(item => (
           <Link
             key={item.href}
