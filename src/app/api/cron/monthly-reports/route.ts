@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const settings = await db.clientNotificationSetting.findMany({
-      where: { isActive: true, emailEnabled: true },
+      where: { isActive: true, emailEnabled: true, monthlyEnabled: true },
       include: {
         client: {
           include: {

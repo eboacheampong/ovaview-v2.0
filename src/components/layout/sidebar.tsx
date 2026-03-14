@@ -6,7 +6,7 @@ import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import {
   ChevronDown, ChevronRight, LogOut, X,
-  MessageCircle, BarChart3, PieChart, Globe, Mail, FileText, FileSpreadsheet
+  MessageCircle, BarChart3, PieChart, Globe, Mail, FileText, FileSpreadsheet, Bell
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/use-auth'
@@ -245,6 +245,24 @@ export function Sidebar({ isOpen, isDesktop, onClose }: SidebarProps) {
               {item.label}
             </Link>
           ))}
+        </div>
+
+        {/* Settings section */}
+        <div className="pt-4">
+          <p className="px-3 py-2 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Settings</p>
+          <Link
+            href="/client-dashboard/notifications"
+            onClick={handleNavClick}
+            className={cn(
+              'flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm transition-all duration-200',
+              isActive('/client-dashboard/notifications')
+                ? 'bg-orange-50 text-orange-600 font-medium'
+                : 'text-gray-600 hover:bg-gray-50'
+            )}
+          >
+            <Bell className={cn('h-4 w-4', isActive('/client-dashboard/notifications') ? 'text-orange-500' : 'text-gray-400')} />
+            Notifications
+          </Link>
         </div>
       </nav>
       )}

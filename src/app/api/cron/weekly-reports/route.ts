@@ -20,9 +20,9 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Get all active notification settings
+    // Get all active notification settings with weekly enabled
     const settings = await db.clientNotificationSetting.findMany({
-      where: { isActive: true, emailEnabled: true },
+      where: { isActive: true, emailEnabled: true, weeklyEnabled: true },
       include: {
         client: {
           include: {

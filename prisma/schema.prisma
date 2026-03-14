@@ -725,10 +725,16 @@ model ClientNotificationSetting {
   id               String   @id @default(cuid())
   clientId         String   @unique
   client           Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  notificationTime String   // Time in HH:mm format (24-hour)
+  notificationTime String   // Comma-separated HH:mm times for daily notifications (e.g. "08:00,17:00")
   timezone         String   @default("GMT")
   isActive         Boolean  @default(true)
   emailEnabled     Boolean  @default(true)
+  weeklyDay        Int      @default(0)  // 0=Sunday, 1=Monday, ..., 6=Saturday
+  weeklyTime       String   @default("18:00") // HH:mm
+  monthlyDay       Int      @default(31) // Day of month (31 = last day)
+  monthlyTime      String   @default("18:00") // HH:mm
+  weeklyEnabled    Boolean  @default(true)
+  monthlyEnabled   Boolean  @default(true)
   lastSentAt       DateTime?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt

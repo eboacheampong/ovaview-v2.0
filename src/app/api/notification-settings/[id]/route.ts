@@ -43,7 +43,7 @@ export async function PUT(
   try {
     const { id } = await params
     const body = await request.json()
-    const { clientId, notificationTime, timezone, isActive, emailEnabled } = body
+    const { clientId, notificationTime, timezone, isActive, emailEnabled, weeklyDay, weeklyTime, monthlyDay, monthlyTime, weeklyEnabled, monthlyEnabled } = body
 
     // Check if setting exists
     const existing = await prisma.clientNotificationSetting.findUnique({ where: { id } })
@@ -73,10 +73,16 @@ export async function PUT(
       where: { id },
       data: {
         ...(clientId && { clientId }),
-        ...(notificationTime && { notificationTime }),
+        ...(notificationTime !== undefined && { notificationTime }),
         ...(timezone !== undefined && { timezone }),
         ...(isActive !== undefined && { isActive }),
         ...(emailEnabled !== undefined && { emailEnabled }),
+        ...(weeklyDay !== undefined && { weeklyDay }),
+        ...(weeklyTime !== undefined && { weeklyTime }),
+        ...(monthlyDay !== undefined && { monthlyDay }),
+        ...(monthlyTime !== undefined && { monthlyTime }),
+        ...(weeklyEnabled !== undefined && { weeklyEnabled }),
+        ...(monthlyEnabled !== undefined && { monthlyEnabled }),
       },
       include: {
         client: {

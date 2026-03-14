@@ -27,6 +27,12 @@ interface NotificationSetting {
   timezone: string
   isActive: boolean
   emailEnabled: boolean
+  weeklyDay: number
+  weeklyTime: string
+  monthlyDay: number
+  monthlyTime: string
+  weeklyEnabled: boolean
+  monthlyEnabled: boolean
   lastSentAt: string | null
   createdAt: string
   updatedAt: string
@@ -65,10 +71,16 @@ export default function NotificationsPage() {
   const [selectedClientId, setSelectedClientId] = useState('')
   const [clientSearch, setClientSearch] = useState('')
   const [showClientDropdown, setShowClientDropdown] = useState(false)
-  const [notificationTime, setNotificationTime] = useState('08:00')
+  const [notificationTimes, setNotificationTimes] = useState<string[]>(['08:00'])
   const [timezone, setTimezone] = useState('GMT')
   const [isActive, setIsActive] = useState(true)
   const [emailEnabled, setEmailEnabled] = useState(true)
+  const [weeklyDay, setWeeklyDay] = useState(0)
+  const [weeklyTime, setWeeklyTime] = useState('18:00')
+  const [monthlyDay, setMonthlyDay] = useState(31)
+  const [monthlyTime, setMonthlyTime] = useState('18:00')
+  const [weeklyEnabled, setWeeklyEnabled] = useState(true)
+  const [monthlyEnabled, setMonthlyEnabled] = useState(true)
 
   // Modals
   const deleteModal = useModal<NotificationSetting>()
@@ -81,10 +93,16 @@ export default function NotificationsPage() {
   const [editClientId, setEditClientId] = useState('')
   const [editClientSearch, setEditClientSearch] = useState('')
   const [showEditClientDropdown, setShowEditClientDropdown] = useState(false)
-  const [editNotificationTime, setEditNotificationTime] = useState('08:00')
+  const [editNotificationTimes, setEditNotificationTimes] = useState<string[]>(['08:00'])
   const [editTimezone, setEditTimezone] = useState('GMT')
   const [editIsActive, setEditIsActive] = useState(true)
   const [editEmailEnabled, setEditEmailEnabled] = useState(true)
+  const [editWeeklyDay, setEditWeeklyDay] = useState(0)
+  const [editWeeklyTime, setEditWeeklyTime] = useState('18:00')
+  const [editMonthlyDay, setEditMonthlyDay] = useState(31)
+  const [editMonthlyTime, setEditMonthlyTime] = useState('18:00')
+  const [editWeeklyEnabled, setEditWeeklyEnabled] = useState(true)
+  const [editMonthlyEnabled, setEditMonthlyEnabled] = useState(true)
 
   useEffect(() => {
     fetchSettings()
@@ -157,14 +175,20 @@ export default function NotificationsPage() {
   const resetForm = () => {
     setSelectedClientId('')
     setClientSearch('')
-    setNotificationTime('08:00')
+    setNotificationTimes(['08:00'])
     setTimezone('GMT')
     setIsActive(true)
     setEmailEnabled(true)
+    setWeeklyDay(0)
+    setWeeklyTime('18:00')
+    setMonthlyDay(31)
+    setMonthlyTime('18:00')
+    setWeeklyEnabled(true)
+    setMonthlyEnabled(true)
   }
 
   const handleCreateSubmit = async () => {
-    if (!selectedClientId || !notificationTime) return
+    if (!selectedClientId || notificationTimes.length === 0) return
     setIsSubmitting(true)
     try {
       const res = await fetch('/api/notification-settings', {
@@ -172,10 +196,16 @@ export default function NotificationsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           clientId: selectedClientId,
-          notificationTime,
+          notificationTime: notificationTimes.filter(Boolean).join(','),
           timezone,
           isActive,
           emailEnabled,
+          weeklyDay,
+          weeklyTime,
+          monthlyDay,
+          monthlyTime,
+          weeklyEnabled,
+          monthlyEnabled,
         }),
       })
       if (res.ok) {
@@ -196,15 +226,22 @@ export default function NotificationsPage() {
   const handleEditOpen = (setting: NotificationSetting) => {
     setEditClientId(setting.clientId)
     setEditClientSearch('')
-    setEditNotificationTime(setting.notificationTime)
+    const times = (setting.notificationTime || '08:00').split(',').map(t => t.trim()).filter(Boolean)
+    setEditNotificationTimes(times.length > 0 ? times : ['08:00'])
     setEditTimezone(setting.timezone)
     setEditIsActive(setting.isActive)
     setEditEmailEnabled(setting.emailEnabled)
+    setEditWeeklyDay(setting.weeklyDay ?? 0)
+    setEditWeeklyTime(setting.weeklyTime || '18:00')
+    setEditMonthlyDay(setting.monthlyDay ?? 31)
+    setEditMonthlyTime(setting.monthlyTime || '18:00')
+    setEditWeeklyEnabled(setting.weeklyEnabled ?? true)
+    setEditMonthlyEnabled(setting.monthlyEnabled ?? true)
     editModal.open(setting)
   }
 
   const handleEditSubmit = async () => {
-    if (!editModal.data || !editClientId || !editNotificationTime) return
+    if (!editModal.data || !editClientId || editNotificationTimes.length === 0) return
     setIsSubmitting(true)
     try {
       const res = await fetch(`/api/notification-settings/${editModal.data.id}`, {
@@ -212,10 +249,16 @@ export default function NotificationsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           clientId: editClientId,
-          notificationTime: editNotificationTime,
+          notificationTime: editNotificationTimes.filter(Boolean).join(','),
           timezone: editTimezone,
           isActive: editIsActive,
           emailEnabled: editEmailEnabled,
+          weeklyDay: editWeeklyDay,
+          weeklyTime: editWeeklyTime,
+          monthlyDay: editMonthlyDay,
+          monthlyTime: editMonthlyTime,
+          weeklyEnabled: editWeeklyEnabled,
+          monthlyEnabled: editMonthlyEnabled,
         }),
       })
       if (res.ok) {
@@ -352,13 +395,18 @@ export default function NotificationsPage() {
     },
     {
       accessorKey: 'notificationTime',
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Notification Time" />,
-      cell: ({ row }) => (
-        <div className="flex items-center gap-2">
-          <Clock className="h-4 w-4 text-gray-400" />
-          <span className="font-mono text-gray-700">{row.getValue('notificationTime')}</span>
-        </div>
-      ),
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Daily Times" />,
+      cell: ({ row }) => {
+        const times = (row.getValue('notificationTime') as string || '').split(',').map(t => t.trim()).filter(Boolean)
+        return (
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <Clock className="h-4 w-4 text-gray-400 flex-shrink-0" />
+            {times.map((t, i) => (
+              <span key={i} className="font-mono text-gray-700 bg-gray-50 px-1.5 py-0.5 rounded text-xs">{t}</span>
+            ))}
+          </div>
+        )
+      },
     },
     {
       accessorKey: 'timezone',
@@ -627,27 +675,38 @@ export default function NotificationsPage() {
 
             <div className="grid grid-cols-2 gap-6">
               <div className="space-y-2">
-                <Label className="text-gray-700">Notification Time</Label>
-                <div className="relative">
-                  <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <Input
-                    type="time"
-                    value={notificationTime}
-                    onChange={(e) => setNotificationTime(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
+                <Label className="text-gray-700">Daily Notification Times</Label>
+                {notificationTimes.map((time, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <div className="relative flex-1">
+                      <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <Input
+                        type="time"
+                        value={time}
+                        onChange={(e) => setNotificationTimes(prev => prev.map((t, i) => i === index ? e.target.value : t))}
+                        className="pl-10"
+                      />
+                    </div>
+                    {notificationTimes.length > 1 && (
+                      <button onClick={() => setNotificationTimes(prev => prev.filter((_, i) => i !== index))} className="p-2 text-red-400 hover:text-red-600">
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+                <button
+                  onClick={() => setNotificationTimes(prev => [...prev, '12:00'])}
+                  className="flex items-center gap-1 text-xs text-orange-600 hover:text-orange-700 py-1"
+                >
+                  <Bell className="h-3 w-3" /> Add another time
+                </button>
                 <div className="flex flex-wrap gap-1.5 mt-2">
                   {QUICK_TIMES.map((time) => (
                     <button
                       key={time.value}
                       type="button"
-                      onClick={() => setNotificationTime(time.value)}
-                      className={`px-2.5 py-1 text-xs rounded-full border transition-colors ${
-                        notificationTime === time.value
-                          ? 'bg-orange-100 border-orange-300 text-orange-700'
-                          : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
-                      }`}
+                      onClick={() => setNotificationTimes(prev => prev.length === 1 && prev[0] === '08:00' ? [time.value] : [...prev, time.value])}
+                      className="px-2.5 py-1 text-xs rounded-full border bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100 transition-colors"
                     >
                       {time.label}
                     </button>
@@ -689,10 +748,72 @@ export default function NotificationsPage() {
               <Label htmlFor="isActive" className="cursor-pointer">Active</Label>
             </div>
 
+            {/* Weekly Report Schedule */}
+            <div className="border-t border-gray-200 pt-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-blue-500" />
+                  <Label className="text-gray-700 font-medium">Weekly Report</Label>
+                  <span className="text-[10px] font-semibold bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">AI</span>
+                </div>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={weeklyEnabled} onChange={(e) => setWeeklyEnabled(e.target.checked)} className="rounded border-gray-300" />
+                  <span className="text-sm text-gray-600">Enabled</span>
+                </label>
+              </div>
+              {weeklyEnabled && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-gray-600 text-sm">Day</Label>
+                    <select value={weeklyDay} onChange={(e) => setWeeklyDay(parseInt(e.target.value))} className="w-full h-10 mt-1 rounded-md border border-gray-300 px-3 bg-white">
+                      {[{ v: 0, l: 'Sunday' }, { v: 1, l: 'Monday' }, { v: 2, l: 'Tuesday' }, { v: 3, l: 'Wednesday' }, { v: 4, l: 'Thursday' }, { v: 5, l: 'Friday' }, { v: 6, l: 'Saturday' }].map(d => (
+                        <option key={d.v} value={d.v}>{d.l}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <Label className="text-gray-600 text-sm">Time</Label>
+                    <Input type="time" value={weeklyTime} onChange={(e) => setWeeklyTime(e.target.value)} className="mt-1" />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Monthly Report Schedule */}
+            <div className="border-t border-gray-200 pt-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-purple-500" />
+                  <Label className="text-gray-700 font-medium">Monthly Report</Label>
+                  <span className="text-[10px] font-semibold bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">AI</span>
+                </div>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={monthlyEnabled} onChange={(e) => setMonthlyEnabled(e.target.checked)} className="rounded border-gray-300" />
+                  <span className="text-sm text-gray-600">Enabled</span>
+                </label>
+              </div>
+              {monthlyEnabled && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-gray-600 text-sm">Day of Month</Label>
+                    <select value={monthlyDay} onChange={(e) => setMonthlyDay(parseInt(e.target.value))} className="w-full h-10 mt-1 rounded-md border border-gray-300 px-3 bg-white">
+                      {Array.from({ length: 31 }, (_, i) => i + 1).map(d => (
+                        <option key={d} value={d}>{d === 31 ? '31 (Last day)' : d}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <Label className="text-gray-600 text-sm">Time</Label>
+                    <Input type="time" value={monthlyTime} onChange={(e) => setMonthlyTime(e.target.value)} className="mt-1" />
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div className="flex justify-end pt-4 border-t border-gray-200">
               <Button
                 onClick={handleCreateSubmit}
-                disabled={!selectedClientId || !notificationTime || isSubmitting}
+                disabled={!selectedClientId || notificationTimes.length === 0 || isSubmitting}
                 className="bg-orange-500 hover:bg-orange-600 text-white px-8"
               >
                 {isSubmitting ? (
@@ -747,48 +868,45 @@ export default function NotificationsPage() {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <Label className="text-gray-700">Notification Time</Label>
-              <div className="relative">
-                <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <Input
-                  type="time"
-                  value={editNotificationTime}
-                  onChange={(e) => setEditNotificationTime(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              <div className="flex flex-wrap gap-1.5 mt-2">
-                {QUICK_TIMES.map((time) => (
-                  <button
-                    key={time.value}
-                    type="button"
-                    onClick={() => setEditNotificationTime(time.value)}
-                    className={`px-2.5 py-1 text-xs rounded-full border transition-colors ${
-                      editNotificationTime === time.value
-                        ? 'bg-orange-100 border-orange-300 text-orange-700'
-                        : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
-                    }`}
-                  >
-                    {time.label}
+          <div className="space-y-3">
+            <Label className="text-gray-700">Daily Notification Times</Label>
+            {editNotificationTimes.map((time, index) => (
+              <div key={index} className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    type="time"
+                    value={time}
+                    onChange={(e) => setEditNotificationTimes(prev => prev.map((t, i) => i === index ? e.target.value : t))}
+                    className="pl-10"
+                  />
+                </div>
+                {editNotificationTimes.length > 1 && (
+                  <button onClick={() => setEditNotificationTimes(prev => prev.filter((_, i) => i !== index))} className="p-2 text-red-400 hover:text-red-600">
+                    <X className="h-4 w-4" />
                   </button>
-                ))}
+                )}
               </div>
-            </div>
+            ))}
+            <button
+              onClick={() => setEditNotificationTimes(prev => [...prev, '12:00'])}
+              className="flex items-center gap-1 text-xs text-orange-600 hover:text-orange-700 py-1"
+            >
+              <Bell className="h-3 w-3" /> Add another time
+            </button>
+          </div>
 
-            <div className="space-y-2">
-              <Label className="text-gray-700">Timezone</Label>
-              <select
-                value={editTimezone}
-                onChange={(e) => setEditTimezone(e.target.value)}
-                className="w-full h-10 rounded-md border border-gray-300 px-3 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-              >
-                {TIMEZONES.map((tz) => (
-                  <option key={tz.value} value={tz.value}>{tz.label}</option>
-                ))}
-              </select>
-            </div>
+          <div className="space-y-2">
+            <Label className="text-gray-700">Timezone</Label>
+            <select
+              value={editTimezone}
+              onChange={(e) => setEditTimezone(e.target.value)}
+              className="w-full h-10 rounded-md border border-gray-300 px-3 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+            >
+              {TIMEZONES.map((tz) => (
+                <option key={tz.value} value={tz.value}>{tz.label}</option>
+              ))}
+            </select>
           </div>
 
           <div className="flex items-center gap-2">
@@ -809,6 +927,66 @@ export default function NotificationsPage() {
               onCheckedChange={(c) => setEditIsActive(!!c)}
             />
             <Label htmlFor="editIsActive" className="cursor-pointer">Active</Label>
+          </div>
+
+          {/* Weekly Report Schedule */}
+          <div className="border-t border-gray-200 pt-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-blue-500" />
+                <Label className="text-gray-700 font-medium">Weekly Report</Label>
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={editWeeklyEnabled} onChange={(e) => setEditWeeklyEnabled(e.target.checked)} className="rounded border-gray-300" />
+                <span className="text-sm text-gray-600">Enabled</span>
+              </label>
+            </div>
+            {editWeeklyEnabled && (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-gray-600 text-sm">Day</Label>
+                  <select value={editWeeklyDay} onChange={(e) => setEditWeeklyDay(parseInt(e.target.value))} className="w-full h-10 mt-1 rounded-md border border-gray-300 px-3 bg-white">
+                    {[{ v: 0, l: 'Sunday' }, { v: 1, l: 'Monday' }, { v: 2, l: 'Tuesday' }, { v: 3, l: 'Wednesday' }, { v: 4, l: 'Thursday' }, { v: 5, l: 'Friday' }, { v: 6, l: 'Saturday' }].map(d => (
+                      <option key={d.v} value={d.v}>{d.l}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <Label className="text-gray-600 text-sm">Time</Label>
+                  <Input type="time" value={editWeeklyTime} onChange={(e) => setEditWeeklyTime(e.target.value)} className="mt-1" />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Monthly Report Schedule */}
+          <div className="border-t border-gray-200 pt-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-purple-500" />
+                <Label className="text-gray-700 font-medium">Monthly Report</Label>
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={editMonthlyEnabled} onChange={(e) => setEditMonthlyEnabled(e.target.checked)} className="rounded border-gray-300" />
+                <span className="text-sm text-gray-600">Enabled</span>
+              </label>
+            </div>
+            {editMonthlyEnabled && (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-gray-600 text-sm">Day of Month</Label>
+                  <select value={editMonthlyDay} onChange={(e) => setEditMonthlyDay(parseInt(e.target.value))} className="w-full h-10 mt-1 rounded-md border border-gray-300 px-3 bg-white">
+                    {Array.from({ length: 31 }, (_, i) => i + 1).map(d => (
+                      <option key={d} value={d}>{d === 31 ? '31 (Last day)' : d}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <Label className="text-gray-600 text-sm">Time</Label>
+                  <Input type="time" value={editMonthlyTime} onChange={(e) => setEditMonthlyTime(e.target.value)} className="mt-1" />
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </FormModal>

@@ -407,31 +407,32 @@ export async function processScheduledNotifications(): Promise<{
     // Skip if client is not active
     if (!setting.client.isActive) continue
 
-    // Convert notification time to UTC based on timezone
-    const notificationTimeUTC = convertToUTC(setting.notificationTime, setting.timezone)
-    
-    // Check if it's time to send (within 5 minute window)
-    if (isWithinTimeWindow(currentTime, notificationTimeUTC, 5)) {
-      // Check if already sent today
-      if (setting.lastSentAt) {
-        const lastSentDate = new Date(setting.lastSentAt)
-        const today = new Date()
-        if (
-          lastSentDate.getUTCFullYear() === today.getUTCFullYear() &&
-          lastSentDate.getUTCMonth() === today.getUTCMonth() &&
-          lastSentDate.getUTCDate() === today.getUTCDate()
-        ) {
-          continue // Already sent today
-        }
-      }
+    // Parse multiple notification times (comma-separated)
+    const notificationTimes = (setting.notificationTime || '').split(',').map((t: string) => t.trim()).filter(Boolean)
 
-      results.processed++
-      const result = await sendClientNotification(setting.id)
+    // Check each configured time
+    for (const time of notificationTimes) {
+      const notificationTimeUTC = convertToUTC(time, setting.timezone)
       
-      if (result.success && result.emailsSent > 0) {
-        results.sent++
-      } else if (result.error) {
-        results.errors.push(`${setting.client.name}: ${result.error}`)
+      if (isWithinTimeWindow(currentTime, notificationTimeUTC, 5)) {
+        // Check if already sent within the last 30 minutes (to avoid duplicate sends for same time slot)
+        if (setting.lastSentAt) {
+          const lastSentDate = new Date(setting.lastSentAt)
+          const minutesSinceLastSent = (now.getTime() - lastSentDate.getTime()) / (1000 * 60)
+          if (minutesSinceLastSent < 30) {
+            continue // Already sent recently
+          }
+        }
+
+        results.processed++
+        const result = await sendClientNotification(setting.id)
+        
+        if (result.success && result.emailsSent > 0) {
+          results.sent++
+        } else if (result.error) {
+          results.errors.push(`${setting.client.name}: ${result.error}`)
+        }
+        break // Only send once per check cycle even if multiple times match
       }
     }
   }
