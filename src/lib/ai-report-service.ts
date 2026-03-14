@@ -341,15 +341,25 @@ async function callAI(prompt: string, maxTokens: number = 1500): Promise<string>
           continue
         }
 
-        const data = await res.json()
-
-        // Check for API-level errors in the response body
-        if (data.error) {
-          errors.push(`${model}[${attempt}]: ${typeof data.error === 'string' ? data.error : data.error.message || JSON.stringify(data.error)}`)
+        // Parse response body — may not be valid JSON if the API returns an error string
+        let data: Record<string, unknown>
+        try {
+          const responseText = await res.text()
+          data = JSON.parse(responseText)
+        } catch (jsonErr) {
+          errors.push(`${model}[${attempt}]: response body not valid JSON`)
           continue
         }
 
-        const content = data.choices?.[0]?.message?.content
+        // Check for API-level errors in the response body
+        if (data.error) {
+          const errObj = data.error as Record<string, unknown>
+          errors.push(`${model}[${attempt}]: ${typeof data.error === 'string' ? data.error : (errObj.message as string) || JSON.stringify(data.error)}`)
+          continue
+        }
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const content = (data as any).choices?.[0]?.message?.content
         if (!content || typeof content !== 'string') {
           errors.push(`${model}[${attempt}]: empty/missing content in response`)
           continue
@@ -797,11 +807,11 @@ Top mentions: ${currentStats.topMentions.slice(0, 8).map(m => `"${m.title}" by $
       `Analyze this media monitoring data and return a JSON object with 4 fields: "headline", "insights", "trends", "recommendations".
 
 headline: One sentence with the percentage change (e.g. "A 51% Decrease in ${client.name} Mentions").
-insights: 4-5 observation paragraphs about what happened during ${periodDesc}. Use numbers from the data. Separate with \\n\\n. No advice here.
+insights: Write exactly 5 key insights. Each insight MUST be a single standalone sentence or short paragraph (2-3 sentences max) about a specific finding. Each insight MUST be separated by TWO newlines (\\n\\n). Start each with a concrete observation using numbers from the data. Do NOT combine multiple points into one paragraph. No advice here, only observations.
 trends: 4-5 bullet points starting with "•", each on a new line (\\n). Compare to previous period using the numbers.
 recommendations: 3-4 action paragraphs. Each is one continuous paragraph. Separate with \\n\\n.
 
-Rules: No markdown. No preambles like "Here are...". No numbered prefixes. Plain text only. Refer to the period as "${periodDesc}".
+Rules: No markdown. No preambles like "Here are...". No numbered prefixes like "1." or "2.". Plain text only. Refer to the period as "${periodDesc}".
 
 Data:
 ${dataSummary}
@@ -819,9 +829,9 @@ Return ONLY the JSON object.`,
     try {
       console.log('[Monthly] Trying individual AI calls...')
       const [insightsText, trendsText, recsText] = await Promise.all([
-        callAI(`You are a media analyst. Write 4-5 observation paragraphs about this client's media performance during ${periodDesc}. Use specific numbers. Separate paragraphs with blank lines. No advice. No preamble. No markdown. Refer to the period as "${periodDesc}".\n\nData:\n${dataSummary}`, 1200),
+        callAI(`You are a media analyst. Write exactly 5 key insights about this client's media performance during ${periodDesc}. Each insight MUST be a single standalone observation (2-3 sentences max) using specific numbers from the data. Each insight MUST be separated by TWO newlines. Do NOT combine multiple points into one paragraph. No numbered prefixes. No advice. No preamble. No markdown. Refer to the period as "${periodDesc}".\n\nData:\n${dataSummary}`, 1200),
         callAI(`Write 4-5 bullet points comparing ${periodDesc} to the previous period. Start each with "•" on its own line. Use specific numbers.\n\nData:\n${dataSummary}`, 600),
-        callAI(`Write 3-4 actionable recommendation paragraphs for this client based on their media data during ${periodDesc}. Each recommendation is one continuous paragraph. Separate with blank lines. No preamble. No markdown.\n\nData:\n${dataSummary}`, 800),
+        callAI(`Write 3-4 actionable recommendation paragraphs for this client based on their media data during ${periodDesc}. Each recommendation MUST be a single standalone paragraph. Separate each with TWO newlines. No numbered prefixes. No preamble. No markdown.\n\nData:\n${dataSummary}`, 800),
       ])
       console.log(`[Monthly] ✓ Individual calls succeeded — insights: ${insightsText.length}ch, trends: ${trendsText.length}ch, recs: ${recsText.length}ch`)
       parsed = {
