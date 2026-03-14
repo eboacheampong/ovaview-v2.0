@@ -7,7 +7,7 @@ import { usePathname } from 'next/navigation'
 import {
   ChevronDown, ChevronRight, LogOut, X,
   MessageCircle, BarChart3, PieChart, Globe, Mail, FileText, FileSpreadsheet, Bell,
-  Sparkles, CalendarDays, LucideIcon
+  Sparkles, CalendarDays
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/use-auth'
@@ -23,10 +23,14 @@ export function Sidebar({ isOpen, isDesktop, onClose }: SidebarProps) {
   const pathname = usePathname()
   const { logout, hasRole, user } = useAuth()
   const isClientUser = user?.role === 'client_user'
-  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({})
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({})
+  const [expandedSubs, setExpandedSubs] = useState<Record<string, boolean>>({})
 
-  const toggleGroup = (key: string) => {
-    setExpandedGroups(prev => ({ ...prev, [key]: !prev[key] }))
+  const toggleSection = (key: string) => {
+    setExpandedSections(prev => ({ ...prev, [key]: !prev[key] }))
+  }
+  const toggleSub = (key: string) => {
+    setExpandedSubs(prev => ({ ...prev, [key]: !prev[key] }))
   }
 
   const isActive = (href: string) => {
@@ -34,49 +38,36 @@ export function Sidebar({ isOpen, isDesktop, onClose }: SidebarProps) {
     return pathname === href || pathname.startsWith(href + '/')
   }
 
-  const filterItemsByRole = (items: NavItem[]) => {
-    return items.filter(item => !item.requiredRole || hasRole(item.requiredRole))
+  const isSubActive = (sub: NavSubSection) => sub.items.some(i => isActive(i.href))
+
+  const isSectionActive = (section: typeof navigationSections[0]) => {
+    if (section.items?.some(i => isActive(i.href))) return true
+    if (section.subSections?.some(s => isSubActive(s))) return true
+    return false
   }
+
+  const filterByRole = (items: NavItem[]) =>
+    items.filter(item => !item.requiredRole || hasRole(item.requiredRole))
 
   const handleLogout = async () => { await logout() }
   const handleNavClick = () => { if (!isDesktop) onClose() }
 
   if (!isOpen) return null
 
-  // Flatten admin nav: collect all items from sections/subsections into grouped flat list
-  const adminGroups: { label: string; items: NavItem[] }[] = []
-  for (const section of navigationSections) {
-    // Direct items
-    const directItems = section.items ? filterItemsByRole(section.items) : []
-    // SubSection items flattened
-    const subItems: NavItem[] = []
-    if (section.subSections) {
-      for (const sub of section.subSections) {
-        const filtered = filterItemsByRole(sub.items)
-        subItems.push(...filtered)
-      }
-    }
-    const allItems = [...subItems, ...directItems]
-    if (allItems.length > 0) {
-      adminGroups.push({ label: section.title, items: allItems })
-    }
-  }
-
-  // Check if any item in a group is active (for auto-expand)
-  const isGroupActive = (items: NavItem[]) => items.some(item => isActive(item.href))
-
-  const NavLink = ({ item }: { item: NavItem }) => (
+  // Shared link component
+  const NavLink = ({ item, indent = false }: { item: NavItem; indent?: boolean }) => (
     <Link
       href={item.href}
       onClick={handleNavClick}
       className={cn(
-        'flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] transition-all duration-150',
+        'flex items-center gap-2.5 py-1.5 rounded-md text-[13px] transition-colors duration-150',
+        indent ? 'px-3 ml-5' : 'px-3',
         isActive(item.href)
           ? 'bg-orange-50 text-orange-600 font-medium'
           : 'text-gray-600 hover:bg-gray-50 hover:text-gray-800'
       )}
     >
-      <item.icon className={cn('h-4 w-4 shrink-0', isActive(item.href) ? 'text-orange-500' : 'text-gray-400')} />
+      <item.icon className={cn('h-3.5 w-3.5 shrink-0', isActive(item.href) ? 'text-orange-500' : 'text-gray-400')} />
       <span className="truncate">{item.label}</span>
     </Link>
   )
@@ -115,28 +106,64 @@ export function Sidebar({ isOpen, isDesktop, onClose }: SidebarProps) {
         </Link>
       </div>
 
-      {/* Admin navigation — flat grouped list with collapsible sections */}
+      {/* Admin navigation */}
       {!isClientUser && (
-      <nav className="flex-1 overflow-y-auto px-3 py-2 space-y-0.5 scrollbar-thin">
-        {adminGroups.map((group) => {
-          const active = isGroupActive(group.items)
-          const expanded = expandedGroups[group.label] ?? active
+      <nav className="flex-1 overflow-y-auto px-3 py-1">
+        {navigationSections.map((section) => {
+          const directItems = section.items ? filterByRole(section.items) : []
+          const hasSubs = section.subSections && section.subSections.length > 0
+          if (!hasSubs && directItems.length === 0) return null
+
+          const sectionOpen = expandedSections[section.title] ?? isSectionActive(section)
 
           return (
-            <div key={group.label}>
+            <div key={section.title} className="mt-2 first:mt-0">
+              {/* Section header */}
               <button
-                onClick={() => toggleGroup(group.label)}
-                className="flex items-center justify-between w-full px-3 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-widest hover:text-gray-600 transition-colors mt-3 first:mt-0"
+                onClick={() => toggleSection(section.title)}
+                className="flex items-center justify-between w-full px-2 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-widest hover:text-gray-500 transition-colors"
               >
-                {group.label}
-                {expanded
-                  ? <ChevronDown className="h-3 w-3" />
-                  : <ChevronRight className="h-3 w-3" />
-                }
+                {section.title}
+                {sectionOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
               </button>
-              {expanded && (
-                <div className="mt-0.5 space-y-0.5">
-                  {group.items.map(item => <NavLink key={item.href} item={item} />)}
+
+              {sectionOpen && (
+                <div className="space-y-0.5 mt-0.5">
+                  {/* Subsections with their own toggle */}
+                  {section.subSections?.map((sub) => {
+                    const subItems = filterByRole(sub.items)
+                    if (subItems.length === 0) return null
+                    const subOpen = expandedSubs[sub.title] ?? isSubActive(sub)
+                    const SubIcon = sub.icon
+
+                    return (
+                      <div key={sub.title}>
+                        <button
+                          onClick={() => toggleSub(sub.title)}
+                          className={cn(
+                            'flex items-center justify-between w-full px-3 py-1.5 rounded-md text-[13px] transition-colors duration-150',
+                            subOpen
+                              ? 'bg-gray-100 text-gray-800 font-medium'
+                              : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
+                          )}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <SubIcon className={cn('h-3.5 w-3.5', subOpen ? 'text-orange-500' : 'text-gray-400')} />
+                            {sub.title}
+                          </div>
+                          {subOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                        </button>
+                        {subOpen && (
+                          <div className="mt-0.5 space-y-0.5 border-l-2 border-gray-100 ml-4 pl-0">
+                            {subItems.map(item => <NavLink key={item.href} item={item} indent />)}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+
+                  {/* Direct items (no subsection) */}
+                  {directItems.map(item => <NavLink key={item.href} item={item} />)}
                 </div>
               )}
             </div>
@@ -154,41 +181,37 @@ export function Sidebar({ isOpen, isDesktop, onClose }: SidebarProps) {
           { label: 'Analysis', href: '/client-dashboard/analysis', icon: PieChart },
           { label: 'Sources', href: '/client-dashboard/sources', icon: Globe },
         ].map(item => (
-          <Link
-            key={item.href}
-            href={item.href}
-            onClick={handleNavClick}
+          <Link key={item.href} href={item.href} onClick={handleNavClick}
             className={cn(
-              'flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] transition-all duration-150',
+              'flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[13px] transition-colors duration-150',
               isActive(item.href) && pathname === item.href
                 ? 'bg-orange-50 text-orange-600 font-medium'
                 : 'text-gray-600 hover:bg-gray-50'
-            )}
-          >
-            <item.icon className={cn('h-4 w-4', isActive(item.href) && pathname === item.href ? 'text-orange-500' : 'text-gray-400')} />
+            )}>
+            <item.icon className={cn('h-3.5 w-3.5', isActive(item.href) && pathname === item.href ? 'text-orange-500' : 'text-gray-400')} />
             {item.label}
           </Link>
         ))}
 
         <div className="pt-3">
-          <p className="px-3 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-widest">AI Insights</p>
+          <p className="px-2 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-widest">AI Insights</p>
           {[
             { label: 'Weekly Insights', href: '/client-dashboard/insights/weekly', icon: CalendarDays },
             { label: 'Monthly Insights', href: '/client-dashboard/insights/monthly', icon: Sparkles },
           ].map(item => (
             <Link key={item.href} href={item.href} onClick={handleNavClick}
               className={cn(
-                'flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] transition-all duration-150',
+                'flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[13px] transition-colors duration-150',
                 isActive(item.href) ? 'bg-orange-50 text-orange-600 font-medium' : 'text-gray-600 hover:bg-gray-50'
               )}>
-              <item.icon className={cn('h-4 w-4', isActive(item.href) ? 'text-orange-500' : 'text-gray-400')} />
+              <item.icon className={cn('h-3.5 w-3.5', isActive(item.href) ? 'text-orange-500' : 'text-gray-400')} />
               {item.label}
             </Link>
           ))}
         </div>
 
         <div className="pt-3">
-          <p className="px-3 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Reports</p>
+          <p className="px-2 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Reports</p>
           {[
             { label: 'Email Reports', href: '/client-dashboard/reports/email', icon: Mail },
             { label: 'PDF Report', href: '/client-dashboard/reports/pdf', icon: FileText },
@@ -196,23 +219,23 @@ export function Sidebar({ isOpen, isDesktop, onClose }: SidebarProps) {
           ].map(item => (
             <Link key={item.href} href={item.href} onClick={handleNavClick}
               className={cn(
-                'flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] transition-all duration-150',
+                'flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[13px] transition-colors duration-150',
                 isActive(item.href) ? 'bg-orange-50 text-orange-600 font-medium' : 'text-gray-600 hover:bg-gray-50'
               )}>
-              <item.icon className={cn('h-4 w-4', isActive(item.href) ? 'text-orange-500' : 'text-gray-400')} />
+              <item.icon className={cn('h-3.5 w-3.5', isActive(item.href) ? 'text-orange-500' : 'text-gray-400')} />
               {item.label}
             </Link>
           ))}
         </div>
 
         <div className="pt-3">
-          <p className="px-3 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Settings</p>
+          <p className="px-2 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Settings</p>
           <Link href="/client-dashboard/notifications" onClick={handleNavClick}
             className={cn(
-              'flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] transition-all duration-150',
+              'flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[13px] transition-colors duration-150',
               isActive('/client-dashboard/notifications') ? 'bg-orange-50 text-orange-600 font-medium' : 'text-gray-600 hover:bg-gray-50'
             )}>
-            <Bell className={cn('h-4 w-4', isActive('/client-dashboard/notifications') ? 'text-orange-500' : 'text-gray-400')} />
+            <Bell className={cn('h-3.5 w-3.5', isActive('/client-dashboard/notifications') ? 'text-orange-500' : 'text-gray-400')} />
             Notifications
           </Link>
         </div>
@@ -224,16 +247,16 @@ export function Sidebar({ isOpen, isDesktop, onClose }: SidebarProps) {
         {bottomNavItems.map((item) => (
           <Link key={item.href} href={item.href} onClick={handleNavClick}
             className={cn(
-              'flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] transition-all duration-150',
+              'flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[13px] transition-colors duration-150',
               isActive(item.href) ? 'bg-orange-50 text-orange-600 font-medium' : 'text-gray-600 hover:bg-gray-50'
             )}>
-            <item.icon className={cn('h-4 w-4', isActive(item.href) ? 'text-orange-500' : 'text-gray-400')} />
+            <item.icon className={cn('h-3.5 w-3.5', isActive(item.href) ? 'text-orange-500' : 'text-gray-400')} />
             {item.label}
           </Link>
         ))}
         <button onClick={handleLogout}
-          className="flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] text-gray-600 hover:bg-red-50 hover:text-red-600 w-full transition-all duration-150">
-          <LogOut className="h-4 w-4" />
+          className="flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[13px] text-gray-600 hover:bg-red-50 hover:text-red-600 w-full transition-colors duration-150">
+          <LogOut className="h-3.5 w-3.5" />
           Logout
         </button>
       </div>
