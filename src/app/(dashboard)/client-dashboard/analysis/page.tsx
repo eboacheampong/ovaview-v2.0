@@ -1,11 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { Loader2, Newspaper, Tv, Radio, Globe, Share2, Heart, MessageCircle, Eye } from 'lucide-react'
+import { Loader2, Newspaper, Tv, Radio, Globe, Share2 } from 'lucide-react'
 import { useClientDashboard, fmtNum, SOURCE_LABELS, SENTIMENT_COLORS } from '@/hooks/use-client-dashboard'
+import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent, type ChartConfig } from '@/components/ui/chart'
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, Legend, AreaChart, Area
+  LineChart, Line, XAxis, YAxis, CartesianGrid, AreaChart, Area
 } from 'recharts'
 import { format } from 'date-fns'
 
@@ -21,6 +21,11 @@ const MEDIA_ICONS: Record<string, typeof Globe> = {
 }
 
 const SM_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4']
+
+const mentionsChartConfig = {
+  mentions: { label: 'Mentions', color: '#6366f1' },
+  reach: { label: 'Reach', color: '#10b981' },
+} satisfies ChartConfig
 
 export default function AnalysisPage() {
   const [days, setDays] = useState(30)
@@ -69,7 +74,6 @@ export default function AnalysisPage() {
       reach: items.reduce((s, m) => s + m.reach, 0),
       positive: items.filter(m => m.sentiment === 'positive').length,
       negative: items.filter(m => m.sentiment === 'negative').length,
-      interactions: items.reduce((s, m) => s + (m.engagement || 0), 0),
     }
   })
 
@@ -89,6 +93,15 @@ export default function AnalysisPage() {
     return row
   })
 
+  // Dynamic chart configs
+  const smChartConfig = Object.fromEntries(
+    smPlatforms.map((p, i) => [p, { label: SOURCE_LABELS[p] || p, color: SM_COLORS[i % SM_COLORS.length] }])
+  ) satisfies ChartConfig
+
+  const reachByTypeConfig = Object.fromEntries(
+    mediaTypes.map((t, i) => [t, { label: t, color: SM_COLORS[i % SM_COLORS.length] }])
+  ) satisfies ChartConfig
+
   return (
     <div className="p-4 sm:p-6">
       <div className="flex items-center justify-between mb-6">
@@ -99,16 +112,15 @@ export default function AnalysisPage() {
         </select>
       </div>
 
-      {/* Summary stats row */}
+      {/* Summary stats row - Interactions removed */}
       <div className="bg-white rounded-lg border border-gray-200 p-5 mb-6">
         <h2 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
           <span className="w-3 h-3 rounded bg-gray-800" /> Summary
         </h2>
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {[
             { label: 'Mentions', value: s.totalMentions, color: 'text-gray-800' },
             { label: 'SM Reach', value: s.totalReach, color: 'text-gray-800' },
-            { label: 'Interactions', value: s.totalInteractions, color: 'text-gray-800' },
             { label: 'Positive', value: s.positive, color: 'text-emerald-600' },
             { label: 'Negative', value: s.negative, color: 'text-red-600' },
           ].map(stat => (
@@ -128,17 +140,17 @@ export default function AnalysisPage() {
             <h2 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
               <span className="w-3 h-3 rounded bg-indigo-500" /> Mentions
             </h2>
-            <ResponsiveContainer width="100%" height={260}>
-              <LineChart data={data.chart}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="date" tick={{ fontSize: 11 }} tickFormatter={v => format(new Date(v), 'MMM d')} />
-                <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip labelFormatter={v => format(new Date(v), 'MMM d, yyyy')} />
-                <Legend wrapperStyle={{ fontSize: 12 }} />
-                <Line type="monotone" dataKey="mentions" stroke="#6366f1" strokeWidth={2} dot={false} name="Mentions" />
-                <Line type="monotone" dataKey="reach" stroke="#10b981" strokeWidth={2} dot={false} name="Reach" />
+            <ChartContainer config={mentionsChartConfig} className="min-h-[260px] w-full">
+              <LineChart data={data.chart} accessibilityLayer>
+                <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} fontSize={11} tickFormatter={v => format(new Date(v), 'MMM d')} />
+                <YAxis tickLine={false} axisLine={false} fontSize={11} />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <ChartLegend content={<ChartLegendContent />} />
+                <Line type="monotone" dataKey="mentions" stroke="var(--color-mentions)" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="reach" stroke="var(--color-reach)" strokeWidth={2} dot={false} />
               </LineChart>
-            </ResponsiveContainer>
+            </ChartContainer>
           </div>
 
           {/* Social Media Reach */}
@@ -147,20 +159,20 @@ export default function AnalysisPage() {
               <span className="w-3 h-3 rounded bg-emerald-500" /> Social Media Reach
             </h2>
             {smPlatforms.length > 0 ? (
-              <ResponsiveContainer width="100%" height={260}>
-                <AreaChart data={smReachChart}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis dataKey="date" tick={{ fontSize: 11 }} tickFormatter={v => format(new Date(v), 'MMM d')} />
-                  <YAxis tick={{ fontSize: 11 }} tickFormatter={fmtNum} />
-                  <Tooltip labelFormatter={v => format(new Date(v), 'MMM d, yyyy')} />
-                  <Legend wrapperStyle={{ fontSize: 12 }} />
+              <ChartContainer config={smChartConfig} className="min-h-[260px] w-full">
+                <AreaChart data={smReachChart} accessibilityLayer>
+                  <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                  <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} fontSize={11} tickFormatter={v => format(new Date(v), 'MMM d')} />
+                  <YAxis tickLine={false} axisLine={false} fontSize={11} tickFormatter={fmtNum} />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <ChartLegend content={<ChartLegendContent />} />
                   {smPlatforms.map((p, i) => (
                     <Area key={p} type="monotone" dataKey={p} stroke={SM_COLORS[i % SM_COLORS.length]}
                       fill={SM_COLORS[i % SM_COLORS.length]} fillOpacity={0.1}
-                      strokeWidth={2} name={SOURCE_LABELS[p] || p} />
+                      strokeWidth={2} />
                   ))}
                 </AreaChart>
-              </ResponsiveContainer>
+              </ChartContainer>
             ) : (
               <div className="h-[260px] flex items-center justify-center text-gray-400 text-sm">No social media data</div>
             )}
@@ -171,19 +183,19 @@ export default function AnalysisPage() {
             <h2 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
               <span className="w-3 h-3 rounded bg-amber-500" /> Reach by Media Type
             </h2>
-            <ResponsiveContainer width="100%" height={260}>
-              <AreaChart data={reachChart}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="date" tick={{ fontSize: 11 }} tickFormatter={v => format(new Date(v), 'MMM d')} />
-                <YAxis tick={{ fontSize: 11 }} tickFormatter={fmtNum} />
-                <Tooltip labelFormatter={v => format(new Date(v), 'MMM d, yyyy')} />
-                <Legend wrapperStyle={{ fontSize: 12 }} />
+            <ChartContainer config={reachByTypeConfig} className="min-h-[260px] w-full">
+              <AreaChart data={reachChart} accessibilityLayer>
+                <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} fontSize={11} tickFormatter={v => format(new Date(v), 'MMM d')} />
+                <YAxis tickLine={false} axisLine={false} fontSize={11} tickFormatter={fmtNum} />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <ChartLegend content={<ChartLegendContent />} />
                 {mediaTypes.map((t, i) => (
                   <Area key={t} type="monotone" dataKey={t} stroke={SM_COLORS[i % SM_COLORS.length]}
                     fill={SM_COLORS[i % SM_COLORS.length]} fillOpacity={0.1} strokeWidth={2} />
                 ))}
               </AreaChart>
-            </ResponsiveContainer>
+            </ChartContainer>
           </div>
         </div>
 
@@ -193,7 +205,7 @@ export default function AnalysisPage() {
           <div className="bg-white rounded-lg border border-gray-200 p-4">
             <h3 className="text-sm font-semibold text-gray-700 mb-3">Top Sources</h3>
             <div className="space-y-3">
-              {topSources.slice(0, 8).map((src, i) => {
+              {topSources.slice(0, 8).map((src) => {
                 const Icon = MEDIA_ICONS[src.key] || Globe
                 return (
                   <div key={src.key} className="flex items-center gap-3">

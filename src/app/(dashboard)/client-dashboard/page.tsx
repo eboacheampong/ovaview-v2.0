@@ -9,10 +9,8 @@ import {
   Globe, Tv, Radio, Newspaper, Eye
 } from 'lucide-react'
 import { format } from 'date-fns'
-import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, Legend
-} from 'recharts'
+import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent, type ChartConfig } from '@/components/ui/chart'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts'
 
 /* ── types ── */
 interface Mention {
@@ -71,6 +69,11 @@ const DATE_RANGES = [
   { label: 'Last 30 days', value: 30 },
   { label: 'Last 90 days', value: 90 },
 ]
+
+const dashboardChartConfig = {
+  mentions: { label: 'Mentions', color: '#6366f1' },
+  reach: { label: 'Reach', color: '#10b981' },
+} satisfies ChartConfig
 
 function fmtNum(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
@@ -245,18 +248,18 @@ export default function ClientDashboardPage() {
           <div className="bg-white rounded-lg border border-gray-200 p-4">
             <h2 className="text-sm font-semibold text-gray-700 mb-3">Mentions & Reach</h2>
             {chart.length > 0 ? (
-              <ResponsiveContainer width="100%" height={220}>
-                <LineChart data={chart}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis dataKey="date" tick={{ fontSize: 11 }} tickFormatter={v => v.slice(5)} />
-                  <YAxis yAxisId="left" tick={{ fontSize: 11 }} />
-                  <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11 }} tickFormatter={fmtNum} />
-                  <Tooltip labelFormatter={v => format(new Date(v), 'MMM d, yyyy')} />
-                  <Legend wrapperStyle={{ fontSize: 12 }} />
-                  <Line yAxisId="left" type="monotone" dataKey="mentions" stroke="#6366f1" strokeWidth={2} dot={false} name="Mentions" />
-                  <Line yAxisId="right" type="monotone" dataKey="reach" stroke="#10b981" strokeWidth={2} dot={false} name="Reach" />
+              <ChartContainer config={dashboardChartConfig} className="min-h-[220px] w-full">
+                <LineChart data={chart} accessibilityLayer>
+                  <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                  <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} fontSize={11} tickFormatter={v => v.slice(5)} />
+                  <YAxis yAxisId="left" tickLine={false} axisLine={false} fontSize={11} />
+                  <YAxis yAxisId="right" orientation="right" tickLine={false} axisLine={false} fontSize={11} tickFormatter={fmtNum} />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <ChartLegend content={<ChartLegendContent />} />
+                  <Line yAxisId="left" type="monotone" dataKey="mentions" stroke="var(--color-mentions)" strokeWidth={2} dot={false} />
+                  <Line yAxisId="right" type="monotone" dataKey="reach" stroke="var(--color-reach)" strokeWidth={2} dot={false} />
                 </LineChart>
-              </ResponsiveContainer>
+              </ChartContainer>
             ) : (
               <div className="h-[220px] flex items-center justify-center text-gray-400 text-sm">No data yet</div>
             )}

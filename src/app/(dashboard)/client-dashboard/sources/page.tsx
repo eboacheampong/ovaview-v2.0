@@ -3,7 +3,8 @@
 import { useState, useMemo } from 'react'
 import { Loader2, Globe, Tv, Radio, Newspaper, Share2 } from 'lucide-react'
 import { useClientDashboard, fmtNum, SENTIMENT_COLORS } from '@/hooks/use-client-dashboard'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts'
+import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Cell } from 'recharts'
 
 const DATE_RANGES = [
   { label: 'Last 7 days', value: 7 },
@@ -16,6 +17,10 @@ const MEDIA_ICONS: Record<string, typeof Globe> = {
 }
 
 const BAR_COLORS = ['#6366f1','#8b5cf6','#a78bfa','#c4b5fd','#ddd6fe','#818cf8','#4f46e5','#7c3aed','#6d28d9','#5b21b6']
+
+const sourcesChartConfig = {
+  mentions: { label: 'Mentions', color: '#6366f1' },
+} satisfies ChartConfig
 
 export default function SourcesPage() {
   const [days, setDays] = useState(30)
@@ -63,17 +68,17 @@ export default function SourcesPage() {
           <span className="w-3 h-3 rounded bg-indigo-500" /> Top 10 Sources
         </h2>
         {chartData.length > 0 ? (
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={chartData} layout="vertical" margin={{ left: 10 }}>
+          <ChartContainer config={sourcesChartConfig} className="min-h-[300px] w-full">
+            <BarChart data={chartData} layout="vertical" margin={{ left: 10 }} accessibilityLayer>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis type="number" tick={{ fontSize: 11 }} />
-              <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={120} />
-              <Tooltip />
+              <XAxis type="number" tickLine={false} axisLine={false} fontSize={11} />
+              <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} fontSize={11} width={120} />
+              <ChartTooltip content={<ChartTooltipContent />} />
               <Bar dataKey="mentions" radius={[0, 4, 4, 0]}>
                 {chartData.map((_, i) => <Cell key={i} fill={BAR_COLORS[i % BAR_COLORS.length]} />)}
               </Bar>
             </BarChart>
-          </ResponsiveContainer>
+          </ChartContainer>
         ) : (
           <div className="h-[300px] flex items-center justify-center text-gray-400 text-sm">No sources found</div>
         )}

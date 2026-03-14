@@ -16,16 +16,27 @@ export async function GET(request: NextRequest) {
     // Calculate date range
     const now = new Date()
     let startDate: Date
-    switch (dateRange) {
-      case '7d': startDate = subDays(now, 7); break
-      case '30d': startDate = subDays(now, 30); break
-      case '90d': startDate = subDays(now, 90); break
-      case '12m': startDate = subMonths(now, 12); break
-      default: startDate = subDays(now, 30)
+    const customStartParam = searchParams.get('startDate')
+    const customEndParam = searchParams.get('endDate')
+
+    if (dateRange === 'custom' && customStartParam && customEndParam) {
+      startDate = startOfDay(new Date(customStartParam))
+    } else {
+      switch (dateRange) {
+        case '7d': startDate = subDays(now, 7); break
+        case '30d': startDate = subDays(now, 30); break
+        case '90d': startDate = subDays(now, 90); break
+        case '12m': startDate = subMonths(now, 12); break
+        default: startDate = subDays(now, 30)
+      }
     }
 
+    const effectiveEndDate = (dateRange === 'custom' && customEndParam)
+      ? endOfDay(new Date(customEndParam))
+      : now
+
     // Build where clauses
-    const dateFilter = { gte: startDate, lte: now }
+    const dateFilter = { gte: startDate, lte: effectiveEndDate }
     const industryFilter = industryId ? { industryId } : {}
 
     // Get client keywords if filtering by client
