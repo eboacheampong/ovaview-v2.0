@@ -5,7 +5,7 @@ import { sendMonthlyReportEmail } from '@/lib/report-emails'
 import { cacheSentReport } from '@/lib/sent-report-cache'
 
 export const dynamic = 'force-dynamic'
-export const maxDuration = 120
+export const maxDuration = 300
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = prisma as any

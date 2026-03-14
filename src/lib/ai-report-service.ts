@@ -313,11 +313,11 @@ async function gatherMentionStats(
 
 async function callAI(prompt: string, maxTokens: number = 1500): Promise<string> {
   const errors: string[] = []
-  // Try each model up to 2 times before moving to the next
+  // Try each model up to 3 times before moving to the next
   for (const model of MODELS) {
-    for (let attempt = 0; attempt < 2; attempt++) {
+    for (let attempt = 0; attempt < 3; attempt++) {
       try {
-        if (attempt > 0) await new Promise(r => setTimeout(r, 1500)) // wait before retry
+        if (attempt > 0) await new Promise(r => setTimeout(r, 2000)) // wait before retry
 
         console.log(`[AI] Trying ${model} attempt ${attempt + 1}...`)
         const res = await fetch(OPENROUTER_URL, {
@@ -817,7 +817,7 @@ Data:
 ${dataSummary}
 
 Return ONLY the JSON object.`,
-      3000
+      5000
     )
     console.log(`[Monthly] AI response received (${aiResponse.length} chars), parsing...`)
     console.log(`[Monthly] AI response preview: ${aiResponse.substring(0, 200)}`)
@@ -829,9 +829,9 @@ Return ONLY the JSON object.`,
     try {
       console.log('[Monthly] Trying individual AI calls...')
       const [insightsText, trendsText, recsText] = await Promise.all([
-        callAI(`You are a media analyst. Write exactly 5 key insights about this client's media performance during ${periodDesc}. Each insight MUST be a single standalone observation (2-3 sentences max) using specific numbers from the data. Each insight MUST be separated by TWO newlines. Do NOT combine multiple points into one paragraph. No numbered prefixes. No advice. No preamble. No markdown. Refer to the period as "${periodDesc}".\n\nData:\n${dataSummary}`, 1200),
-        callAI(`Write 4-5 bullet points comparing ${periodDesc} to the previous period. Start each with "•" on its own line. Use specific numbers.\n\nData:\n${dataSummary}`, 600),
-        callAI(`Write 3-4 actionable recommendation paragraphs for this client based on their media data during ${periodDesc}. Each recommendation MUST be a single standalone paragraph. Separate each with TWO newlines. No numbered prefixes. No preamble. No markdown.\n\nData:\n${dataSummary}`, 800),
+        callAI(`You are a media analyst. Write exactly 5 key insights about this client's media performance during ${periodDesc}. Each insight MUST be a single standalone observation (2-3 sentences max) using specific numbers from the data. Each insight MUST be separated by TWO newlines. Do NOT combine multiple points into one paragraph. No numbered prefixes. No advice. No preamble. No markdown. Refer to the period as "${periodDesc}".\n\nData:\n${dataSummary}`, 2000),
+        callAI(`Write 4-5 bullet points comparing ${periodDesc} to the previous period. Start each with "•" on its own line. Use specific numbers.\n\nData:\n${dataSummary}`, 1200),
+        callAI(`Write 3-4 actionable recommendation paragraphs for this client based on their media data during ${periodDesc}. Each recommendation MUST be a single standalone paragraph. Separate each with TWO newlines. No numbered prefixes. No preamble. No markdown.\n\nData:\n${dataSummary}`, 1500),
       ])
       console.log(`[Monthly] ✓ Individual calls succeeded — insights: ${insightsText.length}ch, trends: ${trendsText.length}ch, recs: ${recsText.length}ch`)
       parsed = {
