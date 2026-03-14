@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useMemo } from 'react'
-import { Loader2, Download } from 'lucide-react'
+import { Loader2, Download, Palette } from 'lucide-react'
 import { useClientDashboard, fmtNum, SOURCE_LABELS, SENTIMENT_COLORS } from '@/hooks/use-client-dashboard'
 import { format } from 'date-fns'
 
@@ -10,7 +10,23 @@ const DATE_RANGES = [
   { label: 'Last 30 days', value: 30 },
   { label: 'Last 90 days', value: 90 },
 ]
-const BRAND = { r: 212, g: 148, b: 26 }
+
+const COLOR_PRESETS = [
+  { label: 'Gold (Default)', value: '#D4941A' },
+  { label: 'Indigo', value: '#4f46e5' },
+  { label: 'Teal', value: '#0d9488' },
+  { label: 'Slate', value: '#334851' },
+  { label: 'Rose', value: '#e11d48' },
+  { label: 'Emerald', value: '#059669' },
+  { label: 'Purple', value: '#7c3aed' },
+  { label: 'Blue', value: '#2563eb' },
+]
+
+const hexToRgb = (hex: string): { r: number; g: number; b: number } => {
+  const h = hex.replace('#', '')
+  return { r: parseInt(h.substring(0, 2), 16), g: parseInt(h.substring(2, 4), 16), b: parseInt(h.substring(4, 6), 16) }
+}
+
 const CC: [number, number, number][] = [
   [249,115,22],[59,130,246],[16,185,129],[139,92,246],[6,182,212],[236,72,153],[234,179,8],[99,102,241],[244,63,94],
 ]
@@ -19,6 +35,10 @@ export default function PdfReportPage() {
   const [days, setDays] = useState(30)
   const { data, isLoading } = useClientDashboard(days)
   const [exporting, setExporting] = useState(false)
+  const [brandColor, setBrandColor] = useState('#D4941A')
+  const [showCovers, setShowCovers] = useState(true)
+
+  const BRAND = useMemo(() => hexToRgb(brandColor), [brandColor])
 
   const sourceEntries = useMemo(() => data ? Object.entries(data.sourceCounts).sort(([,a],[,b]) => b - a) : [], [data])
 
@@ -166,7 +186,6 @@ export default function PdfReportPage() {
           const pct=((d.value/sentTotal)*100).toFixed(1)
           doc.text(`${d.name}: ${d.value} (${pct}%)`,8.0,sly+0.08); sly+=0.5
         })
-        // Sentiment summary text
         doc.setFontSize(11); doc.setTextColor(75,85,99)
         const dominant = sentData.reduce((a,b) => a.value >= b.value ? a : b)
         doc.text(`The overall sentiment is predominantly ${dominant.name.toLowerCase()},`,7.5,4.0)
@@ -221,16 +240,17 @@ export default function PdfReportPage() {
       doc.save(`${clientName.replace(/\s+/g,'_')}_Media_Report_${format(new Date(),'yyyy-MM-dd')}.pdf`)
     } catch(err) { console.error('PDF export failed:',err) }
     finally { setExporting(false) }
-  }, [data, days, sourceEntries, mediaStats, topSources])
+  }, [data, days, sourceEntries, mediaStats, topSources, BRAND])
 
   if (isLoading || !data) {
     return <div className="p-6 flex items-center justify-center min-h-[60vh]"><Loader2 className="h-8 w-8 animate-spin text-purple-500" /></div>
   }
 
   const s = data.summary
+
   return (
     <div className="p-4 sm:p-6 space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-gray-800">PDF Report</h1>
           <p className="text-sm text-gray-500">Professional multi-page media monitoring report</p>
@@ -248,17 +268,63 @@ export default function PdfReportPage() {
         </div>
       </div>
 
+      {/* Options bar */}
+      <div className="bg-white rounded-lg border border-gray-200 p-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+        {/* Show cover pages checkbox */}
+        <label className="flex items-center gap-2 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={showCovers}
+            onChange={e => setShowCovers(e.target.checked)}
+            className="w-4 h-4 rounded border-gray-300 text-indigo-500 focus:ring-indigo-500"
+          />
+          <span className="text-sm text-gray-700">Show cover pages in preview</span>
+        </label>
+
+        <div className="hidden sm:block w-px h-6 bg-gray-200" />
+
+        {/* Color picker */}
+        <div className="flex items-center gap-2">
+          <Palette className="h-4 w-4 text-gray-400" />
+          <span className="text-sm text-gray-600">Report color:</span>
+          <div className="flex items-center gap-1.5">
+            {COLOR_PRESETS.map(preset => (
+              <button
+                key={preset.value}
+                onClick={() => setBrandColor(preset.value)}
+                title={preset.label}
+                className={`w-6 h-6 rounded-full border-2 transition-all ${
+                  brandColor === preset.value ? 'border-gray-800 scale-110' : 'border-transparent hover:border-gray-300'
+                }`}
+                style={{ backgroundColor: preset.value }}
+              />
+            ))}
+            <div className="relative ml-1">
+              <input
+                type="color"
+                value={brandColor}
+                onChange={e => setBrandColor(e.target.value)}
+                className="w-6 h-6 rounded cursor-pointer border border-gray-200"
+                title="Custom color"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Preview slides */}
       <div className="space-y-6">
         {/* Slide 1: Cover */}
+        {showCovers && (
         <div className="rounded-lg overflow-hidden shadow-sm border border-gray-200">
-          <div className="bg-[#D4941A] p-8 sm:p-12 aspect-video max-h-[400px] flex flex-col justify-center">
+          <div className="p-8 sm:p-12 aspect-video max-h-[400px] flex flex-col justify-center" style={{ backgroundColor: brandColor }}>
             <p className="text-white/60 text-xs uppercase tracking-wider mb-4">Page 1 — Cover</p>
             <h2 className="text-3xl sm:text-4xl font-bold text-white leading-tight">MEDIA PRESENCE<br/>ANALYSIS REPORT</h2>
             <p className="text-white text-lg mt-4">{data.client.name}</p>
             <p className="text-white/80 text-sm mt-1">{format(new Date(Date.now()-days*86400000),'MMM d, yyyy')} – {format(new Date(),'MMM d, yyyy')}</p>
           </div>
         </div>
+        )}
 
         {/* Slide 2: Summary */}
         <div className="bg-white rounded-lg border border-gray-200 p-6">
@@ -299,7 +365,7 @@ export default function PdfReportPage() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {mediaStats.map(ms => (
               <div key={ms.type} className="bg-gray-50 rounded-lg p-4">
-                <p className="text-sm font-semibold text-[#D4941A]">{ms.type}</p>
+                <p className="text-sm font-semibold" style={{ color: brandColor }}>{ms.type}</p>
                 <p className="text-3xl font-bold text-gray-800 mt-1">{ms.mentions}</p>
                 <p className="text-xs text-gray-400">mentions · Reach: {fmtNum(ms.reach)}</p>
                 <div className="flex gap-0.5 mt-2 h-2 rounded overflow-hidden">
@@ -376,14 +442,16 @@ export default function PdfReportPage() {
         </div>
 
         {/* Slide 8: Back cover */}
+        {showCovers && (
         <div className="rounded-lg overflow-hidden shadow-sm border border-gray-200">
-          <div className="bg-[#D4941A] p-8 sm:p-12 aspect-video max-h-[300px] flex flex-col items-center justify-center text-center">
+          <div className="p-8 sm:p-12 aspect-video max-h-[300px] flex flex-col items-center justify-center text-center" style={{ backgroundColor: brandColor }}>
             <p className="text-white/60 text-xs uppercase tracking-wider mb-4">Page 8 — Back Cover</p>
             <h2 className="text-3xl font-bold text-white">Thank You</h2>
             <p className="text-white text-lg mt-2">{data.client.name}</p>
             <p className="text-white/80 text-sm mt-4">Ovaview Media Monitoring · {format(new Date(),'MMMM yyyy')}</p>
           </div>
         </div>
+        )}
       </div>
     </div>
   )
