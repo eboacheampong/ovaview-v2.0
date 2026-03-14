@@ -150,33 +150,54 @@ export default function MonthlyInsightsPage() {
           {/* AI Insights */}
           {report.aiInsights && (
             <div className="bg-white rounded-lg border border-gray-200 p-5">
-              <div className="flex items-center gap-2 mb-3">
+              <div className="flex items-center gap-2 mb-4">
                 <Lightbulb className="h-4 w-4 text-amber-500" />
                 <h2 className="text-sm font-semibold text-gray-700">Key Insights</h2>
               </div>
-              <div className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">{report.aiInsights}</div>
+              <div className="space-y-3">
+                {report.aiInsights.split(/\n\n+/).filter(Boolean).map((paragraph, i) => (
+                  <div key={i} className="flex gap-3 bg-amber-50/50 rounded-lg p-3">
+                    <span className="text-amber-400 font-bold text-sm mt-0.5 shrink-0">•</span>
+                    <p className="text-sm text-gray-600 leading-relaxed">{paragraph.trim()}</p>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
           {/* AI Trends */}
           {report.aiTrends && (
             <div className="bg-white rounded-lg border border-gray-200 p-5">
-              <div className="flex items-center gap-2 mb-3">
+              <div className="flex items-center gap-2 mb-4">
                 <BarChart3 className="h-4 w-4 text-blue-500" />
                 <h2 className="text-sm font-semibold text-gray-700">Trends</h2>
               </div>
-              <div className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">{report.aiTrends}</div>
+              <div className="space-y-2">
+                {report.aiTrends.split(/\n+/).filter(s => s.trim()).map((line, i) => (
+                  <div key={i} className="flex gap-3 bg-blue-50/50 rounded-lg p-3">
+                    <span className="text-blue-400 font-bold text-sm mt-0.5 shrink-0">{line.trim().startsWith('•') ? '' : '•'}</span>
+                    <p className="text-sm text-gray-600 leading-relaxed">{line.trim().replace(/^•\s*/, '')}</p>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
           {/* AI Recommendations */}
           {report.aiRecommendations && (
             <div className="bg-white rounded-lg border border-gray-200 p-5">
-              <div className="flex items-center gap-2 mb-3">
+              <div className="flex items-center gap-2 mb-4">
                 <Target className="h-4 w-4 text-purple-500" />
                 <h2 className="text-sm font-semibold text-gray-700">Recommendations</h2>
               </div>
-              <div className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">{report.aiRecommendations}</div>
+              <div className="space-y-3">
+                {report.aiRecommendations.split(/\n\n+/).filter(Boolean).map((paragraph, i) => (
+                  <div key={i} className="flex gap-3 bg-purple-50/50 rounded-lg p-3">
+                    <span className="text-purple-400 font-bold text-sm mt-0.5 shrink-0">{i + 1}.</span>
+                    <p className="text-sm text-gray-600 leading-relaxed">{paragraph.trim()}</p>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
