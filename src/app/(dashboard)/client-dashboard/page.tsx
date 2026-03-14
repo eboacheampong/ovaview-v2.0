@@ -110,7 +110,12 @@ function MentionCard({ mention }: { mention: Mention }) {
             </p>
           </div>
         </div>
-        <Badge className={`${sent.bg} ${sent.text} text-xs shrink-0`}>{sent.label}</Badge>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 font-medium capitalize">
+            {mention.type === 'social' ? (mention.platform || 'Social') : mention.type}
+          </span>
+          <Badge className={`${sent.bg} ${sent.text} text-xs`}>{sent.label}</Badge>
+        </div>
       </div>
 
       <p className="text-sm font-medium text-gray-800 mb-1 line-clamp-1">{mention.title}</p>
