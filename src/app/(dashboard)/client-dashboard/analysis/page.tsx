@@ -283,15 +283,15 @@ export default function AnalysisPage() {
           <h2 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
             <span className="w-3 h-3 rounded bg-amber-500" /> Reach by Media Type
           </h2>
-          <ChartContainer config={reachByTypeConfig} className="h-[280px] w-full">
-            <BarChart data={analysis.reachChart} accessibilityLayer>
+          <ChartContainer config={reachByTypeConfig} className="h-[350px] w-full">
+            <BarChart data={analysis.reachChart} accessibilityLayer barCategoryGap="20%" barGap={2}>
               <CartesianGrid vertical={false} strokeDasharray="3 3" />
               <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} fontSize={11} tickFormatter={v => format(new Date(v), 'MMM d')} />
               <YAxis tickLine={false} axisLine={false} fontSize={11} tickFormatter={fmtNum} />
               <ChartTooltip content={<ChartTooltipContent />} />
               <ChartLegend content={<ChartLegendContent />} />
               {analysis.mediaTypes.map((t, i) => (
-                <Bar key={t} dataKey={t} fill={SM_COLORS[i % SM_COLORS.length]} radius={[2, 2, 0, 0]} />
+                <Bar key={t} dataKey={t} fill={SM_COLORS[i % SM_COLORS.length]} radius={[2, 2, 0, 0]} maxBarSize={32} />
               ))}
             </BarChart>
           </ChartContainer>
