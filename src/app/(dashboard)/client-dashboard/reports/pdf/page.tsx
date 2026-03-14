@@ -36,7 +36,6 @@ export default function PdfReportPage() {
   const { data, isLoading } = useClientDashboard(days)
   const [exporting, setExporting] = useState(false)
   const [brandColor, setBrandColor] = useState('#D4941A')
-  const [showCovers, setShowCovers] = useState(true)
 
   const BRAND = useMemo(() => hexToRgb(brandColor), [brandColor])
 
@@ -270,19 +269,6 @@ export default function PdfReportPage() {
 
       {/* Options bar */}
       <div className="bg-white rounded-lg border border-gray-200 p-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
-        {/* Show cover pages checkbox */}
-        <label className="flex items-center gap-2 cursor-pointer select-none">
-          <input
-            type="checkbox"
-            checked={showCovers}
-            onChange={e => setShowCovers(e.target.checked)}
-            className="w-4 h-4 rounded border-gray-300 text-indigo-500 focus:ring-indigo-500"
-          />
-          <span className="text-sm text-gray-700">Show cover pages in preview</span>
-        </label>
-
-        <div className="hidden sm:block w-px h-6 bg-gray-200" />
-
         {/* Color picker */}
         <div className="flex items-center gap-2">
           <Palette className="h-4 w-4 text-gray-400" />
@@ -314,18 +300,6 @@ export default function PdfReportPage() {
 
       {/* Preview slides */}
       <div className="space-y-6">
-        {/* Slide 1: Cover */}
-        {showCovers && (
-        <div className="rounded-lg overflow-hidden shadow-sm border border-gray-200">
-          <div className="p-8 sm:p-12 aspect-video max-h-[400px] flex flex-col justify-center" style={{ backgroundColor: brandColor }}>
-            <p className="text-white/60 text-xs uppercase tracking-wider mb-4">Page 1 — Cover</p>
-            <h2 className="text-3xl sm:text-4xl font-bold text-white leading-tight">MEDIA PRESENCE<br/>ANALYSIS REPORT</h2>
-            <p className="text-white text-lg mt-4">{data.client.name}</p>
-            <p className="text-white/80 text-sm mt-1">{format(new Date(Date.now()-days*86400000),'MMM d, yyyy')} – {format(new Date(),'MMM d, yyyy')}</p>
-          </div>
-        </div>
-        )}
-
         {/* Slide 2: Summary */}
         <div className="bg-white rounded-lg border border-gray-200 p-6">
           <p className="text-xs text-gray-400 uppercase tracking-wider mb-2">Page 2 — Executive Summary</p>
@@ -441,17 +415,6 @@ export default function PdfReportPage() {
           </div>
         </div>
 
-        {/* Slide 8: Back cover */}
-        {showCovers && (
-        <div className="rounded-lg overflow-hidden shadow-sm border border-gray-200">
-          <div className="p-8 sm:p-12 aspect-video max-h-[300px] flex flex-col items-center justify-center text-center" style={{ backgroundColor: brandColor }}>
-            <p className="text-white/60 text-xs uppercase tracking-wider mb-4">Page 8 — Back Cover</p>
-            <h2 className="text-3xl font-bold text-white">Thank You</h2>
-            <p className="text-white text-lg mt-2">{data.client.name}</p>
-            <p className="text-white/80 text-sm mt-4">Ovaview Media Monitoring · {format(new Date(),'MMMM yyyy')}</p>
-          </div>
-        </div>
-        )}
       </div>
     </div>
   )
