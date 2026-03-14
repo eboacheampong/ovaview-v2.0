@@ -1,12 +1,12 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Loader2, Globe, Tv, Radio, Newspaper, Share2, TrendingUp, TrendingDown, Minus, ArrowUpRight, ArrowDownRight } from 'lucide-react'
+import { Loader2, Globe, Tv, Radio, Newspaper, Share2, TrendingUp, TrendingDown, Minus, ArrowUpRight, ArrowDownRight, Hash, Users } from 'lucide-react'
 import { useClientDashboard, fmtNum, SOURCE_LABELS, SENTIMENT_COLORS } from '@/hooks/use-client-dashboard'
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent, type ChartConfig } from '@/components/ui/chart'
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
-  BarChart, Bar, Cell
+  BarChart, Bar
 } from 'recharts'
 import { format, subDays } from 'date-fns'
 
@@ -127,9 +127,55 @@ export default function AnalysisPage() {
     const secondPos = secondHalf.filter(m => m.sentiment === 'positive').length
     const sentimentChange = firstPos > 0 ? Math.round(((secondPos - firstPos) / firstPos) * 100) : 0
 
+    // Keywords extraction and frequency count
+    const keywordMap: Record<string, { count: number; positive: number; negative: number; neutral: number }> = {}
+    mentions.forEach(m => {
+      if (m.keywords) {
+        m.keywords.split(',').map(k => k.trim()).filter(Boolean).forEach(kw => {
+          const key = kw.toLowerCase()
+          if (!keywordMap[key]) keywordMap[key] = { count: 0, positive: 0, negative: 0, neutral: 0 }
+          keywordMap[key].count++
+          if (m.sentiment === 'positive') keywordMap[key].positive++
+          else if (m.sentiment === 'negative') keywordMap[key].negative++
+          else keywordMap[key].neutral++
+        })
+      }
+    })
+    const topKeywords = Object.entries(keywordMap)
+      .map(([name, stats]) => ({ name, ...stats }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 15)
+
+    // Key personalities extraction and frequency count
+    const personalityMap: Record<string, { count: number; positive: number; negative: number; neutral: number; sources: Set<string> }> = {}
+    mentions.forEach(m => {
+      if (m.keyPersonalities) {
+        m.keyPersonalities.split(',').map(p => p.trim()).filter(Boolean).forEach(person => {
+          const key = person.toLowerCase()
+          if (!personalityMap[key]) personalityMap[key] = { count: 0, positive: 0, negative: 0, neutral: 0, sources: new Set() }
+          personalityMap[key].count++
+          personalityMap[key].sources.add(m.type)
+          if (m.sentiment === 'positive') personalityMap[key].positive++
+          else if (m.sentiment === 'negative') personalityMap[key].negative++
+          else personalityMap[key].neutral++
+        })
+      }
+    })
+    const topPersonalities = Object.entries(personalityMap)
+      .map(([name, stats]) => ({
+        name: name.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
+        count: stats.count,
+        positive: stats.positive,
+        negative: stats.negative,
+        neutral: stats.neutral,
+        mediaTypes: Array.from(stats.sources).map(t => t === 'social' ? 'Social' : t.charAt(0).toUpperCase() + t.slice(1)),
+      }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 12)
+
     return {
       sentimentChart, mediaBreakdown, radarData, reachChart, mediaTypes, topSources,
-      mentionChange, reachChange, sentimentChange,
+      mentionChange, reachChange, sentimentChange, topKeywords, topPersonalities,
     }
   }, [data, days])
 
@@ -232,23 +278,22 @@ export default function AnalysisPage() {
           )}
         </div>
 
-        {/* Reach by media type (stacked area) */}
+        {/* Reach by media type (grouped bar) */}
         <div className="bg-white rounded-lg border border-gray-200 p-5">
           <h2 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
             <span className="w-3 h-3 rounded bg-amber-500" /> Reach by Media Type
           </h2>
           <ChartContainer config={reachByTypeConfig} className="h-[280px] w-full">
-            <AreaChart data={analysis.reachChart} accessibilityLayer>
+            <BarChart data={analysis.reachChart} accessibilityLayer>
               <CartesianGrid vertical={false} strokeDasharray="3 3" />
               <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} fontSize={11} tickFormatter={v => format(new Date(v), 'MMM d')} />
               <YAxis tickLine={false} axisLine={false} fontSize={11} tickFormatter={fmtNum} />
               <ChartTooltip content={<ChartTooltipContent />} />
               <ChartLegend content={<ChartLegendContent />} />
               {analysis.mediaTypes.map((t, i) => (
-                <Area key={t} type="monotone" dataKey={t} stackId="1" stroke={SM_COLORS[i % SM_COLORS.length]}
-                  fill={SM_COLORS[i % SM_COLORS.length]} fillOpacity={0.3} strokeWidth={2} />
+                <Bar key={t} dataKey={t} fill={SM_COLORS[i % SM_COLORS.length]} radius={[2, 2, 0, 0]} />
               ))}
-            </AreaChart>
+            </BarChart>
           </ChartContainer>
         </div>
       </div>
@@ -301,6 +346,134 @@ export default function AnalysisPage() {
               })}
             </tbody>
           </table>
+        </div>
+      </div>
+
+      {/* Top sources with sentiment bars */}
+      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+        <div className="p-4 border-b border-gray-100">
+          <h2 className="text-sm font-semibold text-gray-700">Top Sources by Sentiment</h2>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-gray-50 text-left">
+                <th className="px-4 py-3 font-medium text-gray-500">Source</th>
+                <th className="px-4 py-3 font-medium text-gray-500 text-right">Mentions</th>
+                <th className="px-4 py-3 font-medium text-gray-500 text-right">Reach</th>
+                <th className="px-4 py-3 font-medium text-gray-500 text-center">Positive</th>
+                <th className="px-4 py-3 font-medium text-gray-500 text-center">Neutral</th>
+                <th className="px-4 py-3 font-medium text-gray-500 text-center">Negative</th>
+                <th className="px-4 py-3 font-medium text-gray-500 text-center">Score</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {analysis.topSources.map((src) => {
+                const score = src.count > 0 ? Math.round(((src.positive - src.negative) / src.count) * 100) : 0
+                return (
+                  <tr key={src.name} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-4 py-3 font-medium text-gray-800 truncate max-w-[200px]">{src.name}</td>
+                    <td className="px-4 py-3 text-right font-semibold text-gray-800">{src.count}</td>
+                    <td className="px-4 py-3 text-right text-gray-600">{fmtNum(src.reach)}</td>
+                    <td className="px-4 py-3 text-center">
+                      <span className={`inline-block px-2 py-0.5 rounded text-xs ${SENTIMENT_COLORS.positive.bg} ${SENTIMENT_COLORS.positive.text}`}>{src.positive}</span>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <span className={`inline-block px-2 py-0.5 rounded text-xs ${SENTIMENT_COLORS.neutral.bg} ${SENTIMENT_COLORS.neutral.text}`}>{src.neutral}</span>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <span className={`inline-block px-2 py-0.5 rounded text-xs ${SENTIMENT_COLORS.negative.bg} ${SENTIMENT_COLORS.negative.text}`}>{src.negative}</span>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${
+                        score > 0 ? 'bg-emerald-50 text-emerald-700' : score < 0 ? 'bg-red-50 text-red-700' : 'bg-gray-100 text-gray-600'
+                      }`}>{score > 0 ? '+' : ''}{score}</span>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+      {/* Keywords and Key Personalities */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Top Keywords - horizontal bar chart */}
+        <div className="bg-white rounded-lg border border-gray-200 p-5">
+          <h2 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
+            <Hash className="h-4 w-4 text-indigo-500" /> Top Keywords
+          </h2>
+          {analysis.topKeywords.length > 0 ? (
+            <div className="space-y-2">
+              {analysis.topKeywords.map((kw, i) => {
+                const maxCount = analysis.topKeywords[0]?.count || 1
+                const posRatio = kw.count > 0 ? (kw.positive / kw.count) * 100 : 0
+                const negRatio = kw.count > 0 ? (kw.negative / kw.count) * 100 : 0
+                return (
+                  <div key={kw.name} className="group">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="text-sm text-gray-700 w-28 truncate capitalize" title={kw.name}>{kw.name}</span>
+                      <div className="flex-1 bg-gray-100 rounded-full h-4 overflow-hidden relative">
+                        <div
+                          className="h-full rounded-full bg-indigo-500 transition-all"
+                          style={{ width: `${(kw.count / maxCount) * 100}%` }}
+                        />
+                      </div>
+                      <span className="text-xs font-semibold text-gray-700 w-8 text-right">{kw.count}</span>
+                      <div className="flex gap-0.5 w-16">
+                        {kw.positive > 0 && <div className="h-2 rounded-full bg-emerald-500" style={{ flex: kw.positive }} />}
+                        {kw.neutral > 0 && <div className="h-2 rounded-full bg-gray-300" style={{ flex: kw.neutral }} />}
+                        {kw.negative > 0 && <div className="h-2 rounded-full bg-red-500" style={{ flex: kw.negative }} />}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <div className="h-[200px] flex items-center justify-center text-gray-400 text-sm">No keyword data available</div>
+          )}
+        </div>
+
+        {/* Key Personalities */}
+        <div className="bg-white rounded-lg border border-gray-200 p-5">
+          <h2 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
+            <Users className="h-4 w-4 text-purple-500" /> Key Personalities
+          </h2>
+          {analysis.topPersonalities.length > 0 ? (
+            <div className="space-y-3">
+              {analysis.topPersonalities.map((person) => {
+                const score = person.count > 0 ? Math.round(((person.positive - person.negative) / person.count) * 100) : 0
+                return (
+                  <div key={person.name} className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors">
+                    <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center shrink-0">
+                      <span className="text-xs font-semibold text-purple-600">{person.name.charAt(0)}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-800 truncate">{person.name}</p>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        {person.mediaTypes.map(t => (
+                          <span key={t} className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">{t}</span>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-sm font-bold text-gray-800">{person.count}</p>
+                      <span className={`text-[10px] font-semibold ${
+                        score > 0 ? 'text-emerald-600' : score < 0 ? 'text-red-600' : 'text-gray-500'
+                      }`}>{score > 0 ? '+' : ''}{score}%</span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <div className="h-[200px] flex items-center justify-center text-gray-400 text-sm">No personality data available</div>
+          )}
         </div>
       </div>
 

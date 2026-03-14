@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
         orderBy: { date: 'desc' },
         select: {
           id: true, title: true, sourceUrl: true, author: true, date: true,
-          summary: true, overallSentiment: true,
+          summary: true, overallSentiment: true, keywords: true, keyPersonalities: true,
           publication: { select: { name: true, website: true, reach: true } },
         },
       }),
@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
         orderBy: { date: 'desc' },
         select: {
           id: true, title: true, presenters: true, date: true,
-          summary: true, overallSentiment: true,
+          summary: true, overallSentiment: true, keywords: true, keyPersonalities: true,
           station: { select: { name: true, reach: true } },
         },
       }),
@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
         orderBy: { date: 'desc' },
         select: {
           id: true, title: true, presenters: true, date: true,
-          summary: true, overallSentiment: true,
+          summary: true, overallSentiment: true, keywords: true, keyPersonalities: true,
           station: { select: { name: true, reach: true } },
         },
       }),
@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
         orderBy: { date: 'desc' },
         select: {
           id: true, title: true, author: true, date: true,
-          summary: true, overallSentiment: true,
+          summary: true, overallSentiment: true, keywords: true, keyPersonalities: true,
           publication: { select: { name: true, reach: true } },
         },
       }),
@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
           id: true, platform: true, content: true, authorName: true,
           authorHandle: true, authorAvatarUrl: true, postUrl: true,
           likesCount: true, commentsCount: true, sharesCount: true,
-          viewsCount: true, overallSentiment: true, postedAt: true,
+          viewsCount: true, overallSentiment: true, postedAt: true, keywords: true,
         },
       }),
     ])
@@ -85,6 +85,7 @@ export async function GET(request: NextRequest) {
       sourceUrl?: string; author: string; date: string;
       summary: string; sentiment: string; reach: number;
       platform?: string; engagement?: number;
+      keywords?: string; keyPersonalities?: string;
     }
 
     const mentions: Mention[] = []
@@ -96,6 +97,7 @@ export async function GET(request: NextRequest) {
         author: s.author || '', date: s.date.toISOString(),
         summary: s.summary || '', sentiment: s.overallSentiment || 'neutral',
         reach: calculateDailyReach(s.publication?.reach || 0, s.date),
+        keywords: s.keywords || undefined, keyPersonalities: s.keyPersonalities || undefined,
       })
     }
     for (const s of tvStories) {
@@ -104,6 +106,7 @@ export async function GET(request: NextRequest) {
         source: s.station?.name || 'TV', author: s.presenters || '',
         date: s.date.toISOString(), summary: s.summary || '',
         sentiment: s.overallSentiment || 'neutral', reach: calculateDailyReach(s.station?.reach || 0, s.date),
+        keywords: s.keywords || undefined, keyPersonalities: s.keyPersonalities || undefined,
       })
     }
     for (const s of radioStories) {
@@ -112,6 +115,7 @@ export async function GET(request: NextRequest) {
         source: s.station?.name || 'Radio', author: s.presenters || '',
         date: s.date.toISOString(), summary: s.summary || '',
         sentiment: s.overallSentiment || 'neutral', reach: calculateDailyReach(s.station?.reach || 0, s.date),
+        keywords: s.keywords || undefined, keyPersonalities: s.keyPersonalities || undefined,
       })
     }
     for (const s of printStories) {
@@ -120,6 +124,7 @@ export async function GET(request: NextRequest) {
         source: s.publication?.name || 'Print', author: s.author || '',
         date: s.date.toISOString(), summary: s.summary || '',
         sentiment: s.overallSentiment || 'neutral', reach: calculateDailyReach(s.publication?.reach || 0, s.date),
+        keywords: s.keywords || undefined, keyPersonalities: s.keyPersonalities || undefined,
       })
     }
     for (const s of socialPosts) {
@@ -131,6 +136,7 @@ export async function GET(request: NextRequest) {
         date: s.postedAt.toISOString(), summary: s.content || '',
         sentiment: s.overallSentiment || 'neutral',
         reach: s.viewsCount || 0, platform: s.platform, engagement: eng,
+        keywords: s.keywords || undefined,
       })
     }
 

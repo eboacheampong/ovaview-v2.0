@@ -16,6 +16,8 @@ export interface Mention {
   reach: number
   platform?: string
   engagement?: number
+  keywords?: string
+  keyPersonalities?: string
 }
 
 export interface DashboardSummary {
