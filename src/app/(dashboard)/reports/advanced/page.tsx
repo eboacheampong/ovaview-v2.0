@@ -8,17 +8,15 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLe
 import {
   BarChart3, TrendingUp, TrendingDown, Download, Newspaper, Radio, Tv, Globe,
   RefreshCw, ArrowUpRight, ArrowDownRight, Minus, Loader2, Layout, X, Eye,
-  Calendar, Filter, Users, Activity
+  Calendar, Filter, Users, Activity, Heart, MessageCircle, Share2, Clock, MapPin
 } from 'lucide-react'
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, RadialBarChart, RadialBar,
-  LineChart, Line
+  XAxis, YAxis, CartesianGrid, LineChart, Line
 } from 'recharts'
 import type { AnalyticsData } from '@/types/analytics'
 
 type MediaFilter = 'all' | 'print' | 'radio' | 'tv' | 'web'
-
 interface Client { id: string; name: string }
 
 const coverageConfig = {
@@ -37,6 +35,30 @@ const sentimentConfig = {
 const mediaDistConfig = {
   value: { label: 'Stories', color: '#f97316' },
 } satisfies ChartConfig
+
+const sentimentTrendConfig = {
+  positive: { label: 'Positive', color: '#10b981' },
+  neutral: { label: 'Neutral', color: '#94a3b8' },
+  negative: { label: 'Negative', color: '#ef4444' },
+} satisfies ChartConfig
+
+const hourlyConfig = {
+  engagement: { label: 'Stories', color: '#f97316' },
+} satisfies ChartConfig
+
+const regionConfig = {
+  reach: { label: 'Reach', color: '#6366f1' },
+} satisfies ChartConfig
+
+const reachBreakdownConfig = {
+  reach: { label: 'Reach', color: '#6366f1' },
+} satisfies ChartConfig
+
+function fmtNum(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`
+  return n.toString()
+}
 
 export default function AdvancedReportsPage() {
   const router = useRouter()
@@ -84,12 +106,6 @@ export default function AdvancedReportsPage() {
     return <span className="flex items-center gap-0.5 text-xs text-gray-400"><Minus className="h-3 w-3" />0%</span>
   }
 
-  // Prepare sentiment data for radial chart
-  const sentTotal = (analyticsData?.sentimentData || []).reduce((s, d) => s + d.value, 0) || 1
-  const sentimentRadial = (analyticsData?.sentimentData || []).map(d => ({
-    name: d.name, value: Math.round((d.value / sentTotal) * 100), fill: d.color,
-  }))
-
   return (
     <div className="space-y-6 animate-fadeIn">
       {/* Header */}
@@ -136,12 +152,7 @@ export default function AdvancedReportsPage() {
                 <div>
                   <label className="text-[10px] text-gray-400 uppercase tracking-wider block mb-1">Period</label>
                   <div className="flex gap-1">
-                    {[
-                      { label: '7D', value: '7d' },
-                      { label: '30D', value: '30d' },
-                      { label: '90D', value: '90d' },
-                      { label: '12M', value: '12m' },
-                    ].map(p => (
+                    {[{ label: '7D', value: '7d' }, { label: '30D', value: '30d' }, { label: '90D', value: '90d' }, { label: '12M', value: '12m' }].map(p => (
                       <button key={p.value} onClick={() => { setDateMode('preset'); setDateRange(p.value) }}
                         className={`px-3 py-2 text-xs rounded-lg border transition-all ${dateMode === 'preset' && dateRange === p.value ? 'bg-orange-500 text-white border-orange-500' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
                         {p.label}
@@ -157,13 +168,11 @@ export default function AdvancedReportsPage() {
                   <>
                     <div>
                       <label className="text-[10px] text-gray-400 uppercase tracking-wider block mb-1">From</label>
-                      <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)}
-                        className="h-9 text-sm rounded-lg border border-gray-200 px-3 bg-white" />
+                      <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)} className="h-9 text-sm rounded-lg border border-gray-200 px-3 bg-white" />
                     </div>
                     <div>
                       <label className="text-[10px] text-gray-400 uppercase tracking-wider block mb-1">To</label>
-                      <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)}
-                        className="h-9 text-sm rounded-lg border border-gray-200 px-3 bg-white" />
+                      <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)} className="h-9 text-sm rounded-lg border border-gray-200 px-3 bg-white" />
                     </div>
                   </>
                 )}
@@ -244,13 +253,14 @@ export default function AdvancedReportsPage() {
             ))}
           </div>
 
-          {/* Media Breakdown */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {/* Media Breakdown + Social Engagement */}
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
             {[
               { label: 'Web', count: kpi?.webCount || 0, icon: Globe, color: '#06b6d4', bg: 'bg-cyan-50' },
               { label: 'Print', count: kpi?.printCount || 0, icon: Newspaper, color: '#3b82f6', bg: 'bg-blue-50' },
               { label: 'Radio', count: kpi?.radioCount || 0, icon: Radio, color: '#10b981', bg: 'bg-emerald-50' },
               { label: 'TV', count: kpi?.tvCount || 0, icon: Tv, color: '#8b5cf6', bg: 'bg-violet-50' },
+              { label: 'Social', count: kpi?.socialCount || 0, icon: Share2, color: '#ec4899', bg: 'bg-pink-50' },
             ].map((item, i) => (
               <Card key={i}>
                 <CardContent className="p-4 flex items-center gap-3">
@@ -266,7 +276,31 @@ export default function AdvancedReportsPage() {
             ))}
           </div>
 
-          {/* Charts Row 1: Coverage Trend + Sentiment */}
+          {/* Social Engagement Row */}
+          {analyticsData?.socialEngagement && analyticsData.socialEngagement.totalPosts > 0 && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {[
+                { label: 'Likes', value: analyticsData.socialEngagement.totalLikes, icon: Heart, color: 'text-red-500', bg: 'bg-red-50' },
+                { label: 'Comments', value: analyticsData.socialEngagement.totalComments, icon: MessageCircle, color: 'text-blue-500', bg: 'bg-blue-50' },
+                { label: 'Shares', value: analyticsData.socialEngagement.totalShares, icon: Share2, color: 'text-green-500', bg: 'bg-green-50' },
+                { label: 'Views', value: analyticsData.socialEngagement.totalViews, icon: Eye, color: 'text-purple-500', bg: 'bg-purple-50' },
+              ].map((item, i) => (
+                <Card key={i}>
+                  <CardContent className="p-4 flex items-center gap-3">
+                    <div className={`p-2 rounded-lg ${item.bg}`}>
+                      <item.icon className={`h-4 w-4 ${item.color}`} />
+                    </div>
+                    <div>
+                      <p className="text-lg font-bold text-gray-800">{fmtNum(item.value)}</p>
+                      <p className="text-[10px] text-gray-400 uppercase tracking-wider">{item.label}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+
+          {/* Charts Row 1: Coverage Trend + Sentiment Pie */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <Card className="lg:col-span-2">
               <CardHeader className="pb-2">
@@ -274,7 +308,7 @@ export default function AdvancedReportsPage() {
                 <CardDescription>Media coverage across all sources over time</CardDescription>
               </CardHeader>
               <CardContent>
-                <ChartContainer config={coverageConfig} className="min-h-[280px] w-full">
+                <ChartContainer config={coverageConfig} className="h-[240px] w-full">
                   <AreaChart data={analyticsData?.coverageTrendData || []} accessibilityLayer margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                     <CartesianGrid vertical={false} strokeDasharray="3 3" />
                     <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} fontSize={11} />
@@ -296,10 +330,10 @@ export default function AdvancedReportsPage() {
                 <CardDescription>Overall sentiment distribution</CardDescription>
               </CardHeader>
               <CardContent>
-                <ChartContainer config={sentimentConfig} className="min-h-[280px] w-full">
+                <ChartContainer config={sentimentConfig} className="h-[240px] w-full">
                   <PieChart accessibilityLayer>
                     <ChartTooltip content={<ChartTooltipContent hideLabel />} />
-                    <Pie data={analyticsData?.sentimentData || []} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={90} strokeWidth={2} stroke="#fff"
+                    <Pie data={analyticsData?.sentimentData || []} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={55} outerRadius={85} strokeWidth={2} stroke="#fff"
                       label={({ name, value }) => `${name} ${value}%`} fontSize={11}>
                       {(analyticsData?.sentimentData || []).map((entry, i) => (
                         <Cell key={i} fill={entry.color} />
@@ -311,21 +345,68 @@ export default function AdvancedReportsPage() {
             </Card>
           </div>
 
-          {/* Charts Row 2: Media Distribution + Top Publications */}
+          {/* Charts Row 2: Sentiment Trend + Reach Breakdown */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">Sentiment Trend</CardTitle>
+                <CardDescription>Sentiment distribution over time</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ChartContainer config={sentimentTrendConfig} className="h-[220px] w-full">
+                  <AreaChart data={analyticsData?.sentimentTrendData || []} accessibilityLayer margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+                    <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                    <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} fontSize={11}
+                      tickFormatter={v => { try { const d = new Date(v); return `${d.getDate()}/${d.getMonth()+1}` } catch { return v } }} />
+                    <YAxis tickLine={false} axisLine={false} fontSize={11} />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <ChartLegend content={<ChartLegendContent />} />
+                    <Area type="monotone" dataKey="positive" stackId="1" fill="var(--color-positive)" stroke="var(--color-positive)" fillOpacity={0.3} />
+                    <Area type="monotone" dataKey="neutral" stackId="1" fill="var(--color-neutral)" stroke="var(--color-neutral)" fillOpacity={0.3} />
+                    <Area type="monotone" dataKey="negative" stackId="1" fill="var(--color-negative)" stroke="var(--color-negative)" fillOpacity={0.3} />
+                  </AreaChart>
+                </ChartContainer>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">Reach by Media Type</CardTitle>
+                <CardDescription>Audience reach per media channel</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ChartContainer config={reachBreakdownConfig} className="h-[220px] w-full">
+                  <BarChart data={analyticsData?.reachBreakdownData || []} accessibilityLayer margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+                    <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                    <XAxis dataKey="name" tickLine={false} axisLine={false} fontSize={11} />
+                    <YAxis tickLine={false} axisLine={false} fontSize={11} tickFormatter={fmtNum} />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Bar dataKey="reach" radius={[6, 6, 0, 0]} maxBarSize={50}>
+                      {(analyticsData?.reachBreakdownData || []).map((entry, i) => (
+                        <Cell key={i} fill={entry.color} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ChartContainer>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Charts Row 3: Media Distribution + Hourly Activity */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm">Media Distribution</CardTitle>
-                <CardDescription>Stories by media type</CardDescription>
+                <CardDescription>Stories by media type (%)</CardDescription>
               </CardHeader>
               <CardContent>
-                <ChartContainer config={mediaDistConfig} className="min-h-[260px] w-full">
+                <ChartContainer config={mediaDistConfig} className="h-[220px] w-full">
                   <BarChart data={analyticsData?.mediaDistributionData || []} accessibilityLayer margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                     <CartesianGrid vertical={false} strokeDasharray="3 3" />
                     <XAxis dataKey="name" tickLine={false} axisLine={false} fontSize={11} />
                     <YAxis tickLine={false} axisLine={false} fontSize={11} />
                     <ChartTooltip content={<ChartTooltipContent />} />
-                    <Bar dataKey="value" radius={[6, 6, 0, 0]} maxBarSize={60}>
+                    <Bar dataKey="value" radius={[6, 6, 0, 0]} maxBarSize={50}>
                       {(analyticsData?.mediaDistributionData || []).map((entry, i) => (
                         <Cell key={i} fill={entry.color} />
                       ))}
@@ -337,11 +418,56 @@ export default function AdvancedReportsPage() {
 
             <Card>
               <CardHeader className="pb-2">
+                <div className="flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-gray-400" />
+                  <CardTitle className="text-sm">Hourly Activity</CardTitle>
+                </div>
+                <CardDescription>Story publishing patterns by hour</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ChartContainer config={hourlyConfig} className="h-[220px] w-full">
+                  <BarChart data={analyticsData?.hourlyEngagementData || []} accessibilityLayer margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+                    <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                    <XAxis dataKey="hour" tickLine={false} axisLine={false} fontSize={10} />
+                    <YAxis tickLine={false} axisLine={false} fontSize={11} />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Bar dataKey="engagement" fill="var(--color-engagement)" radius={[4, 4, 0, 0]} maxBarSize={30} />
+                  </BarChart>
+                </ChartContainer>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Row 4: Reach by Region + Top Publications */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <Card>
+              <CardHeader className="pb-2">
+                <div className="flex items-center gap-2">
+                  <MapPin className="h-4 w-4 text-gray-400" />
+                  <CardTitle className="text-sm">Reach by Region</CardTitle>
+                </div>
+                <CardDescription>Geographic distribution of media reach</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ChartContainer config={regionConfig} className="h-[220px] w-full">
+                  <BarChart data={analyticsData?.reachByRegionData || []} layout="vertical" accessibilityLayer margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis type="number" tickLine={false} axisLine={false} fontSize={11} tickFormatter={fmtNum} />
+                    <YAxis type="category" dataKey="region" tickLine={false} axisLine={false} fontSize={11} width={80} />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Bar dataKey="reach" fill="var(--color-reach)" radius={[0, 4, 4, 0]} maxBarSize={20} />
+                  </BarChart>
+                </ChartContainer>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
                 <CardTitle className="text-sm">Top Publications</CardTitle>
                 <CardDescription>Most active media outlets</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {(analyticsData?.topPublicationsData || []).slice(0, 6).map((pub, i) => {
                     const maxStories = analyticsData?.topPublicationsData?.[0]?.stories || 1
                     const pct = Math.round((pub.stories / maxStories) * 100)
@@ -371,15 +497,42 @@ export default function AdvancedReportsPage() {
             </Card>
           </div>
 
-          {/* Row 3: Keywords + Journalists */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Row 5: Top Clients + Keywords + Journalists */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {/* Top Clients */}
+            <Card>
+              <CardHeader className="pb-2">
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4 text-gray-400" />
+                  <CardTitle className="text-sm">Top Clients</CardTitle>
+                </div>
+                <CardDescription>By media mentions</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {(analyticsData?.topClientsData || []).slice(0, 5).map((client, i) => (
+                    <div key={i} className="flex items-center gap-3">
+                      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-orange-100 to-amber-100 flex items-center justify-center text-xs font-bold text-orange-600">{i + 1}</div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-800 truncate">{client.name}</p>
+                        <p className="text-[10px] text-gray-400">{client.reach} reach · {client.sentiment}% positive</p>
+                      </div>
+                      <span className="text-sm font-bold text-gray-700">{client.mentions}</span>
+                    </div>
+                  ))}
+                  {!analyticsData?.topClientsData?.length && <p className="text-sm text-gray-400 text-center py-4">No data</p>}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Keywords */}
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm">Trending Keywords</CardTitle>
                 <CardDescription>Most mentioned topics</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 min-h-[140px] py-4">
+                <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 min-h-[120px] py-4">
                   {(analyticsData?.topKeywordsData || []).map((kw, i) => {
                     const maxCount = analyticsData?.topKeywordsData?.[0]?.count || 1
                     const ratio = kw.count / maxCount
@@ -398,6 +551,7 @@ export default function AdvancedReportsPage() {
               </CardContent>
             </Card>
 
+            {/* Journalists */}
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm">Top Journalists</CardTitle>
@@ -405,12 +559,12 @@ export default function AdvancedReportsPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {(analyticsData?.journalistData || []).slice(0, 6).map((j, i) => (
+                  {(analyticsData?.journalistData || []).slice(0, 5).map((j, i) => (
                     <div key={i} className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-100 to-amber-100 flex items-center justify-center text-xs font-bold text-orange-600">{i + 1}</div>
+                      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-orange-100 to-amber-100 flex items-center justify-center text-xs font-bold text-orange-600">{i + 1}</div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-800 truncate">{j.name}</p>
-                        <p className="text-xs text-gray-400">{j.outlet}</p>
+                        <p className="text-[10px] text-gray-400">{j.outlet}</p>
                       </div>
                       <div className="text-right">
                         <span className="text-sm font-bold text-gray-700">{j.articles}</span>
@@ -418,7 +572,7 @@ export default function AdvancedReportsPage() {
                       </div>
                     </div>
                   ))}
-                  {!analyticsData?.journalistData?.length && <p className="text-sm text-gray-400 text-center py-4">No data available</p>}
+                  {!analyticsData?.journalistData?.length && <p className="text-sm text-gray-400 text-center py-4">No data</p>}
                 </div>
               </CardContent>
             </Card>

@@ -102,7 +102,7 @@ export default function SummaryPage() {
         <h2 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
           <span className="w-3 h-3 rounded bg-indigo-500" /> Mentions
         </h2>
-        <ChartContainer config={mentionsChartConfig} className="min-h-[260px] w-full">
+        <ChartContainer config={mentionsChartConfig} className="h-[220px] w-full">
           <LineChart data={data.chart} accessibilityLayer>
             <CartesianGrid vertical={false} strokeDasharray="3 3" />
             <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} fontSize={11} tickFormatter={v => format(new Date(v), 'MMM d')} />
@@ -121,7 +121,7 @@ export default function SummaryPage() {
           <span className="w-3 h-3 rounded bg-emerald-500" /> Social Media Reach
         </h2>
         {smPlatforms.length > 0 ? (
-          <ChartContainer config={Object.fromEntries(smPlatforms.map((p, i) => [p, { label: SOURCE_LABELS[p] || p, color: SM_COLORS[i % SM_COLORS.length] }]))} className="min-h-[260px] w-full">
+          <ChartContainer config={Object.fromEntries(smPlatforms.map((p, i) => [p, { label: SOURCE_LABELS[p] || p, color: SM_COLORS[i % SM_COLORS.length] }]))} className="h-[220px] w-full">
             <LineChart data={smReachChart} accessibilityLayer>
               <CartesianGrid vertical={false} strokeDasharray="3 3" />
               <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} fontSize={11} tickFormatter={v => format(new Date(v), 'MMM d')} />

@@ -68,7 +68,7 @@ export default function SourcesPage() {
           <span className="w-3 h-3 rounded bg-indigo-500" /> Top 10 Sources
         </h2>
         {chartData.length > 0 ? (
-          <ChartContainer config={sourcesChartConfig} className="min-h-[300px] w-full">
+          <ChartContainer config={sourcesChartConfig} className="h-[250px] w-full">
             <BarChart data={chartData} layout="vertical" margin={{ left: 10 }} accessibilityLayer>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
               <XAxis type="number" tickLine={false} axisLine={false} fontSize={11} />

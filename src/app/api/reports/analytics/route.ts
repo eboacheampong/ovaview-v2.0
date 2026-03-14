@@ -566,8 +566,39 @@ export async function GET(request: NextRequest) {
       socialCount: socialPosts.length,
     }
 
+    // Social engagement totals
+    const socialEngagement = {
+      totalLikes: socialPosts.reduce((s, p) => s + (p.likesCount || 0), 0),
+      totalComments: socialPosts.reduce((s, p) => s + (p.commentsCount || 0), 0),
+      totalShares: socialPosts.reduce((s, p) => s + (p.sharesCount || 0), 0),
+      totalViews: socialPosts.reduce((s, p) => s + (p.viewsCount || 0), 0),
+      totalPosts: socialPosts.length,
+    }
+
+    // Sentiment trend over time (daily/weekly buckets)
+    const sentimentTrendMap = new Map<string, { date: string; positive: number; neutral: number; negative: number }>()
+    allStories.forEach(s => {
+      if (!s.overallSentiment) return
+      const dateKey = format(new Date('date' in s ? (s as any).date : (s as any).postedAt), 'yyyy-MM-dd')
+      if (!sentimentTrendMap.has(dateKey)) sentimentTrendMap.set(dateKey, { date: dateKey, positive: 0, neutral: 0, negative: 0 })
+      const entry = sentimentTrendMap.get(dateKey)!
+      if (s.overallSentiment === 'positive') entry.positive++
+      else if (s.overallSentiment === 'negative') entry.negative++
+      else entry.neutral++
+    })
+    const sentimentTrendData = Array.from(sentimentTrendMap.values()).sort((a, b) => a.date.localeCompare(b.date))
+
+    // Reach breakdown by media type (raw numbers)
+    const reachBreakdownData = [
+      { name: 'Web', reach: webReach, stories: webStories.length, color: '#06b6d4' },
+      { name: 'Print', reach: printReach, stories: printStories.length, color: '#3b82f6' },
+      { name: 'Radio', reach: radioReach, stories: radioStories.length, color: '#10b981' },
+      { name: 'TV', reach: tvReach, stories: tvStories.length, color: '#8b5cf6' },
+      { name: 'Social', reach: socialReach, stories: socialPosts.length, color: '#ec4899' },
+    ].filter(d => d.reach > 0 || d.stories > 0)
+
     // Recent alerts (based on actual data patterns)
-    const recentAlertsData = []
+    const recentAlertsData: Array<{ id: number; type: string; message: string; time: string; severity: string }> = []
     
     // Check for sentiment spikes
     const negativeStories = allStories.filter(s => s.overallSentiment === 'negative')
@@ -628,6 +659,9 @@ export async function GET(request: NextRequest) {
       topClientsData,
       journalistData,
       recentAlertsData,
+      socialEngagement,
+      sentimentTrendData,
+      reachBreakdownData,
       lastUpdated: new Date().toISOString(),
     })
   } catch (error) {

@@ -248,7 +248,7 @@ export default function ClientDashboardPage() {
           <div className="bg-white rounded-lg border border-gray-200 p-4">
             <h2 className="text-sm font-semibold text-gray-700 mb-3">Mentions & Reach</h2>
             {chart.length > 0 ? (
-              <ChartContainer config={dashboardChartConfig} className="min-h-[220px] w-full">
+              <ChartContainer config={dashboardChartConfig} className="h-[200px] w-full">
                 <LineChart data={chart} accessibilityLayer>
                   <CartesianGrid vertical={false} strokeDasharray="3 3" />
                   <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} fontSize={11} tickFormatter={v => v.slice(5)} />

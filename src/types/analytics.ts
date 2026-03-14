@@ -12,6 +12,7 @@ export interface KPIData {
   tvCount: number
   radioCount: number
   printCount: number
+  socialCount: number
 }
 
 export interface CoverageTrendItem {
@@ -107,6 +108,28 @@ export interface KeyPersonalityItem {
   count: number
 }
 
+export interface SocialEngagement {
+  totalLikes: number
+  totalComments: number
+  totalShares: number
+  totalViews: number
+  totalPosts: number
+}
+
+export interface SentimentTrendItem {
+  date: string
+  positive: number
+  neutral: number
+  negative: number
+}
+
+export interface ReachBreakdownItem {
+  name: string
+  reach: number
+  stories: number
+  color: string
+}
+
 export interface AnalyticsData {
   kpiData: KPIData
   coverageTrendData: CoverageTrendItem[]
@@ -121,6 +144,9 @@ export interface AnalyticsData {
   topClientsData: ClientItem[]
   journalistData: JournalistItem[]
   recentAlertsData: AlertItem[]
+  socialEngagement: SocialEngagement
+  sentimentTrendData: SentimentTrendItem[]
+  reachBreakdownData: ReachBreakdownItem[]
   lastUpdated: string
 }
 
