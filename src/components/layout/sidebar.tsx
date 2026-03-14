@@ -6,7 +6,8 @@ import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import {
   ChevronDown, ChevronRight, LogOut, X,
-  MessageCircle, BarChart3, PieChart, Globe, Mail, FileText, FileSpreadsheet, Bell
+  MessageCircle, BarChart3, PieChart, Globe, Mail, FileText, FileSpreadsheet, Bell,
+  Sparkles, CalendarDays
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/use-auth'
@@ -221,6 +222,30 @@ export function Sidebar({ isOpen, isDesktop, onClose }: SidebarProps) {
             {item.label}
           </Link>
         ))}
+
+        {/* Reports section */}
+        <div className="pt-4">
+          <p className="px-3 py-2 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">AI Insights</p>
+          {[
+            { label: 'Weekly Insights', href: '/client-dashboard/insights/weekly', icon: CalendarDays },
+            { label: 'Monthly Insights', href: '/client-dashboard/insights/monthly', icon: Sparkles },
+          ].map(item => (
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={handleNavClick}
+              className={cn(
+                'flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm transition-all duration-200',
+                isActive(item.href)
+                  ? 'bg-orange-50 text-orange-600 font-medium'
+                  : 'text-gray-600 hover:bg-gray-50'
+              )}
+            >
+              <item.icon className={cn('h-4 w-4', isActive(item.href) ? 'text-orange-500' : 'text-gray-400')} />
+              {item.label}
+            </Link>
+          ))}
+        </div>
 
         {/* Reports section */}
         <div className="pt-4">

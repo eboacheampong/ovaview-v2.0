@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { generateWeeklyReport } from '@/lib/ai-report-service'
 import { sendWeeklyReportEmail } from '@/lib/report-emails'
+import { cacheSentReport } from '@/lib/sent-report-cache'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 120
@@ -71,6 +72,19 @@ export async function GET(request: NextRequest) {
               subject: `Weekly Report for ${setting.client.name}`,
               status: 'sent',
             },
+          })
+
+          // Cache report for client dashboard insights
+          await cacheSentReport({
+            clientId: setting.clientId,
+            clientName: setting.client.name,
+            reportType: 'weekly',
+            subject: `Weekly Report for ${setting.client.name}`,
+            recipients: recipients.map(r => r.email),
+            reportData,
+            dateRangeStart: reportData.dateRange?.start,
+            dateRangeEnd: reportData.dateRange?.end,
+            emailsSent: sent,
           })
         }
       } catch (err) {
