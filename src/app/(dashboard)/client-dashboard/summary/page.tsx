@@ -155,14 +155,16 @@ export default function SummaryPage() {
                 outerRadius={80}
                 dataKey="value"
                 nameKey="name"
-                activeIndex={activeSentiment}
-                activeShape={({ outerRadius = 0, ...props }: any) => (
-                  <g>
-                    <Sector {...props} outerRadius={outerRadius + 8} />
-                    <Sector {...props} outerRadius={outerRadius + 16} innerRadius={outerRadius + 10} />
-                  </g>
-                )}
                 onMouseEnter={(_, index) => setActiveSentiment(index)}
+                {...{
+                  activeIndex: activeSentiment,
+                  activeShape: ({ outerRadius = 0, ...props }: any) => (
+                    <g>
+                      <Sector {...props} outerRadius={outerRadius + 8} />
+                      <Sector {...props} outerRadius={outerRadius + 16} innerRadius={outerRadius + 10} />
+                    </g>
+                  ),
+                } as any}
               >
                 {sentimentData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i]} />)}
               </Pie>

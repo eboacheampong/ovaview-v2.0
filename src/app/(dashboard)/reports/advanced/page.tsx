@@ -344,14 +344,16 @@ export default function AdvancedReportsPage() {
                       outerRadius={85}
                       strokeWidth={2}
                       stroke="#fff"
-                      activeIndex={activeSentiment}
-                      activeShape={({ outerRadius = 0, ...props }: any) => (
-                        <g>
-                          <Sector {...props} outerRadius={outerRadius + 8} />
-                          <Sector {...props} outerRadius={outerRadius + 16} innerRadius={outerRadius + 10} />
-                        </g>
-                      )}
                       onMouseEnter={(_, index) => setActiveSentiment(index)}
+                      {...{
+                        activeIndex: activeSentiment,
+                        activeShape: ({ outerRadius = 0, ...props }: any) => (
+                          <g>
+                            <Sector {...props} outerRadius={outerRadius + 8} />
+                            <Sector {...props} outerRadius={outerRadius + 16} innerRadius={outerRadius + 10} />
+                          </g>
+                        ),
+                      } as any}
                     >
                       {(analyticsData?.sentimentData || []).map((entry, i) => (
                         <Cell key={i} fill={entry.color} />
