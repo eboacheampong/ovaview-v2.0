@@ -42,35 +42,34 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="w-full max-w-md animate-fadeIn">
-      <div className="text-center mb-8">
-        <Image
-          src="/Ovaview-Media-Monitoring-Logo.png"
-          alt="Ovaview"
-          width={240}
-          height={80}
-          className="mx-auto"
-          priority
-        />
-      </div>
-
-      <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8">
-        <div className="text-center mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Welcome back</h1>
-          <p className="text-gray-500 mt-1">Sign in to your account</p>
+    <div className="relative w-full rounded-3xl overflow-hidden shadow-2xl bg-white min-h-[520px] flex animate-fadeIn">
+      {/* Left side — Login form */}
+      <div className="relative z-10 w-full md:w-[440px] shrink-0 flex flex-col justify-center p-8 sm:p-12 bg-white">
+        <div className="mb-8">
+          <Image
+            src="/Ovaview-Media-Monitoring-Logo.png"
+            alt="Ovaview"
+            width={180}
+            height={60}
+            className="mb-6"
+            priority
+          />
+          <h1 className="text-2xl font-bold text-gray-900">
+            Log in <span className="font-normal text-gray-500">to your Account</span>
+          </h1>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
           {error && (
-            <div className="p-3 text-sm text-red-600 bg-red-50 rounded-lg border border-red-100">
+            <div className="p-3 text-sm text-red-600 bg-red-50 rounded-xl border border-red-100">
               {error}
             </div>
           )}
-          
-          <div className="space-y-2">
-            <Label htmlFor="email" className="text-gray-700 font-medium">Email</Label>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="email" className="text-gray-600 text-sm font-medium">Email</Label>
             <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
                 id="email"
                 type="email"
@@ -78,18 +77,18 @@ export default function LoginPage() {
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 disabled={isLoading}
-                className="pl-10 h-12 rounded-lg border-gray-200 focus:border-orange-500 focus:ring-orange-500/20"
+                className="pl-10 h-12 rounded-xl bg-gray-50 border-gray-200 focus:bg-white focus:border-orange-400 focus:ring-orange-400/20 transition-colors"
               />
             </div>
             {validationErrors.email && (
-              <p className="text-sm text-red-500">{validationErrors.email}</p>
+              <p className="text-xs text-red-500 mt-1">{validationErrors.email}</p>
             )}
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="password" className="text-gray-700 font-medium">Password</Label>
+          <div className="space-y-1.5">
+            <Label htmlFor="password" className="text-gray-600 text-sm font-medium">Password</Label>
             <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
                 id="password"
                 type="password"
@@ -97,37 +96,51 @@ export default function LoginPage() {
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 disabled={isLoading}
-                className="pl-10 h-12 rounded-lg border-gray-200 focus:border-orange-500 focus:ring-orange-500/20"
+                className="pl-10 h-12 rounded-xl bg-gray-50 border-gray-200 focus:bg-white focus:border-orange-400 focus:ring-orange-400/20 transition-colors"
               />
             </div>
             {validationErrors.password && (
-              <p className="text-sm text-red-500">{validationErrors.password}</p>
+              <p className="text-xs text-red-500 mt-1">{validationErrors.password}</p>
             )}
           </div>
 
-          <Button 
-            type="submit" 
-            className="w-full h-12 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-medium group"
+          <Button
+            type="submit"
+            className="w-full h-12 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-semibold text-sm group shadow-lg shadow-orange-500/25 transition-all hover:shadow-orange-500/40"
             disabled={isLoading}
           >
             {isLoading ? (
               <>
-                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Signing in...
               </>
             ) : (
               <>
-                Sign in
-                <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                Login
+                <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
               </>
             )}
           </Button>
         </form>
+
+        <p className="text-center text-gray-400 text-xs mt-8">
+          © {new Date().getFullYear()} Ovaview Media Monitoring
+        </p>
       </div>
 
-      <p className="text-center text-gray-400 text-sm mt-6">
-        © {new Date().getFullYear()} Ovaview. All rights reserved.
-      </p>
+      {/* Right side — Banner image */}
+      <div className="hidden md:block flex-1 relative">
+        <Image
+          src="/ovaview-login-banner.jpg"
+          alt="Ovaview Media Monitoring"
+          fill
+          className="object-cover"
+          priority
+          sizes="(max-width: 768px) 0vw, 60vw"
+        />
+        {/* Subtle gradient overlay for polish */}
+        <div className="absolute inset-0 bg-gradient-to-r from-white/20 via-transparent to-transparent" />
+      </div>
     </div>
   )
 }
