@@ -66,26 +66,26 @@ export function Sidebar({ isOpen, isDesktop, onClose }: SidebarProps) {
 
   return (
     <aside className={cn(
-      "fixed top-0 left-0 z-50 h-screen w-72 bg-[#334851] border-r border-[#2a3d45] flex flex-col shadow-xl lg:shadow-none transition-transform duration-300",
+      "fixed top-0 left-0 z-50 h-screen w-72 bg-white border-r border-gray-100 flex flex-col shadow-xl lg:shadow-none transition-transform duration-300",
       isOpen ? "translate-x-0" : "-translate-x-full"
     )}>
       {/* Header with Logo and Close button */}
-      <div className="flex items-center justify-between p-4 border-b border-white/10">
+      <div className="flex items-center justify-between p-4 border-b border-gray-100">
         <Link href="/dashboard" className="block" onClick={handleNavClick}>
           <Image
             src="/Ovaview-Media-Monitoring-Logo.png"
             alt="Ovaview"
             width={160}
             height={48}
-            className="h-10 w-auto brightness-0 invert"
+            className="h-10 w-auto"
           />
         </Link>
         {!isDesktop && (
           <button
             onClick={onClose}
-            className="p-2 rounded-lg hover:bg-white/10 lg:hidden"
+            className="p-2 rounded-lg hover:bg-gray-100 lg:hidden"
           >
-            <X className="h-5 w-5 text-white/70" />
+            <X className="h-5 w-5 text-gray-500" />
           </button>
         )}
       </div>
@@ -99,7 +99,7 @@ export function Sidebar({ isOpen, isDesktop, onClose }: SidebarProps) {
             'flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200',
             (isActive(dashboardItem.href) || isActive('/client-dashboard'))
               ? 'gradient-primary text-white shadow-md'
-              : 'text-white/70 hover:bg-white/10'
+              : 'text-gray-600 hover:bg-gray-50'
           )}
         >
           <dashboardItem.icon className="h-5 w-5" />
@@ -121,7 +121,7 @@ export function Sidebar({ isOpen, isDesktop, onClose }: SidebarProps) {
             <div key={section.title} className="mb-1">
               <button
                 onClick={() => toggleSection(section.title)}
-                className="flex items-center justify-between w-full px-3 py-2 text-[11px] font-semibold text-white/40 uppercase tracking-wider hover:text-white/60 transition-colors"
+                className="flex items-center justify-between w-full px-3 py-2 text-[11px] font-semibold text-gray-400 uppercase tracking-wider hover:text-gray-600 transition-colors"
               >
                 {section.title}
                 {(expandedSections[section.title] || isSectionActive(section)) ? (
@@ -143,7 +143,7 @@ export function Sidebar({ isOpen, isDesktop, onClose }: SidebarProps) {
                           onClick={() => toggleSubSection(subSection.title)}
                           className={cn(
                             'flex items-center justify-between w-full px-4 py-2.5 rounded-xl text-sm transition-all duration-200',
-                            subSectionExpanded ? 'gradient-primary text-white' : 'text-white/70 hover:bg-white/10'
+                            subSectionExpanded ? 'gradient-primary text-white' : 'text-gray-600 hover:bg-gray-50'
                           )}
                         >
                           <div className="flex items-center gap-3">
@@ -154,7 +154,7 @@ export function Sidebar({ isOpen, isDesktop, onClose }: SidebarProps) {
                         </button>
                         
                         {subSectionExpanded && (
-                          <div className="mt-1 ml-4 space-y-1 border-l-2 border-white/10 pl-2">
+                          <div className="mt-1 ml-4 space-y-1 border-l-2 border-gray-100 pl-2">
                             {filterItemsByRole(subSection.items).map((item) => (
                               <Link
                                 key={item.href}
@@ -162,10 +162,10 @@ export function Sidebar({ isOpen, isDesktop, onClose }: SidebarProps) {
                                 onClick={handleNavClick}
                                 className={cn(
                                   'flex items-center gap-3 px-4 py-2 rounded-xl text-sm transition-all duration-200',
-                                  isActive(item.href) ? 'bg-orange-500/20 text-orange-300 font-medium' : 'text-white/70 hover:bg-white/10'
+                                  isActive(item.href) ? 'bg-orange-50 text-orange-600 font-medium' : 'text-gray-600 hover:bg-gray-50'
                                 )}
                               >
-                                <item.icon className={cn('h-4 w-4', isActive(item.href) ? 'text-orange-400' : 'text-white/40')} />
+                                <item.icon className={cn('h-4 w-4', isActive(item.href) ? 'text-orange-500' : 'text-gray-400')} />
                                 {item.label}
                               </Link>
                             ))}
@@ -182,10 +182,10 @@ export function Sidebar({ isOpen, isDesktop, onClose }: SidebarProps) {
                       onClick={handleNavClick}
                       className={cn(
                         'flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm transition-all duration-200',
-                        isActive(item.href) ? 'bg-orange-500/20 text-orange-300 font-medium' : 'text-white/70 hover:bg-white/10'
+                        isActive(item.href) ? 'bg-orange-50 text-orange-600 font-medium' : 'text-gray-600 hover:bg-gray-50'
                       )}
                     >
-                      <item.icon className={cn('h-4 w-4', isActive(item.href) ? 'text-orange-400' : 'text-white/40')} />
+                      <item.icon className={cn('h-4 w-4', isActive(item.href) ? 'text-orange-500' : 'text-gray-400')} />
                       {item.label}
                     </Link>
                   ))}
@@ -214,18 +214,18 @@ export function Sidebar({ isOpen, isDesktop, onClose }: SidebarProps) {
             className={cn(
               'flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm transition-all duration-200',
               isActive(item.href) && pathname === item.href
-                ? 'bg-orange-500/20 text-orange-300 font-medium'
-                : 'text-white/70 hover:bg-white/10'
+                ? 'bg-orange-50 text-orange-600 font-medium'
+                : 'text-gray-600 hover:bg-gray-50'
             )}
           >
-            <item.icon className={cn('h-4 w-4', isActive(item.href) && pathname === item.href ? 'text-orange-400' : 'text-white/40')} />
+            <item.icon className={cn('h-4 w-4', isActive(item.href) && pathname === item.href ? 'text-orange-500' : 'text-gray-400')} />
             {item.label}
           </Link>
         ))}
 
         {/* Reports section */}
         <div className="pt-4">
-          <p className="px-3 py-2 text-[11px] font-semibold text-white/40 uppercase tracking-wider">AI Insights</p>
+          <p className="px-3 py-2 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">AI Insights</p>
           {[
             { label: 'Weekly Insights', href: '/client-dashboard/insights/weekly', icon: CalendarDays },
             { label: 'Monthly Insights', href: '/client-dashboard/insights/monthly', icon: Sparkles },
@@ -237,11 +237,11 @@ export function Sidebar({ isOpen, isDesktop, onClose }: SidebarProps) {
               className={cn(
                 'flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm transition-all duration-200',
                 isActive(item.href)
-                  ? 'bg-orange-500/20 text-orange-300 font-medium'
-                  : 'text-white/70 hover:bg-white/10'
+                  ? 'bg-orange-50 text-orange-600 font-medium'
+                  : 'text-gray-600 hover:bg-gray-50'
               )}
             >
-              <item.icon className={cn('h-4 w-4', isActive(item.href) ? 'text-orange-400' : 'text-white/40')} />
+              <item.icon className={cn('h-4 w-4', isActive(item.href) ? 'text-orange-500' : 'text-gray-400')} />
               {item.label}
             </Link>
           ))}
@@ -249,7 +249,7 @@ export function Sidebar({ isOpen, isDesktop, onClose }: SidebarProps) {
 
         {/* Reports section */}
         <div className="pt-4">
-          <p className="px-3 py-2 text-[11px] font-semibold text-white/40 uppercase tracking-wider">Reports</p>
+          <p className="px-3 py-2 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Reports</p>
           {[
             { label: 'Email Reports', href: '/client-dashboard/reports/email', icon: Mail },
             { label: 'PDF Report', href: '/client-dashboard/reports/pdf', icon: FileText },
@@ -262,11 +262,11 @@ export function Sidebar({ isOpen, isDesktop, onClose }: SidebarProps) {
               className={cn(
                 'flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm transition-all duration-200',
                 isActive(item.href)
-                  ? 'bg-orange-500/20 text-orange-300 font-medium'
-                  : 'text-white/70 hover:bg-white/10'
+                  ? 'bg-orange-50 text-orange-600 font-medium'
+                  : 'text-gray-600 hover:bg-gray-50'
               )}
             >
-              <item.icon className={cn('h-4 w-4', isActive(item.href) ? 'text-orange-400' : 'text-white/40')} />
+              <item.icon className={cn('h-4 w-4', isActive(item.href) ? 'text-orange-500' : 'text-gray-400')} />
               {item.label}
             </Link>
           ))}
@@ -274,18 +274,18 @@ export function Sidebar({ isOpen, isDesktop, onClose }: SidebarProps) {
 
         {/* Settings section */}
         <div className="pt-4">
-          <p className="px-3 py-2 text-[11px] font-semibold text-white/40 uppercase tracking-wider">Settings</p>
+          <p className="px-3 py-2 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Settings</p>
           <Link
             href="/client-dashboard/notifications"
             onClick={handleNavClick}
             className={cn(
               'flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm transition-all duration-200',
               isActive('/client-dashboard/notifications')
-                ? 'bg-orange-500/20 text-orange-300 font-medium'
-                : 'text-white/70 hover:bg-white/10'
+                ? 'bg-orange-50 text-orange-600 font-medium'
+                : 'text-gray-600 hover:bg-gray-50'
             )}
           >
-            <Bell className={cn('h-4 w-4', isActive('/client-dashboard/notifications') ? 'text-orange-400' : 'text-white/40')} />
+            <Bell className={cn('h-4 w-4', isActive('/client-dashboard/notifications') ? 'text-orange-500' : 'text-gray-400')} />
             Notifications
           </Link>
         </div>
@@ -293,7 +293,7 @@ export function Sidebar({ isOpen, isDesktop, onClose }: SidebarProps) {
       )}
 
       {/* Bottom Navigation */}
-      <div className="border-t border-white/10 px-3 py-4 space-y-1">
+      <div className="border-t border-gray-100 px-3 py-4 space-y-1">
         {bottomNavItems.map((item) => (
           <Link
             key={item.href}
@@ -301,16 +301,16 @@ export function Sidebar({ isOpen, isDesktop, onClose }: SidebarProps) {
             onClick={handleNavClick}
             className={cn(
               'flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm transition-all duration-200',
-              isActive(item.href) ? 'bg-orange-500/20 text-orange-300 font-medium' : 'text-white/70 hover:bg-white/10'
+              isActive(item.href) ? 'bg-orange-50 text-orange-600 font-medium' : 'text-gray-600 hover:bg-gray-50'
             )}
           >
-            <item.icon className={cn('h-4 w-4', isActive(item.href) ? 'text-orange-400' : 'text-white/40')} />
+            <item.icon className={cn('h-4 w-4', isActive(item.href) ? 'text-orange-500' : 'text-gray-400')} />
             {item.label}
           </Link>
         ))}
         <button
           onClick={handleLogout}
-          className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm text-white/70 hover:bg-red-500/20 hover:text-red-300 w-full transition-all duration-200"
+          className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm text-gray-600 hover:bg-red-50 hover:text-red-600 w-full transition-all duration-200"
         >
           <LogOut className="h-4 w-4" />
           Logout
