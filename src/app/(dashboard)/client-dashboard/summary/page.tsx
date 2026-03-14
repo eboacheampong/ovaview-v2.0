@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Loader2 } from 'lucide-react'
 import { useClientDashboard, fmtNum, SENTIMENT_COLORS, SOURCE_LABELS } from '@/hooks/use-client-dashboard'
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent, type ChartConfig } from '@/components/ui/chart'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, BarChart, Bar, PieChart, Pie, Cell } from 'recharts'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, BarChart, Bar, PieChart, Pie, Cell, Sector } from 'recharts'
 import { format } from 'date-fns'
 
 const DATE_RANGES = [
@@ -32,6 +32,7 @@ const sourceChartConfig = {
 
 export default function SummaryPage() {
   const [days, setDays] = useState(30)
+  const [activeSentiment, setActiveSentiment] = useState(0)
   const { data, isLoading } = useClientDashboard(days)
 
   if (isLoading || !data) {
@@ -106,11 +107,12 @@ export default function SummaryPage() {
           <LineChart data={data.chart} accessibilityLayer>
             <CartesianGrid vertical={false} strokeDasharray="3 3" />
             <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} fontSize={11} tickFormatter={v => format(new Date(v), 'MMM d')} />
-            <YAxis tickLine={false} axisLine={false} fontSize={11} />
+            <YAxis yAxisId="left" tickLine={false} axisLine={false} fontSize={11} />
+            <YAxis yAxisId="right" orientation="right" tickLine={false} axisLine={false} fontSize={11} tickFormatter={fmtNum} />
             <ChartTooltip content={<ChartTooltipContent />} />
             <ChartLegend content={<ChartLegendContent />} />
-            <Line type="monotone" dataKey="mentions" stroke="var(--color-mentions)" strokeWidth={2} dot={false} />
-            <Line type="monotone" dataKey="reach" stroke="var(--color-reach)" strokeWidth={2} dot={false} />
+            <Line yAxisId="left" type="monotone" dataKey="mentions" stroke="var(--color-mentions)" strokeWidth={2} dot={false} />
+            <Line yAxisId="right" type="monotone" dataKey="reach" stroke="var(--color-reach)" strokeWidth={2} dot={false} />
           </LineChart>
         </ChartContainer>
       </div>
@@ -139,18 +141,37 @@ export default function SummaryPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Sentiment breakdown */}
+        {/* Sentiment breakdown - Donut Active */}
         <div className="bg-white rounded-lg border border-gray-200 p-5">
           <h2 className="text-sm font-semibold text-gray-700 mb-4">Sentiment Breakdown</h2>
-          <ChartContainer config={sentimentChartConfig} className="min-h-[200px] w-full">
+          <ChartContainer config={sentimentChartConfig} className="h-[200px] w-full">
             <PieChart accessibilityLayer>
               <ChartTooltip content={<ChartTooltipContent hideLabel />} />
-              <Pie data={sentimentData} cx="50%" cy="50%" innerRadius={50} outerRadius={80}
-                dataKey="value" nameKey="name"
-                label={(props: any) => `${props.name} ${((props.percent || 0) * 100).toFixed(0)}%`}
-                fontSize={11}>
+              <Pie
+                data={sentimentData}
+                cx="50%"
+                cy="50%"
+                innerRadius={50}
+                outerRadius={80}
+                dataKey="value"
+                nameKey="name"
+                activeIndex={activeSentiment}
+                activeShape={({ outerRadius = 0, ...props }: any) => (
+                  <g>
+                    <Sector {...props} outerRadius={outerRadius + 8} />
+                    <Sector {...props} outerRadius={outerRadius + 16} innerRadius={outerRadius + 10} />
+                  </g>
+                )}
+                onMouseEnter={(_, index) => setActiveSentiment(index)}
+              >
                 {sentimentData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i]} />)}
               </Pie>
+              <text x="50%" y="48%" textAnchor="middle" dominantBaseline="middle" className="fill-gray-800 text-2xl font-bold">
+                {sentimentData[activeSentiment]?.value || 0}
+              </text>
+              <text x="50%" y="60%" textAnchor="middle" dominantBaseline="middle" className="fill-gray-400 text-xs">
+                {sentimentData[activeSentiment]?.name || ''}
+              </text>
             </PieChart>
           </ChartContainer>
         </div>

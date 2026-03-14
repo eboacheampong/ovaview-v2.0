@@ -11,7 +11,7 @@ import {
   Calendar, Filter, Users, Activity, Heart, MessageCircle, Share2, Clock, MapPin
 } from 'lucide-react'
 import {
-  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
+  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, Sector,
   XAxis, YAxis, CartesianGrid, LineChart, Line
 } from 'recharts'
 import type { AnalyticsData } from '@/types/analytics'
@@ -73,6 +73,7 @@ export default function AdvancedReportsPage() {
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null)
   const [lastRefresh, setLastRefresh] = useState(new Date())
   const [showExportPanel, setShowExportPanel] = useState(false)
+  const [activeSentiment, setActiveSentiment] = useState(0)
 
   useEffect(() => {
     fetch('/api/clients').then(r => r.ok ? r.json() : []).then(setClients).catch(() => {})
@@ -333,12 +334,35 @@ export default function AdvancedReportsPage() {
                 <ChartContainer config={sentimentConfig} className="h-[240px] w-full">
                   <PieChart accessibilityLayer>
                     <ChartTooltip content={<ChartTooltipContent hideLabel />} />
-                    <Pie data={analyticsData?.sentimentData || []} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={55} outerRadius={85} strokeWidth={2} stroke="#fff"
-                      label={({ name, value }) => `${name} ${value}%`} fontSize={11}>
+                    <Pie
+                      data={analyticsData?.sentimentData || []}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={55}
+                      outerRadius={85}
+                      strokeWidth={2}
+                      stroke="#fff"
+                      activeIndex={activeSentiment}
+                      activeShape={({ outerRadius = 0, ...props }: any) => (
+                        <g>
+                          <Sector {...props} outerRadius={outerRadius + 8} />
+                          <Sector {...props} outerRadius={outerRadius + 16} innerRadius={outerRadius + 10} />
+                        </g>
+                      )}
+                      onMouseEnter={(_, index) => setActiveSentiment(index)}
+                    >
                       {(analyticsData?.sentimentData || []).map((entry, i) => (
                         <Cell key={i} fill={entry.color} />
                       ))}
                     </Pie>
+                    <text x="50%" y="46%" textAnchor="middle" dominantBaseline="middle" className="fill-gray-800 text-2xl font-bold">
+                      {(analyticsData?.sentimentData || [])[activeSentiment]?.value || 0}%
+                    </text>
+                    <text x="50%" y="58%" textAnchor="middle" dominantBaseline="middle" className="fill-gray-400 text-xs">
+                      {(analyticsData?.sentimentData || [])[activeSentiment]?.name || ''}
+                    </text>
                   </PieChart>
                 </ChartContainer>
               </CardContent>

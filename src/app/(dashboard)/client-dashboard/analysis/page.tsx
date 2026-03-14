@@ -144,11 +144,12 @@ export default function AnalysisPage() {
               <LineChart data={data.chart} accessibilityLayer>
                 <CartesianGrid vertical={false} strokeDasharray="3 3" />
                 <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} fontSize={11} tickFormatter={v => format(new Date(v), 'MMM d')} />
-                <YAxis tickLine={false} axisLine={false} fontSize={11} />
+                <YAxis yAxisId="left" tickLine={false} axisLine={false} fontSize={11} />
+                <YAxis yAxisId="right" orientation="right" tickLine={false} axisLine={false} fontSize={11} tickFormatter={fmtNum} />
                 <ChartTooltip content={<ChartTooltipContent />} />
                 <ChartLegend content={<ChartLegendContent />} />
-                <Line type="monotone" dataKey="mentions" stroke="var(--color-mentions)" strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="reach" stroke="var(--color-reach)" strokeWidth={2} dot={false} />
+                <Line yAxisId="left" type="monotone" dataKey="mentions" stroke="var(--color-mentions)" strokeWidth={2} dot={false} />
+                <Line yAxisId="right" type="monotone" dataKey="reach" stroke="var(--color-reach)" strokeWidth={2} dot={false} />
               </LineChart>
             </ChartContainer>
           </div>

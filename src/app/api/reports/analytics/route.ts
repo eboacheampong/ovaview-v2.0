@@ -349,10 +349,11 @@ export async function GET(request: NextRequest) {
 
     const hourlyEngagementData = hourlyEngagement
       .slice(6, 22) // 6AM to 9PM
-      .map((engagement, index) => ({
-        hour: `${index + 6}${index + 6 < 12 ? 'AM' : 'PM'}`.replace('12PM', '12PM').replace('0AM', '12AM'),
-        engagement,
-      }))
+      .map((engagement, index) => {
+        const h = index + 6
+        const label = h === 0 ? '12AM' : h === 12 ? '12PM' : h < 12 ? `${h}AM` : `${h - 12}PM`
+        return { hour: label, engagement }
+      })
 
     // Get active clients count
     const activeClients = await prisma.client.count({ where: { isActive: true } })
