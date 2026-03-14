@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
         orderBy: { date: 'desc' },
         select: {
           id: true, title: true, sourceUrl: true, author: true, date: true,
-          summary: true, overallSentiment: true, keywords: true, keyPersonalities: true,
+          summary: true, overallSentiment: true, keywords: true,
           publication: { select: { name: true, website: true, reach: true } },
         },
       }),
@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
         orderBy: { date: 'desc' },
         select: {
           id: true, title: true, presenters: true, date: true,
-          summary: true, overallSentiment: true, keywords: true, keyPersonalities: true,
+          summary: true, overallSentiment: true, keywords: true,
           station: { select: { name: true, reach: true } },
         },
       }),
@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
         orderBy: { date: 'desc' },
         select: {
           id: true, title: true, presenters: true, date: true,
-          summary: true, overallSentiment: true, keywords: true, keyPersonalities: true,
+          summary: true, overallSentiment: true, keywords: true,
           station: { select: { name: true, reach: true } },
         },
       }),
@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
         orderBy: { date: 'desc' },
         select: {
           id: true, title: true, author: true, date: true,
-          summary: true, overallSentiment: true, keywords: true, keyPersonalities: true,
+          summary: true, overallSentiment: true, keywords: true,
           publication: { select: { name: true, reach: true } },
         },
       }),
@@ -77,6 +77,31 @@ export async function GET(request: NextRequest) {
           viewsCount: true, overallSentiment: true, postedAt: true, keywords: true,
         },
       }),
+    ])
+
+    // Fetch keyPersonalities via raw queries (field exists in DB but not in generated Prisma types)
+    const kpMap = new Map<string, string>()
+
+    const webIds = webStories.map(s => s.id)
+    const tvIds = tvStories.map(s => s.id)
+    const radioIds = radioStories.map(s => s.id)
+    const printIds = printStories.map(s => s.id)
+
+    const fetchKp = async (table: string, ids: string[]) => {
+      if (ids.length === 0) return
+      const placeholders = ids.map((_, i) => `$${i + 1}`).join(',')
+      const rows: { id: string; keyPersonalities: string | null }[] =
+        await prisma.$queryRawUnsafe(`SELECT id, "keyPersonalities" FROM "${table}" WHERE id IN (${placeholders})`, ...ids)
+      for (const r of rows) {
+        if (r.keyPersonalities) kpMap.set(r.id, r.keyPersonalities)
+      }
+    }
+
+    await Promise.all([
+      fetchKp('WebStory', webIds),
+      fetchKp('TVStory', tvIds),
+      fetchKp('RadioStory', radioIds),
+      fetchKp('PrintStory', printIds),
     ])
 
     // Normalize all mentions into a unified feed
@@ -97,7 +122,7 @@ export async function GET(request: NextRequest) {
         author: s.author || '', date: s.date.toISOString(),
         summary: s.summary || '', sentiment: s.overallSentiment || 'neutral',
         reach: calculateDailyReach(s.publication?.reach || 0, s.date),
-        keywords: s.keywords || undefined, keyPersonalities: s.keyPersonalities || undefined,
+        keywords: s.keywords || undefined, keyPersonalities: kpMap.get(s.id) || undefined,
       })
     }
     for (const s of tvStories) {
@@ -106,7 +131,7 @@ export async function GET(request: NextRequest) {
         source: s.station?.name || 'TV', author: s.presenters || '',
         date: s.date.toISOString(), summary: s.summary || '',
         sentiment: s.overallSentiment || 'neutral', reach: calculateDailyReach(s.station?.reach || 0, s.date),
-        keywords: s.keywords || undefined, keyPersonalities: s.keyPersonalities || undefined,
+        keywords: s.keywords || undefined, keyPersonalities: kpMap.get(s.id) || undefined,
       })
     }
     for (const s of radioStories) {
@@ -115,7 +140,7 @@ export async function GET(request: NextRequest) {
         source: s.station?.name || 'Radio', author: s.presenters || '',
         date: s.date.toISOString(), summary: s.summary || '',
         sentiment: s.overallSentiment || 'neutral', reach: calculateDailyReach(s.station?.reach || 0, s.date),
-        keywords: s.keywords || undefined, keyPersonalities: s.keyPersonalities || undefined,
+        keywords: s.keywords || undefined, keyPersonalities: kpMap.get(s.id) || undefined,
       })
     }
     for (const s of printStories) {
@@ -124,7 +149,7 @@ export async function GET(request: NextRequest) {
         source: s.publication?.name || 'Print', author: s.author || '',
         date: s.date.toISOString(), summary: s.summary || '',
         sentiment: s.overallSentiment || 'neutral', reach: calculateDailyReach(s.publication?.reach || 0, s.date),
-        keywords: s.keywords || undefined, keyPersonalities: s.keyPersonalities || undefined,
+        keywords: s.keywords || undefined, keyPersonalities: kpMap.get(s.id) || undefined,
       })
     }
     for (const s of socialPosts) {

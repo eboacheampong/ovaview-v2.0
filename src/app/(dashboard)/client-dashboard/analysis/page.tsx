@@ -349,57 +349,6 @@ export default function AnalysisPage() {
         </div>
       </div>
 
-      {/* Top sources with sentiment bars */}
-      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-        <div className="p-4 border-b border-gray-100">
-          <h2 className="text-sm font-semibold text-gray-700">Top Sources by Sentiment</h2>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-gray-50 text-left">
-                <th className="px-4 py-3 font-medium text-gray-500">Source</th>
-                <th className="px-4 py-3 font-medium text-gray-500 text-right">Mentions</th>
-                <th className="px-4 py-3 font-medium text-gray-500 text-right">Reach</th>
-                <th className="px-4 py-3 font-medium text-gray-500 text-center">Positive</th>
-                <th className="px-4 py-3 font-medium text-gray-500 text-center">Neutral</th>
-                <th className="px-4 py-3 font-medium text-gray-500 text-center">Negative</th>
-                <th className="px-4 py-3 font-medium text-gray-500 text-center">Score</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {analysis.topSources.map((src) => {
-                const score = src.count > 0 ? Math.round(((src.positive - src.negative) / src.count) * 100) : 0
-                return (
-                  <tr key={src.name} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-3 font-medium text-gray-800 truncate max-w-[200px]">{src.name}</td>
-                    <td className="px-4 py-3 text-right font-semibold text-gray-800">{src.count}</td>
-                    <td className="px-4 py-3 text-right text-gray-600">{fmtNum(src.reach)}</td>
-                    <td className="px-4 py-3 text-center">
-                      <span className={`inline-block px-2 py-0.5 rounded text-xs ${SENTIMENT_COLORS.positive.bg} ${SENTIMENT_COLORS.positive.text}`}>{src.positive}</span>
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <span className={`inline-block px-2 py-0.5 rounded text-xs ${SENTIMENT_COLORS.neutral.bg} ${SENTIMENT_COLORS.neutral.text}`}>{src.neutral}</span>
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <span className={`inline-block px-2 py-0.5 rounded text-xs ${SENTIMENT_COLORS.negative.bg} ${SENTIMENT_COLORS.negative.text}`}>{src.negative}</span>
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${
-                        score > 0 ? 'bg-emerald-50 text-emerald-700' : score < 0 ? 'bg-red-50 text-red-700' : 'bg-gray-100 text-gray-600'
-                      }`}>{score > 0 ? '+' : ''}{score}</span>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  )
-}
-
       {/* Keywords and Key Personalities */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Top Keywords - horizontal bar chart */}
