@@ -9,6 +9,7 @@ export interface Mention {
   title: string
   source: string
   sourceUrl?: string
+  slug?: string
   author: string
   date: string
   summary: string

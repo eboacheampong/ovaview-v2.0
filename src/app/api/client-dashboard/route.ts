@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
         orderBy: { date: 'desc' },
         select: {
           id: true, title: true, sourceUrl: true, author: true, date: true,
-          summary: true, overallSentiment: true, keywords: true,
+          summary: true, overallSentiment: true, keywords: true, slug: true,
           publication: { select: { name: true, website: true, reach: true } },
         },
       }),
@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
         orderBy: { date: 'desc' },
         select: {
           id: true, title: true, presenters: true, date: true,
-          summary: true, overallSentiment: true, keywords: true,
+          summary: true, overallSentiment: true, keywords: true, slug: true,
           station: { select: { name: true, reach: true } },
         },
       }),
@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
         orderBy: { date: 'desc' },
         select: {
           id: true, title: true, presenters: true, date: true,
-          summary: true, overallSentiment: true, keywords: true,
+          summary: true, overallSentiment: true, keywords: true, slug: true,
           station: { select: { name: true, reach: true } },
         },
       }),
@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
         orderBy: { date: 'desc' },
         select: {
           id: true, title: true, author: true, date: true,
-          summary: true, overallSentiment: true, keywords: true,
+          summary: true, overallSentiment: true, keywords: true, slug: true,
           publication: { select: { name: true, reach: true } },
         },
       }),
@@ -107,7 +107,7 @@ export async function GET(request: NextRequest) {
     // Normalize all mentions into a unified feed
     type Mention = {
       id: string; type: string; title: string; source: string;
-      sourceUrl?: string; author: string; date: string;
+      sourceUrl?: string; slug?: string; author: string; date: string;
       summary: string; sentiment: string; reach: number;
       platform?: string; engagement?: number;
       keywords?: string; keyPersonalities?: string;
@@ -119,6 +119,7 @@ export async function GET(request: NextRequest) {
       mentions.push({
         id: s.id, type: 'web', title: s.title,
         source: s.publication?.name || 'Web', sourceUrl: s.sourceUrl || undefined,
+        slug: s.slug || undefined,
         author: s.author || '', date: s.date.toISOString(),
         summary: s.summary || '', sentiment: s.overallSentiment || 'neutral',
         reach: calculateDailyReach(s.publication?.reach || 0, s.date),
@@ -128,7 +129,8 @@ export async function GET(request: NextRequest) {
     for (const s of tvStories) {
       mentions.push({
         id: s.id, type: 'tv', title: s.title,
-        source: s.station?.name || 'TV', author: s.presenters || '',
+        source: s.station?.name || 'TV', slug: s.slug || undefined,
+        author: s.presenters || '',
         date: s.date.toISOString(), summary: s.summary || '',
         sentiment: s.overallSentiment || 'neutral', reach: calculateDailyReach(s.station?.reach || 0, s.date),
         keywords: s.keywords || undefined, keyPersonalities: kpMap.get(s.id) || undefined,
@@ -137,7 +139,8 @@ export async function GET(request: NextRequest) {
     for (const s of radioStories) {
       mentions.push({
         id: s.id, type: 'radio', title: s.title,
-        source: s.station?.name || 'Radio', author: s.presenters || '',
+        source: s.station?.name || 'Radio', slug: s.slug || undefined,
+        author: s.presenters || '',
         date: s.date.toISOString(), summary: s.summary || '',
         sentiment: s.overallSentiment || 'neutral', reach: calculateDailyReach(s.station?.reach || 0, s.date),
         keywords: s.keywords || undefined, keyPersonalities: kpMap.get(s.id) || undefined,
@@ -146,7 +149,8 @@ export async function GET(request: NextRequest) {
     for (const s of printStories) {
       mentions.push({
         id: s.id, type: 'print', title: s.title,
-        source: s.publication?.name || 'Print', author: s.author || '',
+        source: s.publication?.name || 'Print', slug: s.slug || undefined,
+        author: s.author || '',
         date: s.date.toISOString(), summary: s.summary || '',
         sentiment: s.overallSentiment || 'neutral', reach: calculateDailyReach(s.publication?.reach || 0, s.date),
         keywords: s.keywords || undefined, keyPersonalities: kpMap.get(s.id) || undefined,

@@ -19,6 +19,7 @@ interface Mention {
   title: string
   source: string
   sourceUrl?: string
+  slug?: string
   author: string
   date: string
   summary: string
@@ -124,12 +125,20 @@ function MentionCard({ mention }: { mention: Mention }) {
             <span className="flex items-center gap-1"><Heart className="h-3 w-3" />{fmtNum(mention.engagement)}</span>
           )}
         </div>
-        {mention.sourceUrl && (
-          <a href={mention.sourceUrl} target="_blank" rel="noopener noreferrer"
-            className="text-xs text-purple-500 hover:underline flex items-center gap-1">
-            <ExternalLink className="h-3 w-3" /> View
-          </a>
-        )}
+        <div className="flex items-center gap-3">
+          {mention.slug && (
+            <a href={`/media/${mention.type}/${mention.slug}`} target="_blank" rel="noopener noreferrer"
+              className="text-xs text-purple-500 hover:underline flex items-center gap-1">
+              <Eye className="h-3 w-3" /> View
+            </a>
+          )}
+          {mention.sourceUrl && (
+            <a href={mention.sourceUrl} target="_blank" rel="noopener noreferrer"
+              className="text-xs text-gray-400 hover:text-gray-600 hover:underline flex items-center gap-1">
+              <ExternalLink className="h-3 w-3" /> Source
+            </a>
+          )}
+        </div>
       </div>
     </div>
   )

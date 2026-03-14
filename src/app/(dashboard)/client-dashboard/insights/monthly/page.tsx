@@ -5,7 +5,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { useRouter } from 'next/navigation'
 import {
   Loader2, Calendar, TrendingUp, TrendingDown, Minus,
-  Globe, Tv, Radio, Newspaper, Share2, Clock, Lightbulb, BarChart3, Target
+  Globe, Tv, Radio, Newspaper, Share2, Clock, Lightbulb, BarChart3, Target, Settings
 } from 'lucide-react'
 import { format, formatDistanceToNow } from 'date-fns'
 
@@ -112,9 +112,18 @@ export default function MonthlyInsightsPage() {
             </p>
           </div>
           {sentAt && (
-            <div className="flex items-center gap-1.5 text-xs text-gray-400 bg-gray-50 px-3 py-1.5 rounded-full">
-              <Clock className="h-3 w-3" />
-              Updated {formatDistanceToNow(new Date(sentAt), { addSuffix: true })}
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 text-xs text-gray-400 bg-gray-50 px-3 py-1.5 rounded-full">
+                <Clock className="h-3 w-3" />
+                Updated {formatDistanceToNow(new Date(sentAt), { addSuffix: true })}
+              </div>
+              <button
+                onClick={() => router.push('/client-dashboard/notifications')}
+                className="flex items-center gap-1.5 text-xs text-purple-500 hover:text-purple-700 bg-purple-50 px-3 py-1.5 rounded-full transition-colors"
+              >
+                <Settings className="h-3 w-3" />
+                Notification Settings
+              </button>
             </div>
           )}
         </div>
