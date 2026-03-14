@@ -222,11 +222,10 @@ export default function ClientDashboardPage() {
       </div>
 
       {/* Summary stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
         {[
           { label: 'Mentions', value: s.totalMentions, color: 'text-gray-800' },
           { label: 'SM Reach', value: s.totalReach, color: 'text-gray-800' },
-          { label: 'Interactions', value: s.totalInteractions, color: 'text-gray-800' },
           { label: 'Positive', value: s.positive, color: 'text-emerald-600' },
           { label: 'Negative', value: s.negative, color: 'text-red-600' },
           { label: 'Neutral', value: s.neutral, color: 'text-gray-500' },

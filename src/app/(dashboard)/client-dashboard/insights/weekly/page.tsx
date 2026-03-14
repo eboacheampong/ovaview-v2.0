@@ -94,7 +94,7 @@ export default function WeeklyInsightsPage() {
   const comp = report.comparison
 
   return (
-    <div className="p-4 sm:p-6 max-w-5xl">
+    <div className="p-4 sm:p-6">
       {/* Header */}
       <div className="mb-6">
         <div className="flex items-center justify-between flex-wrap gap-2">
@@ -215,7 +215,7 @@ export default function WeeklyInsightsPage() {
         </div>
 
         {/* Right sidebar — verifiable stats */}
-        <div className="w-full lg:w-64 shrink-0 space-y-5">
+        <div className="w-full lg:w-72 shrink-0 space-y-5">
           {/* Top Sources */}
           {report.topAuthors && report.topAuthors.length > 0 && (
             <div className="bg-white rounded-lg border border-gray-200 p-4">
