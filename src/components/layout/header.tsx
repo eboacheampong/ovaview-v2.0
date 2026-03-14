@@ -1,6 +1,6 @@
 'use client'
 
-import { Menu, Bell, Search, Sun, Moon, Mail, FileText, Sparkles, CalendarDays, Clock } from 'lucide-react'
+import { Menu, Bell, Search, Mail, FileText, Sparkles, CalendarDays, Clock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useAuth } from '@/hooks/use-auth'
@@ -39,7 +39,6 @@ const TYPE_COLORS: Record<string, string> = {
 
 export function Header({ onMenuToggle, sidebarOpen, isDesktop }: HeaderProps) {
   const { user } = useAuth()
-  const [isDark, setIsDark] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [notifLoading, setNotifLoading] = useState(false)
@@ -100,7 +99,7 @@ export function Header({ onMenuToggle, sidebarOpen, isDesktop }: HeaderProps) {
 
   return (
     <header className={`fixed top-0 right-0 z-30 h-16 bg-white border-b border-gray-100 transition-all duration-300 ${
-      isDesktop && sidebarOpen ? 'left-72' : 'left-0'
+      isDesktop && sidebarOpen ? 'left-64' : 'left-0'
     }`}>
       <div className="flex items-center justify-between h-full px-4 md:px-6">
         {/* Left side */}
@@ -135,16 +134,6 @@ export function Header({ onMenuToggle, sidebarOpen, isDesktop }: HeaderProps) {
             className="w-11 h-11 rounded-xl hover:bg-gray-100 md:hidden"
           >
             <Search className="h-6 w-6 text-gray-500" />
-          </Button>
-
-          {/* Theme toggle */}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-11 h-11 rounded-xl hover:bg-gray-100 hidden sm:flex"
-            onClick={() => setIsDark(!isDark)}
-          >
-            {isDark ? <Sun className="h-6 w-6 text-gray-500" /> : <Moon className="h-6 w-6 text-gray-500" />}
           </Button>
 
           {/* Notifications */}
