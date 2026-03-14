@@ -51,7 +51,7 @@ export default function DashboardLayout({
           onClose={closeSidebar}
         />
         
-        <div className={`transition-all duration-300 ${isDesktop && sidebarOpen ? 'lg:ml-72' : 'ml-0'}`}>
+        <div className={`transition-all duration-300 ${isDesktop && sidebarOpen ? 'lg:ml-64' : 'ml-0'}`}>
           <Header 
             onMenuToggle={toggleSidebar} 
             sidebarOpen={sidebarOpen}

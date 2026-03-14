@@ -37,6 +37,15 @@ export default function DashboardPage() {
       router.replace('/client-dashboard')
     }
   }, [user, router])
+
+  // Don't render admin dashboard content for client users — prevents flash
+  if (user?.role === 'client_user') {
+    return (
+      <div className="p-6 flex items-center justify-center min-h-[60vh]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500" />
+      </div>
+    )
+  }
   
   const [stats, setStats] = useState<DashboardStats>({
     totalCoverage: 0,
