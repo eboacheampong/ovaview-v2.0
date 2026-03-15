@@ -1,16 +1,16 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useAuth } from '@/hooks/use-auth'
 import { useRouter } from 'next/navigation'
 import { Badge } from '@/components/ui/badge'
 import {
   Loader2, ExternalLink, Heart,
-  Globe, Tv, Radio, Newspaper, Eye
+  Globe, Tv, Radio, Newspaper, Eye, BarChart3
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent, type ChartConfig } from '@/components/ui/chart'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts'
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, Cell } from 'recharts'
 
 /* ── types ── */
 interface Mention {
@@ -75,6 +75,17 @@ const dashboardChartConfig = {
   mentions: { label: 'Mentions', color: '#6366f1' },
   reach: { label: 'Reach', color: '#10b981' },
 } satisfies ChartConfig
+
+const MEDIA_TYPES = ['All', 'Web', 'Print', 'Tv', 'Radio', 'Social'] as const
+type MediaTypeFilter = typeof MEDIA_TYPES[number]
+
+const MEDIA_TYPE_COLORS: Record<string, string> = {
+  Web: '#06b6d4',
+  Print: '#3b82f6',
+  Tv: '#8b5cf6',
+  Radio: '#10b981',
+  Social: '#ec4899',
+}
 
 function fmtNum(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
@@ -165,7 +176,8 @@ export default function ClientDashboardPage() {
   const [days, setDays] = useState(30)
   const [sourceFilter, setSourceFilter] = useState<string[]>([])
   const [sentimentFilter, setSentimentFilter] = useState<string[]>([])
-
+  const [chartMediaFilter, setChartMediaFilter] = useState<MediaTypeFilter>('All')
+  const [tableMediaFilter, setTableMediaFilter] = useState<MediaTypeFilter>('All')
   const clientId = user?.clientId
 
   // Redirect non-client users
@@ -211,6 +223,58 @@ export default function ClientDashboardPage() {
     prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s])
   const toggleSentiment = (s: string) => setSentimentFilter(prev =>
     prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s])
+
+  // Sources bar chart data: group by source name, filtered by media type
+  const sourcesBarData = useMemo(() => {
+    const typeKey = (m: Mention) => m.type === 'social' ? 'Social' : m.type.charAt(0).toUpperCase() + m.type.slice(1)
+    const filteredMentions = chartMediaFilter === 'All'
+      ? mentions
+      : mentions.filter(m => typeKey(m) === chartMediaFilter)
+
+    const counts: Record<string, number> = {}
+    filteredMentions.forEach(m => {
+      const name = m.source || 'Unknown'
+      counts[name] = (counts[name] || 0) + 1
+    })
+
+    return Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 15)
+      .map(([name, count]) => ({ name: name.length > 20 ? name.slice(0, 18) + '…' : name, fullName: name, count }))
+  }, [mentions, chartMediaFilter])
+
+  // Sources table data: group by source name with media type breakdown
+  const sourcesTableData = useMemo(() => {
+    const typeKey = (m: Mention) => m.type === 'social' ? 'Social' : m.type.charAt(0).toUpperCase() + m.type.slice(1)
+    const filteredMentions = tableMediaFilter === 'All'
+      ? mentions
+      : mentions.filter(m => typeKey(m) === tableMediaFilter)
+
+    const map: Record<string, { name: string; type: string; count: number; reach: number; positive: number; negative: number; neutral: number }> = {}
+    filteredMentions.forEach(m => {
+      const name = m.source || 'Unknown'
+      const mt = typeKey(m)
+      if (!map[name]) map[name] = { name, type: mt, count: 0, reach: 0, positive: 0, negative: 0, neutral: 0 }
+      map[name].count++
+      map[name].reach += m.reach
+      if (m.sentiment === 'positive') map[name].positive++
+      else if (m.sentiment === 'negative') map[name].negative++
+      else map[name].neutral++
+    })
+
+    return Object.values(map).sort((a, b) => b.count - a.count)
+  }, [mentions, tableMediaFilter])
+
+  // Count per media type for tab badges
+  const mediaTypeCounts = useMemo(() => {
+    const typeKey = (m: Mention) => m.type === 'social' ? 'Social' : m.type.charAt(0).toUpperCase() + m.type.slice(1)
+    const counts: Record<string, number> = { All: mentions.length }
+    mentions.forEach(m => {
+      const k = typeKey(m)
+      counts[k] = (counts[k] || 0) + 1
+    })
+    return counts
+  }, [mentions])
 
   if (authLoading || (isLoading && !summary)) {
     return (
@@ -258,7 +322,7 @@ export default function ClientDashboardPage() {
       <div className="flex flex-col lg:flex-row gap-6">
         {/* Left: chart + mentions feed */}
         <div className="flex-1 min-w-0 space-y-6">
-          {/* Chart */}
+          {/* Mentions & Reach Chart */}
           <div className="bg-white rounded-lg border border-gray-200 p-4">
             <h2 className="text-sm font-semibold text-gray-700 mb-3">Mentions & Reach</h2>
             {chart.length > 0 ? (
@@ -276,6 +340,142 @@ export default function ClientDashboardPage() {
               </ChartContainer>
             ) : (
               <div className="h-[220px] flex items-center justify-center text-gray-400 text-sm">No data yet</div>
+            )}
+          </div>
+
+          {/* Sources Breakdown - Bar Chart */}
+          <div className="bg-white rounded-lg border border-gray-200 p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <BarChart3 className="h-4 w-4 text-gray-500" />
+                <h2 className="text-sm font-semibold text-gray-700">Sources Breakdown</h2>
+              </div>
+              <span className="text-xs text-gray-400">{sourcesBarData.reduce((s, d) => s + d.count, 0)} stories</span>
+            </div>
+            {/* Media type filter tabs */}
+            <div className="flex flex-wrap gap-1.5 mb-4">
+              {MEDIA_TYPES.map(mt => {
+                const count = mediaTypeCounts[mt] || 0
+                if (mt !== 'All' && count === 0) return null
+                return (
+                  <button
+                    key={mt}
+                    onClick={() => setChartMediaFilter(mt)}
+                    className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+                      chartMediaFilter === mt
+                        ? 'bg-purple-100 text-purple-700 ring-1 ring-purple-300'
+                        : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                    }`}
+                  >
+                    {mt === 'Tv' ? 'Television' : mt === 'All' ? 'All Sources' : SOURCE_LABELS[mt] || mt}
+                    <span className="ml-1 opacity-70">{count}</span>
+                  </button>
+                )
+              })}
+            </div>
+            {sourcesBarData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={Math.max(200, sourcesBarData.length * 32 + 20)}>
+                <BarChart data={sourcesBarData} layout="vertical" margin={{ left: 10, right: 30, top: 5, bottom: 5 }}>
+                  <CartesianGrid horizontal={false} strokeDasharray="3 3" stroke="#f3f4f6" />
+                  <XAxis type="number" fontSize={11} tickLine={false} axisLine={false} />
+                  <YAxis type="category" dataKey="name" width={130} fontSize={11} tickLine={false} axisLine={false} tick={{ fill: '#374151' }} />
+                  <Tooltip
+                    formatter={(value: any) => [value, 'Stories']}
+                    labelFormatter={(label) => {
+                      const item = sourcesBarData.find(d => d.name === label)
+                      return item?.fullName || label
+                    }}
+                    contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e5e7eb' }}
+                  />
+                  <Bar dataKey="count" radius={[0, 4, 4, 0]} maxBarSize={24}>
+                    {sourcesBarData.map((_, i) => (
+                      <Cell
+                        key={i}
+                        fill={chartMediaFilter === 'All' ? '#6366f1' : (MEDIA_TYPE_COLORS[chartMediaFilter] || '#6366f1')}
+                        fillOpacity={0.85}
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-[120px] flex items-center justify-center text-gray-400 text-sm">No sources data</div>
+            )}
+          </div>
+
+          {/* Top Sources Table */}
+          <div className="bg-white rounded-lg border border-gray-200 p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-semibold text-gray-700">Top Sources</h2>
+              <span className="text-xs text-gray-400">{sourcesTableData.length} sources</span>
+            </div>
+            {/* Media type filter tabs */}
+            <div className="flex flex-wrap gap-1.5 mb-4">
+              {MEDIA_TYPES.map(mt => {
+                const count = mediaTypeCounts[mt] || 0
+                if (mt !== 'All' && count === 0) return null
+                return (
+                  <button
+                    key={mt}
+                    onClick={() => setTableMediaFilter(mt)}
+                    className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+                      tableMediaFilter === mt
+                        ? 'bg-purple-100 text-purple-700 ring-1 ring-purple-300'
+                        : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                    }`}
+                  >
+                    {mt === 'Tv' ? 'Television' : mt === 'All' ? 'All Types' : SOURCE_LABELS[mt] || mt}
+                  </button>
+                )
+              })}
+            </div>
+            {sourcesTableData.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-100">
+                      <th className="text-left py-2 pr-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Source</th>
+                      <th className="text-left py-2 px-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                      <th className="text-right py-2 px-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Stories</th>
+                      <th className="text-right py-2 px-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Reach</th>
+                      <th className="text-right py-2 px-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <span className="text-emerald-600">+</span> / <span className="text-red-500">−</span> / <span className="text-gray-400">○</span>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sourcesTableData.slice(0, 20).map((row, i) => {
+                      const typeColor = MEDIA_TYPE_COLORS[row.type] || '#6b7280'
+                      return (
+                        <tr key={i} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                          <td className="py-2 pr-3">
+                            <span className="font-medium text-gray-800 text-sm">{row.name}</span>
+                          </td>
+                          <td className="py-2 px-3">
+                            <span
+                              className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium"
+                              style={{ backgroundColor: typeColor + '18', color: typeColor }}
+                            >
+                              {row.type === 'Tv' ? 'TV' : row.type}
+                            </span>
+                          </td>
+                          <td className="py-2 px-3 text-right font-semibold text-gray-800">{row.count}</td>
+                          <td className="py-2 px-3 text-right text-gray-600">{fmtNum(row.reach)}</td>
+                          <td className="py-2 px-3 text-right">
+                            <span className="text-emerald-600 text-xs font-medium">{row.positive}</span>
+                            <span className="text-gray-300 mx-0.5">/</span>
+                            <span className="text-red-500 text-xs font-medium">{row.negative}</span>
+                            <span className="text-gray-300 mx-0.5">/</span>
+                            <span className="text-gray-400 text-xs">{row.neutral}</span>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="py-8 text-center text-gray-400 text-sm">No sources data for this filter</div>
             )}
           </div>
 
