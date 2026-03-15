@@ -94,7 +94,7 @@ export default function DailyInsightsPage() {
   const totalArticles = summary?.clients.reduce((s, c) => s + c.total, 0) || 0
 
   return (
-    <div className="p-4 sm:p-6 space-y-4">
+    <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-xl lg:text-2xl font-bold text-gray-800">Web Insights</h1>
