@@ -275,7 +275,8 @@ export default function PdfReportPage() {
       }
     }
     await doExport(reportData)
-  }, [reportData, includeInsights, clientId, days, enabledSectionIds])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reportData, includeInsights, clientId, days, enabledSectionIds, BRAND])
 
   const doExport = async (data: ReportData) => {
     setIsExporting(true)
