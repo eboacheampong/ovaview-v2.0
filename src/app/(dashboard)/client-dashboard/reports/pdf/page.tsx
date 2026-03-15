@@ -375,6 +375,9 @@ export default function PdfReportPage() {
         doc.setFontSize(44); doc.setTextColor(255,255,255); doc.setFont('helvetica','bold')
         doc.text('MEDIA PRESENCE', 0.8, 2.4)
         doc.text('ANALYSIS REPORT', 0.8, 3.2)
+        // Decorative line separator
+        doc.setDrawColor(255,255,255); doc.setLineWidth(0.02)
+        doc.line(0.8, 3.5, 5.0, 3.5)
         // Client name
         doc.setFontSize(20); doc.setFont('helvetica','normal')
         doc.text(clientName, 0.8, 4.2)
@@ -386,9 +389,9 @@ export default function PdfReportPage() {
           doc.setFontSize(12)
           doc.text(`Industries: ${data.industries.join(', ')}`, 0.8, 5.3)
         }
-        // Footer area - logo placeholder
+        // Footer area - logo (smaller)
         try {
-          doc.addImage('/Ovaview-Media-Monitoring-Logo.png', 'PNG', 0.8, 6.4, 2.2, 0.65)
+          doc.addImage('/Ovaview-Media-Monitoring-Logo.png', 'PNG', 0.8, 6.55, 1.4, 0.42)
         } catch {
           doc.setFontSize(10); doc.text('Ovaview Media Monitoring', 0.8, 6.7)
         }
@@ -396,8 +399,10 @@ export default function PdfReportPage() {
         doc.text(format(new Date(), 'MMMM d, yyyy HH:mm'), 0.8, 7.15)
         if (hasInsights) {
           doc.setFontSize(9); doc.setFont('helvetica','italic')
-          doc.text('Includes AI-generated analytical insights', 4.0, 7.15)
+          doc.text('Includes AI-generated analytical insights', 3.0, 7.15)
         }
+        // Mark first page as used so next section gets its own page
+        isFirstPage = false
       }
 
       // ─── EXECUTIVE SUMMARY ───
@@ -674,27 +679,56 @@ export default function PdfReportPage() {
       // ─── KEY PERSONALITIES ───
       if (enabledSectionIds.includes('key_personalities') && data.topPersonalities.length > 0) {
         addPage(); accent(); pageTitle('Key Personalities')
+        doc.setFontSize(11); doc.setTextColor(107,114,128); doc.setFont('helvetica','normal')
+        doc.text('Most mentioned individuals across all media channels', 0.6, 1.1)
         const persons = data.topPersonalities.slice(0, 9)
-        const cols = 3, cW = 3.6, cH = 1.3, cGx = 0.4, cGy = 0.35
+        const cols = 3, cW = 3.8, cH = 1.6, cGx = 0.3, cGy = 0.3
+        const gridW = cols * cW + (cols - 1) * cGx
+        const gridStartX = (W - gridW) / 2
         persons.forEach((p, i) => {
           const col = i % cols, row = Math.floor(i / cols)
-          const cx = 0.6 + col * (cW + cGx), cy = 1.3 + row * (cH + cGy)
+          const cx = gridStartX + col * (cW + cGx), cy = 1.4 + row * (cH + cGy)
           if (cy + cH > FOOTER_Y) return
-          doc.setFillColor(249,250,251); doc.roundedRect(cx, cy, cW, cH, 0.06, 0.06, 'F')
-          doc.setDrawColor(229,231,235); doc.setLineWidth(0.01); doc.roundedRect(cx, cy, cW, cH, 0.06, 0.06, 'S')
-          doc.setFillColor(BRAND.r, BRAND.g, BRAND.b); doc.circle(cx + 0.4, cy + 0.55, 0.28, 'F')
-          doc.setFontSize(14); doc.setTextColor(255,255,255); doc.setFont('helvetica','bold')
-          doc.text(p.name.charAt(0), cx + 0.4, cy + 0.6, { align: 'center' })
-          doc.setFontSize(11); doc.setTextColor(31,41,55)
-          const name = p.name.length > 18 ? p.name.slice(0, 17) + '…' : p.name
-          doc.text(name, cx + 0.85, cy + 0.45)
+          // Card background with subtle gradient effect
+          doc.setFillColor(255,255,255); doc.roundedRect(cx, cy, cW, cH, 0.08, 0.08, 'F')
+          doc.setDrawColor(229,231,235); doc.setLineWidth(0.01); doc.roundedRect(cx, cy, cW, cH, 0.08, 0.08, 'S')
+          // Brand accent bar at top of card
+          doc.setFillColor(BRAND.r, BRAND.g, BRAND.b); doc.rect(cx + 0.08, cy, cW - 0.16, 0.05, 'F')
+          // Rank badge (top-right)
+          doc.setFillColor(BRAND.r, BRAND.g, BRAND.b); doc.roundedRect(cx + cW - 0.55, cy + 0.15, 0.42, 0.28, 0.06, 0.06, 'F')
+          doc.setFontSize(10); doc.setTextColor(255,255,255); doc.setFont('helvetica','bold')
+          doc.text(`#${i + 1}`, cx + cW - 0.34, cy + 0.34, { align: 'center' })
+          // Avatar circle with initial
+          doc.setFillColor(BRAND.r, BRAND.g, BRAND.b)
+          doc.setGState(new (doc as any).GState({ opacity: 0.12 }))
+          doc.circle(cx + 0.5, cy + 0.75, 0.35, 'F')
+          doc.setGState(new (doc as any).GState({ opacity: 1 }))
+          doc.setFillColor(BRAND.r, BRAND.g, BRAND.b); doc.circle(cx + 0.5, cy + 0.75, 0.28, 'F')
+          doc.setFontSize(16); doc.setTextColor(255,255,255); doc.setFont('helvetica','bold')
+          doc.text(p.name.charAt(0).toUpperCase(), cx + 0.5, cy + 0.81, { align: 'center' })
+          // Name
+          doc.setFontSize(12); doc.setTextColor(31,41,55); doc.setFont('helvetica','bold')
+          const name = p.name.length > 20 ? p.name.slice(0, 19) + '…' : p.name
+          doc.text(name, cx + 0.95, cy + 0.65)
+          // Mentions count with icon-like indicator
+          doc.setFontSize(10); doc.setTextColor(BRAND.r, BRAND.g, BRAND.b); doc.setFont('helvetica','bold')
+          doc.text(`${p.count}`, cx + 0.95, cy + 0.92)
           doc.setFontSize(9); doc.setTextColor(107,114,128); doc.setFont('helvetica','normal')
-          doc.text(`${p.count} mentions · ${p.mediaTypes.join(', ')}`, cx + 0.85, cy + 0.7)
-          doc.setFontSize(8); doc.setTextColor(BRAND.r, BRAND.g, BRAND.b); doc.setFont('helvetica','bold')
-          doc.text(`#${i + 1}`, cx + cW - 0.35, cy + 0.3)
+          doc.text(`mentions`, cx + 0.95 + doc.getTextWidth(`${p.count}`) * (10/72) + 0.08, cy + 0.92)
+          // Media type tags
+          const tagY = cy + 1.15
+          let tagX = cx + 0.95
+          p.mediaTypes.slice(0, 3).forEach((mt) => {
+            const label = mt.charAt(0).toUpperCase() + mt.slice(1)
+            doc.setFontSize(7); doc.setFont('helvetica','normal')
+            const tw = doc.getTextWidth(label) * (7/72) + 0.16
+            doc.setFillColor(243,244,246); doc.roundedRect(tagX, tagY - 0.1, tw, 0.2, 0.04, 0.04, 'F')
+            doc.setTextColor(75,85,99); doc.text(label, tagX + 0.08, tagY + 0.03)
+            tagX += tw + 0.08
+          })
         })
         if (hasInsights && data.insights.key_personalities) {
-          const insY = 1.3 + Math.ceil(Math.min(persons.length, 9) / cols) * (cH + cGy) + 0.15
+          const insY = 1.4 + Math.ceil(Math.min(persons.length, 9) / cols) * (cH + cGy) + 0.15
           if (insY < FOOTER_Y - 0.6) insightBox(data.insights.key_personalities, 0.6, insY, W - 1.2, FOOTER_Y - insY - 0.1)
         }
       }
