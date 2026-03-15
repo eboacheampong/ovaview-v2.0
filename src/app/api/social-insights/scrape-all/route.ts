@@ -78,6 +78,7 @@ async function scrapeClient(client: { id: string; name: string; newsKeywords: st
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), 90000) // 90s
 
+    console.log(`[Scrape-All] ${client.name}: calling ${SCRAPER_API_URL}/api/scrape/social`)
     const res = await fetch(`${SCRAPER_API_URL}/api/scrape/social`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -86,23 +87,38 @@ async function scrapeClient(client: { id: string; name: string; newsKeywords: st
     })
     clearTimeout(timeout)
 
+    console.log(`[Scrape-All] ${client.name}: Python scraper responded HTTP ${res.status}`)
+
     if (res.ok) {
       const data = await res.json()
+      console.log(`[Scrape-All] ${client.name}: success=${data.success}, posts=${data.posts?.length ?? 0}, total_count=${data.total_count ?? 'N/A'}`)
       if (data.success && data.posts) rawPosts = data.posts
+    } else {
+      const errText = await res.text().catch(() => '')
+      console.error(`[Scrape-All] ${client.name}: HTTP ${res.status} — ${errText.substring(0, 300)}`)
+      return { name: client.name, found: 0, saved: 0, error: `HTTP ${res.status}` }
     }
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'unknown'
     console.error(`[Scrape-All] Python scraper failed for ${client.name}: ${msg}`)
-    return { name: client.name, found: 0, saved: 0, error: msg.includes('abort') ? 'Timeout' : msg }
+    return { name: client.name, found: 0, saved: 0, error: msg.includes('abort') ? 'Timeout (90s)' : msg }
   }
 
   // Transform and save
   let saved = 0
+  let skippedPlatform = 0
+  let duplicates = 0
+  let saveErrors = 0
   const validPlatforms = ['TWITTER', 'FACEBOOK', 'INSTAGRAM', 'LINKEDIN', 'TIKTOK']
+
+  console.log(`[Scrape-All] ${client.name}: processing ${rawPosts.length} raw posts`)
 
   for (const p of rawPosts) {
     const platform = (p.platform || '').toUpperCase()
-    if (!validPlatforms.includes(platform)) continue
+    if (!validPlatforms.includes(platform)) {
+      skippedPlatform++
+      continue
+    }
 
     const postId = p.post_id || extractPostId(p.post_url || '', platform)
     const postUrl = p.post_url || ''
@@ -111,7 +127,10 @@ async function scrapeClient(client: { id: string; name: string; newsKeywords: st
       const existing = await prisma.socialPost.findFirst({
         where: { platform: platform as SocialPlatform, postId, clientId: client.id },
       })
-      if (existing) continue
+      if (existing) {
+        duplicates++
+        continue
+      }
 
       await prisma.socialPost.create({
         data: {
@@ -139,11 +158,12 @@ async function scrapeClient(client: { id: string; name: string; newsKeywords: st
       })
       saved++
     } catch (err) {
-      // duplicate or validation error — skip
+      saveErrors++
+      console.error(`[Scrape-All] Save error for ${client.name}/${platform}/${postId}:`, err instanceof Error ? err.message : err)
     }
   }
 
-  console.log(`[Scrape-All] ${client.name}: found ${rawPosts.length}, saved ${saved}`)
+  console.log(`[Scrape-All] ${client.name}: found ${rawPosts.length}, saved ${saved}, duplicates ${duplicates}, skippedPlatform ${skippedPlatform}, saveErrors ${saveErrors}`)
   return { name: client.name, found: rawPosts.length, saved }
 }
 
