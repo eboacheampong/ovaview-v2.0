@@ -581,23 +581,25 @@ export default function PdfReportPage() {
       // ─── SENTIMENT OVER TIME ───
       if (enabledSectionIds.includes('sentiment_trend') && data.chart.length > 0) {
         addPage(); accent(); pageTitle('Sentiment Over Time')
-        const chartX = 1.2, chartY = 1.3, chartW = 10.5, chartH = 4.0
+        const chartX = 1.5, chartY = 1.3, chartW = 10.2, chartH = 3.6
         const maxVal = Math.max(...data.chart.map(c => c.positive + c.neutral + c.negative), 1)
         doc.setDrawColor(229,231,235); doc.setLineWidth(0.01)
         doc.line(chartX, chartY, chartX, chartY + chartH)
         doc.line(chartX, chartY + chartH, chartX + chartW, chartY + chartH)
-        // Y-axis tick labels
+        // Y-axis tick labels and grid lines
         for (let t = 0; t <= 5; t++) {
-          const val = Math.round((maxVal * t) / 5), ty = chartY + chartH - (chartH * t) / 5
-          doc.setFontSize(9); doc.setTextColor(156,163,175); doc.setFont('helvetica','normal')
-          doc.text(val.toString(), chartX - 0.1, ty + 0.03, { align: 'right' })
-          if (t > 0) { doc.setDrawColor(243,244,246); doc.line(chartX, ty, chartX + chartW, ty) }
+          const val = Math.round((maxVal * t) / 5)
+          const ty = chartY + chartH - (chartH * t) / 5
+          doc.setFontSize(9); doc.setTextColor(130,130,130); doc.setFont('helvetica','normal')
+          doc.text(val.toString(), chartX - 0.15, ty + 0.04, { align: 'right' })
+          if (t > 0) { doc.setDrawColor(240,240,240); doc.setLineWidth(0.005); doc.line(chartX, ty, chartX + chartW, ty) }
         }
         const barW = Math.min((chartW - 0.02 * data.chart.length) / data.chart.length, 0.5)
         const totalBW = data.chart.length * barW
         const offX = (chartW - totalBW) / 2
         data.chart.forEach((d, i) => {
           const bx = chartX + offX + i * barW
+          const total = d.positive + d.neutral + d.negative
           const pH = (d.positive / maxVal) * chartH
           const nH = (d.neutral / maxVal) * chartH
           const ngH = (d.negative / maxVal) * chartH
@@ -605,13 +607,20 @@ export default function PdfReportPage() {
           if (d.positive > 0) { by -= pH; doc.setFillColor(16,185,129); doc.rect(bx, by, barW - 0.01, pH, 'F') }
           if (d.neutral > 0) { by -= nH; doc.setFillColor(156,163,175); doc.rect(bx, by, barW - 0.01, nH, 'F') }
           if (d.negative > 0) { by -= ngH; doc.setFillColor(239,68,68); doc.rect(bx, by, barW - 0.01, ngH, 'F') }
-          // X-axis date labels (show selectively to avoid crowding)
+          // Total count on top of each bar
+          if (total > 0 && (data.chart.length <= 20 || i % Math.ceil(data.chart.length / 15) === 0)) {
+            const topY = chartY + chartH - (total / maxVal) * chartH
+            doc.setFontSize(7); doc.setTextColor(55,65,81); doc.setFont('helvetica','bold')
+            doc.text(total.toString(), bx + (barW - 0.01) / 2, topY - 0.08, { align: 'center' })
+          }
+          // X-axis date labels
           if (data.chart.length <= 15 || i % Math.ceil(data.chart.length / 10) === 0) {
-            doc.setFontSize(7); doc.setTextColor(107,114,128); doc.setFont('helvetica','normal')
-            doc.text(format(new Date(d.date), 'MMM d'), bx + barW / 2, chartY + chartH + 0.2, { align: 'center' })
+            doc.setFontSize(7); doc.setTextColor(130,130,130); doc.setFont('helvetica','normal')
+            doc.text(format(new Date(d.date), 'MMM d'), bx + barW / 2, chartY + chartH + 0.22, { align: 'center' })
           }
         })
-        const legendY = chartY + chartH + 0.3
+        // Legend (pushed down to avoid overlap with date labels)
+        const legendY = chartY + chartH + 0.5
         const legends = [{ l: 'Positive', c: [16,185,129] }, { l: 'Neutral', c: [156,163,175] }, { l: 'Negative', c: [239,68,68] }]
         legends.forEach((lg, i) => {
           doc.setFillColor(lg.c[0], lg.c[1], lg.c[2]); doc.rect(4.5 + i * 2.5, legendY, 0.2, 0.15, 'F')
