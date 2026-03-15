@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label'
 import {
   Download, FileText, Presentation, Plus, Trash2, MoveUp, MoveDown,
   Image, BarChart3, PieChart, Table, Type, Loader2, Eye, Edit3,
-  ChevronLeft, ChevronRight, Copy, X, Undo2, Redo2, ArrowLeft
+  ChevronLeft, ChevronRight, Copy, X, Undo2, Redo2, ArrowLeft, Search
 } from 'lucide-react'
 import {
   AreaChart, Area, BarChart, Bar, PieChart as RechartsPie,
@@ -217,6 +217,7 @@ export default function ReportBuilderPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [reportTitle, setReportTitle] = useState('Media Analytics Report')
   const [showExportPanel, setShowExportPanel] = useState(false)
+  const [slideSearch, setSlideSearch] = useState('')
   const canvasRef = useRef<HTMLDivElement>(null)
 
   // Drag state
@@ -1694,15 +1695,36 @@ export default function ReportBuilderPage() {
       <div className="flex-1 flex overflow-hidden">
         {/* Left Sidebar - Slide List */}
         <div className="w-56 bg-white border-r border-gray-200 flex flex-col h-[calc(100vh-57px)] sticky top-[57px]">
-          <div className="flex items-center justify-between p-3 pb-2 shrink-0">
+          <div className="flex items-center justify-between p-3 pb-1 shrink-0">
             <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Slides</span>
             <Button variant="ghost" size="sm" onClick={addSlide} className="h-6 w-6 p-0">
               <Plus className="h-4 w-4" />
             </Button>
           </div>
 
+          {/* Search filter */}
+          <div className="px-3 pb-2 shrink-0">
+            <div className="relative">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search slides..."
+                value={slideSearch}
+                onChange={(e) => setSlideSearch(e.target.value)}
+                className="w-full h-7 pl-7 pr-2 text-xs rounded-md border border-gray-200 bg-gray-50 focus:outline-none focus:ring-1 focus:ring-orange-400 focus:border-orange-400 placeholder:text-gray-400"
+              />
+              {slideSearch && (
+                <button onClick={() => setSlideSearch('')} className="absolute right-1.5 top-1/2 -translate-y-1/2 p-0.5 hover:bg-gray-200 rounded">
+                  <X className="h-3 w-3 text-gray-400" />
+                </button>
+              )}
+            </div>
+          </div>
+
           <div className="flex-1 overflow-y-auto px-3 pb-3 space-y-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
-            {slides.map((slide, index) => (
+            {slides.map((slide, index) => {
+              if (slideSearch && !slide.name.toLowerCase().includes(slideSearch.toLowerCase())) return null
+              return (
               <div
                 key={slide.id}
                 onClick={() => setCurrentSlideIndex(index)}
@@ -1740,7 +1762,7 @@ export default function ReportBuilderPage() {
                   </button>
                 </div>
               </div>
-            ))}
+            )})}
           </div>
         </div>
 

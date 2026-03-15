@@ -17,6 +17,7 @@ const SENTIMENT_COLORS = { positive: '#10b981', negative: '#ef4444', neutral: '#
 
 interface PRData {
   clientName: string
+  clientLogo?: string
   industryName: string
   dateRangeLabel: string
   scopeOfCoverage: any
