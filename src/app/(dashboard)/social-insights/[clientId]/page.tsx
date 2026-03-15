@@ -546,9 +546,13 @@ export default function ClientSocialInsightsPage() {
                 <div className="flex items-center gap-1 shrink-0">
                   {isPending && (
                     <>
-                      <Button size="sm" onClick={() => handleQuickAccept(post)} disabled={isProcessing}
+                      <Button size="sm" onClick={() => handleAcceptPost(post)} disabled={isProcessing}
                         className="h-7 px-2 text-xs bg-emerald-500 hover:bg-emerald-600 text-white gap-1">
-                        <CheckCircle className="h-3 w-3" /> Accept
+                        <CheckCircle className="h-3 w-3" /> Accept &amp; Edit
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => handleQuickAccept(post)} disabled={isProcessing}
+                        className="h-7 px-2 text-xs text-emerald-600 border-emerald-200 hover:bg-emerald-50 gap-1">
+                        <CheckCircle2 className="h-3 w-3" /> Quick
                       </Button>
                       <Button size="sm" variant="ghost" onClick={() => handleArchivePost(post)} disabled={isProcessing}
                         className="h-7 px-2 text-xs text-gray-400 hover:text-gray-600">
