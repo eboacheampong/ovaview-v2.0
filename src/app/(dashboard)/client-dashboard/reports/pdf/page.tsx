@@ -398,10 +398,6 @@ export default function PdfReportPage() {
         }
         doc.setFontSize(10)
         doc.text(format(new Date(), 'MMMM d, yyyy HH:mm'), 0.8, 7.15)
-        if (hasInsights) {
-          doc.setFontSize(9); doc.setFont('helvetica','italic')
-          doc.text('Includes AI-generated analytical insights', 3.0, 7.15)
-        }
         // Mark first page as used so next section gets its own page
         isFirstPage = false
       }
@@ -590,6 +586,13 @@ export default function PdfReportPage() {
         doc.setDrawColor(229,231,235); doc.setLineWidth(0.01)
         doc.line(chartX, chartY, chartX, chartY + chartH)
         doc.line(chartX, chartY + chartH, chartX + chartW, chartY + chartH)
+        // Y-axis tick labels
+        for (let t = 0; t <= 5; t++) {
+          const val = Math.round((maxVal * t) / 5), ty = chartY + chartH - (chartH * t) / 5
+          doc.setFontSize(9); doc.setTextColor(156,163,175); doc.setFont('helvetica','normal')
+          doc.text(val.toString(), chartX - 0.1, ty + 0.03, { align: 'right' })
+          if (t > 0) { doc.setDrawColor(243,244,246); doc.line(chartX, ty, chartX + chartW, ty) }
+        }
         const barW = Math.min((chartW - 0.02 * data.chart.length) / data.chart.length, 0.5)
         const totalBW = data.chart.length * barW
         const offX = (chartW - totalBW) / 2
@@ -602,6 +605,11 @@ export default function PdfReportPage() {
           if (d.positive > 0) { by -= pH; doc.setFillColor(16,185,129); doc.rect(bx, by, barW - 0.01, pH, 'F') }
           if (d.neutral > 0) { by -= nH; doc.setFillColor(156,163,175); doc.rect(bx, by, barW - 0.01, nH, 'F') }
           if (d.negative > 0) { by -= ngH; doc.setFillColor(239,68,68); doc.rect(bx, by, barW - 0.01, ngH, 'F') }
+          // X-axis date labels (show selectively to avoid crowding)
+          if (data.chart.length <= 15 || i % Math.ceil(data.chart.length / 10) === 0) {
+            doc.setFontSize(7); doc.setTextColor(107,114,128); doc.setFont('helvetica','normal')
+            doc.text(format(new Date(d.date), 'MMM d'), bx + barW / 2, chartY + chartH + 0.2, { align: 'center' })
+          }
         })
         const legendY = chartY + chartH + 0.3
         const legends = [{ l: 'Positive', c: [16,185,129] }, { l: 'Neutral', c: [156,163,175] }, { l: 'Negative', c: [239,68,68] }]
@@ -893,11 +901,11 @@ export default function PdfReportPage() {
         // Footer line
         doc.setDrawColor(229,231,235); doc.setLineWidth(0.01)
         doc.line(0.6, H - 0.55, W - 0.6, H - 0.55)
-        // Logo on bottom left
+        // Logo on bottom left (subtle)
         try {
-          doc.addImage('/Ovaview-Media-Monitoring-Logo.png', 'PNG', 0.6, H - 0.48, 1.6, 0.38)
+          doc.addImage('/Ovaview-Media-Monitoring-Logo.png', 'PNG', 0.6, H - 0.44, 1.0, 0.24)
         } catch {
-          doc.setFontSize(8); doc.setTextColor(180,180,180); doc.setFont('helvetica','normal')
+          doc.setFontSize(7); doc.setTextColor(180,180,180); doc.setFont('helvetica','normal')
           doc.text('Ovaview Media Monitoring', 0.6, H - 0.25)
         }
         // Page number on bottom right
