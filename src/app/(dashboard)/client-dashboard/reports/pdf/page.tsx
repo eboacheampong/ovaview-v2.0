@@ -123,6 +123,37 @@ function cleanAIText(text: string): string {
     .trim()
 }
 
+/* ─── Preview Card Component ─── */
+function PreviewCard({ id, active, label, insight, showInsight, brandColor, children }: {
+  id: string
+  active: boolean
+  label: string
+  insight?: string
+  showInsight?: boolean
+  brandColor?: string
+  children: React.ReactNode
+}) {
+  return (
+    <div
+      id={`preview-${id}`}
+      className={`bg-white rounded-xl border p-4 transition-all duration-200 ${
+        active ? 'border-orange-400 ring-2 ring-orange-100 shadow-md' : 'border-gray-200'
+      }`}
+    >
+      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">{label}</p>
+      <div>{children}</div>
+      {showInsight && insight && (
+        <div className="mt-3 pt-3 border-t border-gray-100">
+          <div className="flex items-start gap-2">
+            <Sparkles className="h-3.5 w-3.5 shrink-0 mt-0.5" style={{ color: brandColor || '#D4941A' }} />
+            <p className="text-[11px] leading-relaxed text-gray-600">{cleanAIText(insight)}</p>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 /* ─── Main Component ─── */
 export default function PdfReportPage() {
   const { user } = useAuth()
