@@ -7,8 +7,8 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import {
   ExternalLink, CheckCircle, Trash2, Loader2,
-  ArrowLeft, RefreshCw, Share2, Heart, MessageCircle, Play, Eye,
-  Archive, X, Search, Inbox, ChevronDown, ChevronUp,
+  ArrowLeft, Share2, Heart, MessageCircle, Play,
+  Archive, Search, Inbox, ChevronDown, ChevronUp,
   CheckCircle2, AlertCircle, Clock, Filter, LayoutGrid, LayoutList,
   User, Calendar, Hash
 } from 'lucide-react'
@@ -66,7 +66,7 @@ export default function ClientSocialInsightsPage() {
   const [scraperMessage, setScraperMessage] = useState<string | null>(null)
   const [platformFilter, setPlatformFilter] = useState<string>('all')
   const [statusFilter, setStatusFilter] = useState<string>('pending')
-  const [viewMode, setViewMode] = useState<'cards' | 'compact'>('cards')
+  const [viewMode, setViewMode] = useState<'cards' | 'compact'>('compact')
   const [expandedPost, setExpandedPost] = useState<string | null>(null)
   const [showFilters, setShowFilters] = useState(false)
 
@@ -209,13 +209,13 @@ export default function ClientSocialInsightsPage() {
   }
 
   return (
-    <div className="p-4 sm:p-6 space-y-5 max-w-6xl mx-auto">
+    <div className="p-4 sm:p-6 space-y-4 max-w-6xl mx-auto">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <div className="flex items-center gap-2">
           <Link href="/social-insights">
-            <Button variant="ghost" size="sm" className="gap-1 text-gray-500 hover:text-gray-700">
-              <ArrowLeft className="h-4 w-4" /> Back
+            <Button variant="ghost" size="sm" className="gap-1 text-gray-500 hover:text-gray-700 h-8 px-2">
+              <ArrowLeft className="h-4 w-4" />
             </Button>
           </Link>
           <div>

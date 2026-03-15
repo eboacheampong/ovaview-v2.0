@@ -5,9 +5,9 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
-  Loader2, RefreshCw, ChevronRight, Share2,
-  Clock, Trash2, MessageCircle, Inbox, CheckCircle2,
-  Archive, AlertCircle, Zap, TrendingUp, Search
+  Loader2, ChevronRight, Share2,
+  Trash2, Inbox, CheckCircle2,
+  AlertCircle, TrendingUp, Search
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -168,13 +168,13 @@ export default function SocialInsightsPage() {
   }))
 
   return (
-    <div className="p-4 sm:p-6 space-y-6 max-w-6xl mx-auto">
+    <div className="p-4 sm:p-6 space-y-4 max-w-6xl mx-auto">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-bold text-gray-800">Social Insights</h1>
-          <p className="text-gray-500 mt-1 text-sm">
-            Find and review social media posts about your clients. Accept the relevant ones to publish them.
+          <h1 className="text-xl lg:text-2xl font-bold text-gray-800">Social Insights</h1>
+          <p className="text-gray-500 mt-0.5 text-sm">
+            Find and review social media posts about your clients.
           </p>
         </div>
         <div className="flex gap-2 shrink-0">
@@ -224,20 +224,20 @@ export default function SocialInsightsPage() {
       )}
 
       {/* Quick Stats Overview */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <Card className="border-l-4 border-l-amber-400">
-          <CardContent className="p-4">
+          <CardContent className="p-3">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Needs Review</p>
-                <p className="text-2xl font-bold text-gray-800 mt-1">{totalPending}</p>
+                <p className="text-xs text-gray-500">Needs Review</p>
+                <p className="text-xl font-bold text-gray-800 mt-0.5">{totalPending}</p>
               </div>
-              <div className="p-2.5 rounded-full bg-amber-50">
-                <Inbox className="h-5 w-5 text-amber-500" />
+              <div className="p-2 rounded-full bg-amber-50">
+                <Inbox className="h-4 w-4 text-amber-500" />
               </div>
             </div>
             {totalPending > 0 && (
-              <p className="text-xs text-amber-600 mt-2 font-medium">
+              <p className="text-[11px] text-amber-600 mt-1 font-medium">
                 {clientsWithPending.length} client{clientsWithPending.length !== 1 ? 's' : ''} with pending posts
               </p>
             )}
@@ -245,48 +245,46 @@ export default function SocialInsightsPage() {
         </Card>
 
         <Card className="border-l-4 border-l-emerald-400">
-          <CardContent className="p-4">
+          <CardContent className="p-3">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Published</p>
-                <p className="text-2xl font-bold text-gray-800 mt-1">{totalAccepted}</p>
+                <p className="text-xs text-gray-500">Published</p>
+                <p className="text-xl font-bold text-gray-800 mt-0.5">{totalAccepted}</p>
               </div>
-              <div className="p-2.5 rounded-full bg-emerald-50">
-                <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+              <div className="p-2 rounded-full bg-emerald-50">
+                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
               </div>
             </div>
-            <p className="text-xs text-gray-400 mt-2">Accepted and visible to clients</p>
           </CardContent>
         </Card>
 
         <Card className="border-l-4 border-l-blue-400">
-          <CardContent className="p-4">
+          <CardContent className="p-3">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">New This Week</p>
-                <p className="text-2xl font-bold text-gray-800 mt-1">{totalRecent}</p>
+                <p className="text-xs text-gray-500">New This Week</p>
+                <p className="text-xl font-bold text-gray-800 mt-0.5">{totalRecent}</p>
               </div>
-              <div className="p-2.5 rounded-full bg-blue-50">
-                <TrendingUp className="h-5 w-5 text-blue-500" />
+              <div className="p-2 rounded-full bg-blue-50">
+                <TrendingUp className="h-4 w-4 text-blue-500" />
               </div>
             </div>
-            <p className="text-xs text-gray-400 mt-2">Scraped in the last 7 days</p>
           </CardContent>
         </Card>
 
         <Card className="border-l-4 border-l-purple-400">
-          <CardContent className="p-4">
+          <CardContent className="p-3">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Total Posts</p>
-                <p className="text-2xl font-bold text-gray-800 mt-1">{totalPosts}</p>
+                <p className="text-xs text-gray-500">Total Posts</p>
+                <p className="text-xl font-bold text-gray-800 mt-0.5">{totalPosts}</p>
               </div>
-              <div className="p-2.5 rounded-full bg-purple-50">
-                <Share2 className="h-5 w-5 text-purple-500" />
+              <div className="p-2 rounded-full bg-purple-50">
+                <Share2 className="h-4 w-4 text-purple-500" />
               </div>
             </div>
             {Object.keys(allPlatforms).length > 0 && (
-              <div className="flex gap-1 mt-2 flex-wrap">
+              <div className="flex gap-1 mt-1 flex-wrap">
                 {Object.entries(allPlatforms).map(([p, count]) => (
                   <span key={p} className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">
                     {platformIcons[p]} {count}
@@ -298,29 +296,10 @@ export default function SocialInsightsPage() {
         </Card>
       </div>
 
-      {/* Action Needed Banner */}
-      {totalPending > 0 && (
-        <Card className="bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200">
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="p-3 rounded-full bg-amber-100 shrink-0">
-              <Zap className="h-5 w-5 text-amber-600" />
-            </div>
-            <div className="flex-1">
-              <p className="font-semibold text-amber-800">
-                {totalPending} post{totalPending !== 1 ? 's' : ''} waiting for your review
-              </p>
-              <p className="text-sm text-amber-600 mt-0.5">
-                Click on a client below to review their pending posts. Accept the ones that are relevant, archive the rest.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Client List */}
       <div>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-semibold text-gray-700">Clients</h2>
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Clients</h2>
           <Button
             onClick={handleClearAll}
             disabled={isClearing || isScraperRunning || totalPosts === 0}
@@ -332,7 +311,7 @@ export default function SocialInsightsPage() {
           </Button>
         </div>
 
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           {/* Clients with pending posts first */}
           {clients
             .sort((a, b) => b.pending - a.pending || b.total - a.total)
@@ -341,51 +320,50 @@ export default function SocialInsightsPage() {
               <Card className={`hover:shadow-md transition-all cursor-pointer group ${
                 client.pending > 0 ? 'border-l-4 border-l-amber-400 hover:border-l-amber-500' : 'hover:border-gray-300'
               }`}>
-                <CardContent className="p-4">
+                <CardContent className="p-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3 min-w-0">
                       {client.logoUrl ? (
-                        <img src={client.logoUrl} alt={client.name} className="w-10 h-10 rounded-full object-cover shrink-0" />
+                        <img src={client.logoUrl} alt={client.name} className="w-8 h-8 rounded-full object-cover shrink-0" />
                       ) : (
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-indigo-500 flex items-center justify-center text-white font-semibold shrink-0">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-400 to-indigo-500 flex items-center justify-center text-white text-sm font-semibold shrink-0">
                           {client.name.charAt(0).toUpperCase()}
                         </div>
                       )}
                       <div className="min-w-0">
-                        <p className="font-semibold text-gray-800 truncate">{client.name}</p>
-                        <div className="flex items-center gap-3 mt-0.5">
+                        <p className="font-medium text-sm text-gray-800 truncate">{client.name}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
                           {client.pending > 0 && (
-                            <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
+                            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full">
                               <Inbox className="h-3 w-3" /> {client.pending} to review
                             </span>
                           )}
                           {client.accepted > 0 && (
-                            <span className="text-xs text-emerald-600">
+                            <span className="text-[11px] text-emerald-600">
                               {client.accepted} published
                             </span>
                           )}
                           {client.total === 0 && (
-                            <span className="text-xs text-gray-400">No posts yet — run the scraper to find some</span>
+                            <span className="text-[11px] text-gray-400">No posts yet</span>
                           )}
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
-                      {/* Platform badges */}
-                      <div className="hidden sm:flex gap-1.5 flex-wrap justify-end">
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <div className="hidden sm:flex gap-1 flex-wrap justify-end">
                         {client.platforms.map(p => (
-                          <span key={p.platform} className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border ${platformColors[p.platform] || 'bg-gray-100 text-gray-700 border-gray-200'}`}>
+                          <span key={p.platform} className={`inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full border ${platformColors[p.platform] || 'bg-gray-100 text-gray-700 border-gray-200'}`}>
                             {platformIcons[p.platform]} {p.count}
                           </span>
                         ))}
                       </div>
                       {client.recent > 0 && (
-                        <Badge variant="secondary" className="bg-green-50 text-green-600 border-green-200 text-[11px] hidden lg:inline-flex">
+                        <Badge variant="secondary" className="bg-green-50 text-green-600 border-green-200 text-[10px] hidden lg:inline-flex">
                           +{client.recent} new
                         </Badge>
                       )}
-                      <ChevronRight className="h-5 w-5 text-gray-300 group-hover:text-purple-500 transition-colors ml-1" />
+                      <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-purple-500 transition-colors" />
                     </div>
                   </div>
                 </CardContent>
@@ -413,37 +391,6 @@ export default function SocialInsightsPage() {
         </div>
       </div>
 
-      {/* How It Works — shown when there are few posts */}
-      {totalPosts < 10 && clients.length > 0 && (
-        <Card className="bg-gray-50 border-gray-200">
-          <CardContent className="p-5">
-            <h3 className="text-sm font-semibold text-gray-600 mb-3">How Social Insights Works</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="flex gap-3">
-                <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center shrink-0 text-sm font-bold text-purple-600">1</div>
-                <div>
-                  <p className="text-sm font-medium text-gray-700">Find Posts</p>
-                  <p className="text-xs text-gray-500 mt-0.5">Click &quot;Find New Posts&quot; to search social media for mentions of your clients.</p>
-                </div>
-              </div>
-              <div className="flex gap-3">
-                <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center shrink-0 text-sm font-bold text-amber-600">2</div>
-                <div>
-                  <p className="text-sm font-medium text-gray-700">Review &amp; Accept</p>
-                  <p className="text-xs text-gray-500 mt-0.5">Open a client to see their posts. Accept relevant ones, archive the rest.</p>
-                </div>
-              </div>
-              <div className="flex gap-3">
-                <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center shrink-0 text-sm font-bold text-emerald-600">3</div>
-                <div>
-                  <p className="text-sm font-medium text-gray-700">Published</p>
-                  <p className="text-xs text-gray-500 mt-0.5">Accepted posts become visible in the client&apos;s social media section.</p>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   )
 }

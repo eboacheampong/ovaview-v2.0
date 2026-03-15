@@ -94,11 +94,11 @@ export default function DailyInsightsPage() {
   const totalArticles = summary?.clients.reduce((s, c) => s + c.total, 0) || 0
 
   return (
-    <div className="p-4 sm:p-6 space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="p-4 sm:p-6 space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-bold text-gray-800">Web Insights</h1>
-          <p className="text-gray-500 mt-1">Review scraped web articles by client</p>
+          <h1 className="text-xl lg:text-2xl font-bold text-gray-800">Web Insights</h1>
+          <p className="text-gray-500 mt-0.5 text-sm">Review scraped web articles by client</p>
         </div>
         <div className="flex gap-2">
           <Button onClick={handleClearInsights} disabled={isClearing || isScraperRunning} variant="outline" className="gap-2 text-red-600 border-red-200 hover:bg-red-50">
@@ -116,62 +116,62 @@ export default function DailyInsightsPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-3 gap-3">
         <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-amber-100"><Clock className="h-5 w-5 text-amber-600" /></div>
-            <div><p className="text-2xl font-bold text-gray-800">{totalPending}</p><p className="text-sm text-gray-500">Pending</p></div>
+          <CardContent className="p-3 flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-amber-100"><Clock className="h-4 w-4 text-amber-600" /></div>
+            <div><p className="text-xl font-bold text-gray-800">{totalPending}</p><p className="text-xs text-gray-500">Pending</p></div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-emerald-100"><CheckCircle className="h-5 w-5 text-emerald-600" /></div>
-            <div><p className="text-2xl font-bold text-gray-800">{totalAccepted}</p><p className="text-sm text-gray-500">Accepted</p></div>
+          <CardContent className="p-3 flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-emerald-100"><CheckCircle className="h-4 w-4 text-emerald-600" /></div>
+            <div><p className="text-xl font-bold text-gray-800">{totalAccepted}</p><p className="text-xs text-gray-500">Accepted</p></div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-blue-100"><FileText className="h-5 w-5 text-blue-600" /></div>
-            <div><p className="text-2xl font-bold text-gray-800">{totalArticles}</p><p className="text-sm text-gray-500">Total</p></div>
+          <CardContent className="p-3 flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-blue-100"><FileText className="h-4 w-4 text-blue-600" /></div>
+            <div><p className="text-xl font-bold text-gray-800">{totalArticles}</p><p className="text-xs text-gray-500">Total</p></div>
           </CardContent>
         </Card>
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-1.5">
         {summary?.clients.map((client) => (
           <Link key={client.id} href={`/daily-insights/${client.id}`}>
             <Card className="hover:shadow-md transition-shadow cursor-pointer group">
-              <CardContent className="p-4 flex items-center justify-between">
-                <div className="flex items-center gap-4">
+              <CardContent className="p-3 flex items-center justify-between">
+                <div className="flex items-center gap-3">
                   {client.logoUrl ? (
                     <img 
                       src={client.logoUrl} 
                       alt={client.name} 
-                      className="w-10 h-10 rounded-full object-cover"
+                      className="w-8 h-8 rounded-full object-cover"
                     />
                   ) : (
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-amber-500 flex items-center justify-center text-white font-semibold">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-400 to-amber-500 flex items-center justify-center text-white text-sm font-semibold">
                       {client.name.charAt(0).toUpperCase()}
                     </div>
                   )}
                   <div>
-                    <p className="font-semibold text-gray-800">{client.name}</p>
-                    <p className="text-sm text-gray-500">{client.total} articles</p>
+                    <p className="font-medium text-sm text-gray-800">{client.name}</p>
+                    <p className="text-[11px] text-gray-500">{client.total} articles</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
                   {client.pending > 0 && (
-                    <Badge variant="secondary" className="bg-amber-100 text-amber-700 hover:bg-amber-100">
+                    <Badge variant="secondary" className="bg-amber-100 text-amber-700 hover:bg-amber-100 text-[11px]">
                       <Clock className="h-3 w-3 mr-1" />{client.pending} pending
                     </Badge>
                   )}
                   {client.accepted > 0 && (
-                    <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
+                    <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 text-[11px]">
                       <CheckCircle className="h-3 w-3 mr-1" />{client.accepted} accepted
                     </Badge>
                   )}
-                  {client.total === 0 && <span className="text-sm text-gray-400">No articles</span>}
-                  <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-orange-500 transition-colors" />
+                  {client.total === 0 && <span className="text-[11px] text-gray-400">No articles</span>}
+                  <ChevronRight className="h-4 w-4 text-gray-400 group-hover:text-orange-500 transition-colors" />
                 </div>
               </CardContent>
             </Card>
