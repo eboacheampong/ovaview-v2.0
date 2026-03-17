@@ -5,7 +5,7 @@ import { SocialPlatform } from '@prisma/client'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 120
 
-const SUPPORTED_PLATFORMS = ['twitter', 'instagram', 'facebook', 'linkedin', 'tiktok']
+const SUPPORTED_PLATFORMS = ['twitter', 'instagram', 'facebook', 'linkedin', 'tiktok', 'youtube']
 
 // Python scraper API URL (scrapy_crawler Flask server)
 const SCRAPER_API_URL = process.env.SCRAPER_API_URL || process.env.NEXT_PUBLIC_SCRAPER_API || 'http://localhost:5000'
@@ -31,6 +31,7 @@ function detectPlatform(url: string, title: string, filter?: string): string | n
     ['FACEBOOK', ['facebook.com/', 'fb.com/']],
     ['LINKEDIN', ['linkedin.com/']],
     ['TIKTOK', ['tiktok.com/']],
+    ['YOUTUBE', ['youtube.com/', 'youtu.be/']],
   ]
   for (const [platform, domains] of checks) {
     if (domains.some(d => urlLower.includes(d))) {
@@ -44,6 +45,7 @@ function detectPlatform(url: string, title: string, filter?: string): string | n
     FACEBOOK: ['facebook', 'meta'],
     LINKEDIN: ['linkedin'],
     TIKTOK: ['tiktok'],
+    YOUTUBE: ['youtube', 'youtu.be'],
   }
   if (filter) {
     for (const hint of hints[filter.toUpperCase()] || []) {
@@ -63,6 +65,7 @@ function extractPostId(url: string, platform: string): string {
     if (platform === 'INSTAGRAM') { const m = url.match(/\/(?:p|reel)\/([A-Za-z0-9_-]+)/); if (m) return m[1] }
     if (platform === 'TIKTOK') { const m = url.match(/\/video\/(\d+)/); if (m) return m[1] }
     if (platform === 'LINKEDIN') { const m = url.match(/activity-(\d+)/); if (m) return `li_${m[1]}` }
+    if (platform === 'YOUTUBE') { const m = url.match(/(?:v=|youtu\.be\/|\/shorts\/)([A-Za-z0-9_-]{11})/); if (m) return `yt_${m[1]}` }
   } catch {}
   return `${platform.toLowerCase().substring(0, 2)}_${Buffer.from(url).toString('base64').substring(0, 16)}`
 }
@@ -86,6 +89,9 @@ function extractAuthor(url: string, platform: string, title = ''): string {
     } else if (platform === 'TIKTOK') {
       const m = url.match(/tiktok\.com\/@([^/?#]+)/)
       if (m) return m[1]
+    } else if (platform === 'YOUTUBE') {
+      const m = url.match(/youtube\.com\/(?:channel\/|@)([^/?#]+)/)
+      if (m) return m[1]
     }
   } catch {}
   return ''
@@ -97,6 +103,7 @@ function buildEmbed(url: string, platform: string): string {
   if (platform === 'FACEBOOK') return `<iframe src="https://www.facebook.com/plugins/post.php?href=${encodeURIComponent(url)}&show_text=true&width=500" width="100%" height="400" style="border:none;overflow:hidden" scrolling="no" frameborder="0" allowfullscreen="true"></iframe>`
   if (platform === 'TIKTOK') { const m = url.match(/\/video\/(\d+)/); if (m) return `<iframe src="https://www.tiktok.com/embed/v2/${m[1]}" width="100%" height="750" frameborder="0" allowfullscreen></iframe>` }
   if (platform === 'LINKEDIN') return `<a href="${url}" target="_blank" rel="noopener">View on LinkedIn</a>`
+  if (platform === 'YOUTUBE') { const m = url.match(/(?:v=|youtu\.be\/|\/shorts\/)([A-Za-z0-9_-]{11})/); if (m) return `<iframe width="100%" height="400" src="https://www.youtube.com/embed/${m[1]}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>` }
   return ''
 }
 
@@ -159,7 +166,7 @@ async function scrapePythonAPI(keywords: string[], platforms: string[]): Promise
 
     for (const p of data.posts) {
       const platform = (p.platform || '').toUpperCase()
-      if (!['TWITTER', 'FACEBOOK', 'INSTAGRAM', 'LINKEDIN', 'TIKTOK'].includes(platform)) continue
+      if (!['TWITTER', 'FACEBOOK', 'INSTAGRAM', 'LINKEDIN', 'TIKTOK', 'YOUTUBE'].includes(platform)) continue
 
       posts.push({
         platform: platform as SocialPlatform,
@@ -203,6 +210,7 @@ async function scrapeBingFallback(keyword: string, platform: string): Promise<Sc
     facebook: 'site:facebook.com',
     linkedin: 'site:linkedin.com/posts/',
     tiktok: 'site:tiktok.com/@',
+    youtube: 'site:youtube.com/watch',
   }
   const siteQ = siteMap[platform]
   if (!siteQ) return posts
@@ -243,7 +251,7 @@ async function scrapeBingFallback(keyword: string, platform: string): Promise<Sc
         embedUrl: resultUrl,
         embedHtml: buildEmbed(resultUrl, detected),
         mediaUrls: [],
-        mediaType: detected === 'TIKTOK' || resultUrl.includes('/reel/') ? 'video' : 'text',
+        mediaType: detected === 'TIKTOK' || detected === 'YOUTUBE' || resultUrl.includes('/reel/') ? 'video' : 'text',
         viewsCount: 0, likesCount: 0, commentsCount: 0, sharesCount: 0,
         hashtags: [], mentions: [],
         keywords: keyword,

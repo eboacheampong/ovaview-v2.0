@@ -176,7 +176,7 @@ export default function ClientSocialInsightsPage() {
       const res = await fetch('/api/social-posts/scrape', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ clientId, platforms: ['twitter', 'tiktok', 'instagram', 'linkedin', 'facebook'] }),
+        body: JSON.stringify({ clientId, platforms: ['twitter', 'tiktok', 'instagram', 'linkedin', 'facebook', 'youtube'] }),
       })
       let data: any
       try { data = await res.json() } catch {
