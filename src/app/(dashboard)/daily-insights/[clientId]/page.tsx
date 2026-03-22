@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
   Eye, CheckCircle, Trash2, Loader2,
-  ArrowLeft, RefreshCw, Globe
+  ArrowLeft, RefreshCw, Globe, Search
 } from 'lucide-react'
 import Link from 'next/link'
 import { format } from 'date-fns'
@@ -42,7 +42,9 @@ export default function ClientInsightsPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [isDeleting, setIsDeleting] = useState<string | null>(null)
   const [isScraperRunning, setIsScraperRunning] = useState(false)
+  const [isSocialScraperRunning, setIsSocialScraperRunning] = useState(false)
   const [scraperMessage, setScraperMessage] = useState<string | null>(null)
+  const [scraperStatus, setScraperStatus] = useState<'success' | 'warning' | 'error' | null>(null)
 
   const fetchArticles = useCallback(async () => {
     try {
@@ -112,14 +114,47 @@ export default function ClientInsightsPage() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.message || data.error || 'Failed')
       if (data.stats?.saved === 0 && clientKeywords.length <= 1) {
-        setScraperMessage(`⚠️ ${data.message} - Add more keywords in Client Management to match articles.`)
+        setScraperStatus('warning')
+        setScraperMessage(`${data.message} — Add more keywords in Client Management to match articles.`)
       } else {
-        setScraperMessage(`✓ ${data.message}`)
+        setScraperStatus('success')
+        setScraperMessage(data.message)
       }
       await fetchArticles()
     } catch (err) {
-      setScraperMessage(err instanceof Error ? `✗ ${err.message}` : '✗ Failed')
+      setScraperStatus('error')
+      setScraperMessage(err instanceof Error ? err.message : 'Failed')
     } finally { setIsScraperRunning(false) }
+  }
+
+  const handleRunSocialScraper = async () => {
+    try {
+      setIsSocialScraperRunning(true)
+      setScraperMessage(null)
+      const res = await fetch('/api/social-posts/scrape', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clientId, platforms: ['twitter', 'tiktok', 'instagram', 'linkedin', 'facebook', 'youtube'] }),
+      })
+      let data: any
+      try { data = await res.json() } catch {
+        throw new Error('Server returned an invalid response — request may have timed out')
+      }
+      if (!res.ok) throw new Error(data.error || data.message || 'Failed')
+      if (data.postsSaved > 0) {
+        setScraperStatus('success')
+        setScraperMessage(`Found ${data.postsSaved} new social posts`)
+      } else if (data.postsFound > 0) {
+        setScraperStatus('success')
+        setScraperMessage(`Found ${data.postsFound} social posts — all already saved`)
+      } else {
+        setScraperStatus('warning')
+        setScraperMessage('No new social posts found for this client')
+      }
+    } catch (err) {
+      setScraperStatus('error')
+      setScraperMessage(err instanceof Error ? err.message : 'Failed to scrape social media')
+    } finally { setIsSocialScraperRunning(false) }
   }
 
   const columns: ColumnDef<DailyInsight>[] = [
@@ -203,21 +238,30 @@ export default function ClientInsightsPage() {
             </p>
           </div>
         </div>
-        <Button onClick={handleRunScraper} disabled={isScraperRunning} className="gap-2 bg-orange-500 hover:bg-orange-600" size="sm">
-          {isScraperRunning ? (
-            <><Loader2 className="h-4 w-4 animate-spin" /> Scraping...</>
-          ) : (
-            <><RefreshCw className="h-4 w-4" /> Run Web Scraper</>
-          )}
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={handleRunScraper} disabled={isScraperRunning || isSocialScraperRunning} className="gap-2 bg-orange-500 hover:bg-orange-600" size="sm">
+            {isScraperRunning ? (
+              <><Loader2 className="h-4 w-4 animate-spin" /> Scraping...</>
+            ) : (
+              <><RefreshCw className="h-4 w-4" /> Run Web Scraper</>
+            )}
+          </Button>
+          <Button onClick={handleRunSocialScraper} disabled={isSocialScraperRunning || isScraperRunning} className="gap-2 bg-purple-500 hover:bg-purple-600" size="sm">
+            {isSocialScraperRunning ? (
+              <><Loader2 className="h-4 w-4 animate-spin" /> Searching...</>
+            ) : (
+              <><Search className="h-4 w-4" /> Run Social Scraper</>
+            )}
+          </Button>
+        </div>
       </div>
 
       {/* Scraper Message */}
       {scraperMessage && (
         <div className={`p-3 rounded-lg text-sm font-medium ${
-          scraperMessage.startsWith('✓')
+          scraperStatus === 'success'
             ? 'bg-green-50 text-green-700 border border-green-200'
-            : scraperMessage.startsWith('⚠️')
+            : scraperStatus === 'warning'
               ? 'bg-amber-50 text-amber-700 border border-amber-200'
               : 'bg-red-50 text-red-700 border border-red-200'
         }`}>

@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { format } from 'date-fns'
+import { SocialPlatformIcon } from '@/components/ui/social-icons'
 
 interface SocialPost {
   id: string
@@ -36,13 +37,13 @@ interface SocialPost {
   createdAt: string
 }
 
-const platformConfig: Record<string, { label: string; color: string; icon: string; bg: string }> = {
-  TWITTER: { label: 'X/Twitter', color: 'text-sky-700', icon: '𝕏', bg: 'bg-sky-50 border-sky-200' },
-  YOUTUBE: { label: 'YouTube', color: 'text-red-700', icon: '▶', bg: 'bg-red-50 border-red-200' },
-  FACEBOOK: { label: 'Facebook', color: 'text-blue-700', icon: 'f', bg: 'bg-blue-50 border-blue-200' },
-  LINKEDIN: { label: 'LinkedIn', color: 'text-indigo-700', icon: 'in', bg: 'bg-indigo-50 border-indigo-200' },
-  INSTAGRAM: { label: 'Instagram', color: 'text-pink-700', icon: '📷', bg: 'bg-pink-50 border-pink-200' },
-  TIKTOK: { label: 'TikTok', color: 'text-gray-800', icon: '♪', bg: 'bg-gray-100 border-gray-300' },
+const platformConfig: Record<string, { label: string; color: string; bg: string }> = {
+  TWITTER: { label: 'X', color: 'text-sky-700', bg: 'bg-sky-50 border-sky-200' },
+  YOUTUBE: { label: 'YouTube', color: 'text-red-700', bg: 'bg-red-50 border-red-200' },
+  FACEBOOK: { label: 'Facebook', color: 'text-blue-700', bg: 'bg-blue-50 border-blue-200' },
+  LINKEDIN: { label: 'LinkedIn', color: 'text-indigo-700', bg: 'bg-indigo-50 border-indigo-200' },
+  INSTAGRAM: { label: 'Instagram', color: 'text-pink-700', bg: 'bg-pink-50 border-pink-200' },
+  TIKTOK: { label: 'TikTok', color: 'text-gray-800', bg: 'bg-gray-100 border-gray-300' },
 }
 
 const statusConfig: Record<string, { label: string; description: string; icon: typeof Inbox; color: string; bg: string }> = {
@@ -303,8 +304,8 @@ export default function ClientSocialInsightsPage() {
             <Filter className="h-3.5 w-3.5" />
             Platform
             {platformFilter !== 'all' && (
-              <Badge className="ml-1 h-4 px-1 text-[10px] bg-purple-100 text-purple-700">
-                {platformConfig[platformFilter]?.icon}
+              <Badge className="ml-1 h-4 px-1 text-[10px] bg-purple-100 text-purple-700 inline-flex items-center">
+                <SocialPlatformIcon platform={platformFilter} size={10} />
               </Badge>
             )}
           </Button>
@@ -344,7 +345,7 @@ export default function ClientSocialInsightsPage() {
                     : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
                 }`}
               >
-                {p === 'all' ? 'All Platforms' : <><span>{cfg?.icon}</span> {cfg?.label}</>}
+                {p === 'all' ? 'All Platforms' : <><SocialPlatformIcon platform={p} size={12} /> {cfg?.label}</>}
               </button>
             )
           })}
@@ -389,7 +390,7 @@ export default function ClientSocialInsightsPage() {
         /* Card View */
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {posts.map(post => {
-            const pcfg = platformConfig[post.platform] || { label: post.platform, color: 'text-gray-700', icon: '•', bg: 'bg-gray-50 border-gray-200' }
+            const pcfg = platformConfig[post.platform] || { label: post.platform, color: 'text-gray-700', bg: 'bg-gray-50 border-gray-200' }
             const isExpanded = expandedPost === post.id
             const isPending = post.status === 'pending'
             const isProcessing = actionLoading === post.id
@@ -405,7 +406,7 @@ export default function ClientSocialInsightsPage() {
                   <div className="px-4 pt-3 pb-2 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border ${pcfg.bg}`}>
-                        <span>{pcfg.icon}</span> {pcfg.label}
+                        <SocialPlatformIcon platform={post.platform} size={12} /> {pcfg.label}
                       </span>
                       {post.keywords && (
                         <span className="text-[11px] text-gray-400 flex items-center gap-0.5">
@@ -520,7 +521,7 @@ export default function ClientSocialInsightsPage() {
         /* Compact List View */
         <div className="space-y-1.5">
           {posts.map(post => {
-            const pcfg = platformConfig[post.platform] || { label: post.platform, color: 'text-gray-700', icon: '•', bg: 'bg-gray-50 border-gray-200' }
+            const pcfg = platformConfig[post.platform] || { label: post.platform, color: 'text-gray-700', bg: 'bg-gray-50 border-gray-200' }
             const isPending = post.status === 'pending'
             const isProcessing = actionLoading === post.id
 
@@ -529,7 +530,7 @@ export default function ClientSocialInsightsPage() {
                 isPending ? 'border-l-4 border-l-amber-300' : 'border-l-4 border-l-transparent'
               } ${isProcessing ? 'opacity-60' : ''}`}>
                 {/* Platform icon */}
-                <span className={`text-sm font-medium w-6 text-center ${pcfg.color}`}>{pcfg.icon}</span>
+                <span className={`w-6 text-center ${pcfg.color}`}><SocialPlatformIcon platform={post.platform} size={14} /></span>
 
                 {/* Content */}
                 <div className="flex-1 min-w-0">

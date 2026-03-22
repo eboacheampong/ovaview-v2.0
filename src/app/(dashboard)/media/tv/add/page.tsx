@@ -342,7 +342,7 @@ export default function AddTVStoryPage() {
                       <p className="text-xs text-gray-500">
                         {(videoFile.size / (1024 * 1024)).toFixed(2)} MB
                         {isUploadingVideo && <span className="ml-2 text-purple-600">• Uploading...</span>}
-                        {uploadedVideoUrl && <span className="ml-2 text-green-600">• Uploaded ✓</span>}
+                        {uploadedVideoUrl && <span className="ml-2 text-green-600">• Uploaded</span>}
                         {uploadError && <span className="ml-2 text-red-600">• {uploadError}</span>}
                       </p>
                     </div>

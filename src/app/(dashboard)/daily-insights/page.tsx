@@ -29,6 +29,7 @@ export default function DailyInsightsPage() {
   const [isScraperRunning, setIsScraperRunning] = useState(false)
   const [isClearing, setIsClearing] = useState(false)
   const [scraperMessage, setScraperMessage] = useState<string | null>(null)
+  const [scraperStatus, setScraperStatus] = useState<'success' | 'error' | null>(null)
 
   useEffect(() => { fetchSummary() }, [])
 
@@ -55,10 +56,12 @@ export default function DailyInsightsPage() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message || data.error || 'Failed to run scraper')
-      setScraperMessage(`✓ ${data.message}`)
+      setScraperStatus('success')
+      setScraperMessage(data.message || 'Scraping completed')
       await fetchSummary()
     } catch (err) {
-      setScraperMessage(err instanceof Error ? `✗ ${err.message}` : '✗ Failed to run scraper')
+      setScraperStatus('error')
+      setScraperMessage(err instanceof Error ? err.message : 'Failed to run scraper')
     } finally {
       setIsScraperRunning(false)
     }
@@ -72,10 +75,12 @@ export default function DailyInsightsPage() {
       const res = await fetch('/api/daily-insights/clear', { method: 'DELETE' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to clear')
-      setScraperMessage(`✓ Cleared ${data.deleted} insights`)
+      setScraperStatus('success')
+      setScraperMessage(`Cleared ${data.deleted} insights`)
       await fetchSummary()
     } catch (err) {
-      setScraperMessage(err instanceof Error ? `✗ ${err.message}` : '✗ Failed to clear')
+      setScraperStatus('error')
+      setScraperMessage(err instanceof Error ? err.message : 'Failed to clear')
     } finally {
       setIsClearing(false)
     }
@@ -111,7 +116,7 @@ export default function DailyInsightsPage() {
       </div>
 
       {scraperMessage && (
-        <div className={`p-3 rounded-lg text-sm font-medium ${scraperMessage.startsWith('✓') ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+        <div className={`p-3 rounded-lg text-sm font-medium ${scraperStatus === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
           {scraperMessage}
         </div>
       )}

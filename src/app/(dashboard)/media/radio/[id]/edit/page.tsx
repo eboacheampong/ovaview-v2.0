@@ -412,7 +412,7 @@ export default function EditRadioStoryPage() {
                       <p className="text-xs text-gray-500">
                         {audioFile && `${(audioFile.size / (1024 * 1024)).toFixed(2)} MB`}
                         {isUploadingAudio && <span className="ml-2 text-orange-600">• Uploading...</span>}
-                        {uploadedAudioUrl && <span className="ml-2 text-green-600">• Uploaded ✓</span>}
+                        {uploadedAudioUrl && <span className="ml-2 text-green-600">• Uploaded</span>}
                         {uploadError && <span className="ml-2 text-red-600">• {uploadError}</span>}
                       </p>
                     </div>

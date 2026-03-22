@@ -9,7 +9,7 @@ import { RichTextEditor } from '@/components/ui/rich-text-editor'
 import { SentimentDisplay } from '@/components/ui/sentiment-display'
 import { KeywordInput } from '@/components/ui/keyword-input'
 import { useOCR } from '@/hooks/use-ocr'
-import { ChevronRight, ChevronLeft, Loader2, FileText, User, BookOpen, Hash, Wand2, Upload, X, Image as ImageIcon, ScanText, Trash2, Sparkles, Calendar } from 'lucide-react'
+import { ChevronRight, ChevronLeft, Loader2, FileText, User, BookOpen, Hash, Wand2, Upload, X, Image as ImageIcon, ScanText, Trash2, Sparkles, Calendar, Check } from 'lucide-react'
 
 interface Publication {
   id: string
@@ -383,7 +383,7 @@ export default function AddPrintStoryPage() {
                       </button>
                     </div>
                     {image.extractedText && (
-                      <div className="absolute bottom-0 left-0 right-0 bg-green-500 text-white text-xs py-1 text-center">✓</div>
+                      <div className="absolute bottom-0 left-0 right-0 bg-green-500 text-white text-xs py-1 flex items-center justify-center"><Check className="h-3 w-3" /></div>
                     )}
                   </div>
                 ))}

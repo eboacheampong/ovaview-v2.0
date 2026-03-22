@@ -353,9 +353,9 @@ export async function POST(request: NextRequest) {
 
     if (pythonResult.posts.length > 0) {
       allPosts.push(...pythonResult.posts)
-      sourceReport['python_scraper'] = `✓ ${pythonResult.posts.length} posts`
+      sourceReport['python_scraper'] = `OK: ${pythonResult.posts.length} posts`
     } else if (pythonResult.error) {
-      sourceReport['python_scraper'] = `✗ ${pythonResult.error}`
+      sourceReport['python_scraper'] = `Error: ${pythonResult.error}`
     } else {
       sourceReport['python_scraper'] = '⚠ 0 posts (no matches for keywords)'
     }
@@ -380,7 +380,7 @@ export async function POST(request: NextRequest) {
           bingCount += r.value.length
         }
       }
-      sourceReport['bing_fallback'] = bingCount > 0 ? `✓ ${bingCount} posts` : '✗ 0 posts'
+      sourceReport['bing_fallback'] = bingCount > 0 ? `OK: ${bingCount} posts` : 'No posts found'
     } else {
       sourceReport['bing_fallback'] = 'skipped (Python scraper had results)'
     }

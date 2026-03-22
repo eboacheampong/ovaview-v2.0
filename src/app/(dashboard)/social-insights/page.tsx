@@ -10,6 +10,7 @@ import {
   AlertCircle, TrendingUp, Search
 } from 'lucide-react'
 import Link from 'next/link'
+import { SocialPlatformIcon } from '@/components/ui/social-icons'
 
 interface PlatformCount {
   platform: string
@@ -37,21 +38,12 @@ const platformColors: Record<string, string> = {
 }
 
 const platformLabels: Record<string, string> = {
-  TWITTER: 'X/Twitter',
+  TWITTER: 'X',
   YOUTUBE: 'YouTube',
   FACEBOOK: 'Facebook',
   LINKEDIN: 'LinkedIn',
   INSTAGRAM: 'Instagram',
   TIKTOK: 'TikTok',
-}
-
-const platformIcons: Record<string, string> = {
-  TWITTER: '𝕏',
-  YOUTUBE: '▶',
-  FACEBOOK: 'f',
-  LINKEDIN: 'in',
-  INSTAGRAM: '📷',
-  TIKTOK: '♪',
 }
 
 export default function SocialInsightsPage() {
@@ -286,8 +278,8 @@ export default function SocialInsightsPage() {
             {Object.keys(allPlatforms).length > 0 && (
               <div className="flex gap-1 mt-1 flex-wrap">
                 {Object.entries(allPlatforms).map(([p, count]) => (
-                  <span key={p} className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">
-                    {platformIcons[p]} {count}
+                  <span key={p} className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 inline-flex items-center gap-1">
+                    <SocialPlatformIcon platform={p} size={10} /> {count}
                   </span>
                 ))}
               </div>
@@ -353,8 +345,8 @@ export default function SocialInsightsPage() {
                     <div className="flex items-center gap-1.5 shrink-0">
                       <div className="hidden sm:flex gap-1 flex-wrap justify-end">
                         {client.platforms.map(p => (
-                          <span key={p.platform} className={`inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full border ${platformColors[p.platform] || 'bg-gray-100 text-gray-700 border-gray-200'}`}>
-                            {platformIcons[p.platform]} {p.count}
+                          <span key={p.platform} className={`inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full border ${platformColors[p.platform] || 'bg-gray-100 text-gray-700 border-gray-200'}`}>
+                            <SocialPlatformIcon platform={p.platform} size={10} /> {p.count}
                           </span>
                         ))}
                       </div>
