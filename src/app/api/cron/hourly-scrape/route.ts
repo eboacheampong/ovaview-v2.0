@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { processWebInsights, processSocialPosts } from '@/lib/ai-auto-publish'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300 // 5 minutes max for Vercel Pro
@@ -146,7 +147,45 @@ export async function GET(request: NextRequest) {
   }
 
   // ═══════════════════════════════════════════════════════════════════
-  // STEP 3: Log the cron run
+  // STEP 3: AI Auto-Publish
+  // Takes pending DailyInsights + SocialPosts from Steps 1 & 2,
+  // verifies relevance via AI, extracts fields, creates WebStories
+  // and accepts SocialPosts automatically.
+  // ═══════════════════════════════════════════════════════════════════
+  try {
+    console.log('[Hourly Cron] Step 3: Running AI auto-publish...')
+
+    const webPublishResults = await processWebInsights(30)
+    const socialPublishResults = await processSocialPosts(30)
+
+    results.autoPublish = {
+      success: true,
+      web: {
+        total: webPublishResults.length,
+        published: webPublishResults.filter(r => r.action === 'published').length,
+        skipped: webPublishResults.filter(r => r.action === 'skipped').length,
+        errors: webPublishResults.filter(r => r.action === 'error').length,
+      },
+      social: {
+        total: socialPublishResults.length,
+        published: socialPublishResults.filter(r => r.action === 'published').length,
+        skipped: socialPublishResults.filter(r => r.action === 'skipped').length,
+        errors: socialPublishResults.filter(r => r.action === 'error').length,
+      },
+    }
+
+    const webPub = webPublishResults.filter(r => r.action === 'published').length
+    const socPub = socialPublishResults.filter(r => r.action === 'published').length
+    console.log(`[Hourly Cron] Auto-publish: ${webPub} web stories, ${socPub} social posts published`)
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'unknown'
+    results.autoPublish = { success: false, error: msg }
+    errors.push(`Auto-publish error: ${msg}`)
+    console.error(`[Hourly Cron] Auto-publish error: ${msg}`)
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // STEP 4: Log the cron run
   // ═══════════════════════════════════════════════════════════════════
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(1)
 
@@ -159,7 +198,7 @@ export async function GET(request: NextRequest) {
         data: {
           type: 'hourly-cron',
           status: errors.length === 0 ? 'success' : 'partial',
-          message: `Hourly scrape completed in ${elapsed}s. Web: ${(results.webScrape as any)?.saved || 0} articles, Social: ${(results.socialScrape as any)?.totalSaved || 0} posts. Errors: ${errors.length}`,
+          message: `Hourly scrape completed in ${elapsed}s. Web: ${(results.webScrape as any)?.saved || 0} articles, Social: ${(results.socialScrape as any)?.totalSaved || 0} posts, AutoPublish: ${(results.autoPublish as any)?.web?.published || 0} web + ${(results.autoPublish as any)?.social?.published || 0} social. Errors: ${errors.length}`,
           metadata: JSON.stringify({ results, errors }),
         },
       })
