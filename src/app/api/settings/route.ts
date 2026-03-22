@@ -12,7 +12,7 @@ const DEFAULT_SETTINGS = {
     enableRssFeed: true,
     enableSitemap: true,
     enablePageScrape: true,
-    scraperApiUrl: process.env.NEXT_PUBLIC_SCRAPER_API || 'http://localhost:5000',
+    scraperApiUrl: process.env.SCRAPER_API_URL || 'http://localhost:5000',
   },
   ai: {
     primaryModel: 'meta-llama/llama-3.1-8b-instruct',

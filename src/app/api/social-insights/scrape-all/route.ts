@@ -5,7 +5,7 @@ import { SocialPlatform } from '@prisma/client'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300
 
-const SCRAPER_API_URL = process.env.SCRAPER_API_URL || process.env.NEXT_PUBLIC_SCRAPER_API || 'http://localhost:5000'
+const SCRAPER_API_URL = process.env.SCRAPER_API_URL || 'http://localhost:5000'
 const SUPPORTED_PLATFORMS = ['twitter', 'instagram', 'facebook', 'linkedin', 'tiktok']
 
 // ── helpers (duplicated from scrape route to avoid self-HTTP calls) ──

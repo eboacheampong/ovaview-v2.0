@@ -7,8 +7,8 @@ export const maxDuration = 120
 
 const SUPPORTED_PLATFORMS = ['twitter', 'instagram', 'facebook', 'linkedin', 'tiktok', 'youtube']
 
-// Python scraper API URL (scrapy_crawler Flask server)
-const SCRAPER_API_URL = process.env.SCRAPER_API_URL || process.env.NEXT_PUBLIC_SCRAPER_API || 'http://localhost:5000'
+// Crawler engine API URL
+const SCRAPER_API_URL = process.env.SCRAPER_API_URL || 'http://localhost:5000'
 
 const USER_AGENTS = [
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',

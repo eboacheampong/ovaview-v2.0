@@ -1,6 +1,6 @@
 import cron, { ScheduledTask } from 'node-cron'
 
-const SCRAPER_API = process.env.NEXT_PUBLIC_SCRAPER_API || 'http://localhost:5000'
+const SCRAPER_API = process.env.SCRAPER_API_URL || 'http://localhost:5000'
 
 export interface CronTaskConfig {
   schedule?: string
