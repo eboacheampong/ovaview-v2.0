@@ -345,7 +345,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Try to parse JSON safely
-    let scraperData: { success: boolean; articles?: unknown[]; error?: string }
+    let scraperData: { success: boolean; articles?: unknown[]; error?: string; stats?: Record<string, unknown> }
     try {
       scraperData = JSON.parse(responseText)
     } catch (parseError) {
