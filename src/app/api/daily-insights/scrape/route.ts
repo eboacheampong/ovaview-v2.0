@@ -304,7 +304,7 @@ export async function POST(request: NextRequest) {
 
     // 4. Call remote scraper with timeout
     const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), 120000) // 2 minute timeout
+    const timeout = setTimeout(() => controller.abort(), 180000) // 3 minute timeout (Cheerio-first is fast)
 
     let scraperResponse: Response
     try {
@@ -318,7 +318,7 @@ export async function POST(request: NextRequest) {
       clearTimeout(timeout)
       if (fetchError instanceof Error && fetchError.name === 'AbortError') {
         return NextResponse.json(
-          { success: false, error: 'Scraper timeout', message: `The scraper at ${SCRAPER_API} took too long to respond (>2 min). It may be starting up — try again in 30 seconds.` },
+          { success: false, error: 'Scraper timeout', message: `The scraper at ${SCRAPER_API} took too long to respond (>3 min). It may be starting up — try again in 30 seconds.` },
           { status: 504 }
         )
       }
