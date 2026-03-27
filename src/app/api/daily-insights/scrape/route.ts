@@ -365,22 +365,31 @@ export async function POST(request: NextRequest) {
 
     const articlesData: any[] = scraperData.articles || []
     console.log(`[Scraper] Received ${articlesData.length} articles from scraper`)
+    if (articlesData.length > 0) {
+      console.log(`[Scraper] Sample article: "${articlesData[0].title}" from ${articlesData[0].source || articlesData[0].url}`)
+    }
+    if (articlesData.length === 0) {
+      console.log(`[Scraper] WARNING: Scraper returned 0 articles. Raw response keys: ${Object.keys(scraperData).join(', ')}`)
+      if (scraperData.stats) console.log(`[Scraper] Stats: ${JSON.stringify(scraperData.stats)}`)
+    }
 
-    // Filter: only accept articles from the last 24 hours (safety net)
+    // Filter: only reject articles with a KNOWN date older than 24 hours.
+    // Articles without a date are kept (we can't know when they were published).
     const cutoff24h = new Date(Date.now() - 24 * 60 * 60 * 1000)
     const recentArticles = articlesData.filter(a => {
-      // Check published_at or scraped_at
-      const dateStr = a.published_at || a.scraped_at
-      if (dateStr) {
-        const d = new Date(dateStr)
+      // Check published_at first — most reliable date
+      const pubDate = a.published_at
+      if (pubDate) {
+        const d = new Date(pubDate)
         if (!isNaN(d.getTime()) && d < cutoff24h) return false
       }
-      // Check if URL contains a date older than yesterday
+      // Check URL date pattern (e.g., /2025/03/15/)
       const urlDateMatch = (a.url || '').match(/\/(\d{4})\/(\d{1,2})\/(\d{1,2})\//)
       if (urlDateMatch) {
         const urlDate = new Date(+urlDateMatch[1], +urlDateMatch[2] - 1, +urlDateMatch[3])
         if (!isNaN(urlDate.getTime()) && urlDate < cutoff24h) return false
       }
+      // No date info or date is recent — keep it
       return true
     })
     const skippedOld = articlesData.length - recentArticles.length
