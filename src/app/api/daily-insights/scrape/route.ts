@@ -422,8 +422,35 @@ export async function POST(request: NextRequest) {
         const uniqueClientIds = Array.from(new Set(matches.map(m => m.clientId)))
 
         if (uniqueClientIds.length === 0) {
-          // Save for Pass 2
-          unmatchedArticles.push(article)
+          // When auto-publish is ON, save unmatched articles for ALL clients
+          // so the AI can verify relevance during auto-publish
+          if (autoPublish) {
+            for (const entry of clientKeywordData) {
+              const existing = await prisma.dailyInsight.findFirst({ where: { url, clientId: entry.clientId } })
+              if (existing) { duplicateCount++; continue }
+
+              const insight = await prisma.dailyInsight.create({
+                data: {
+                  title: title.substring(0, 255), url,
+                  description: description ? description.substring(0, 1000) : '',
+                  source: source || '',
+                  industry: industry || 'general',
+                  clientId: entry.clientId, status: 'pending',
+                  scrapedAt: scraped_at ? new Date(scraped_at) : new Date(),
+                },
+              })
+              savedCount++
+              savedForAutoPublish.push({
+                insightId: insight.id, title, url,
+                description: description || '', source: source || '',
+                clientId: entry.clientId, clientName: entry.clientName,
+                matchedKeyword: '',
+              })
+            }
+          } else {
+            // Manual mode: save for Pass 2 deep scan
+            unmatchedArticles.push(article)
+          }
           continue
         }
 

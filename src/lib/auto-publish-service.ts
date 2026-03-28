@@ -87,6 +87,44 @@ async function analyzeArticle(content: string): Promise<AnalysisResult | null> {
   }
 }
 
+async function verifyRelevance(text: string, clientName: string, keyword: string): Promise<boolean> {
+  try {
+    const apiKey = process.env.OPENROUTER_API_KEY
+    if (!apiKey) return true // if no AI key, skip verification and allow
+
+    const prompt = `You are a media monitoring assistant. Determine if this article is relevant to the client "${clientName}"${keyword ? ` (keyword: "${keyword}")` : ''}.
+
+The article must mention the client by name, or be directly about their industry/activities/products. Tangential mentions or unrelated articles should be rejected.
+
+Article text (first 1500 chars):
+${text.substring(0, 1500)}
+
+Reply with ONLY "yes" or "no".`
+
+    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.0-flash-001',
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 10,
+        temperature: 0.1,
+      }),
+      signal: AbortSignal.timeout(15000),
+    })
+
+    if (!res.ok) return true // on AI failure, allow through
+    const data = await res.json()
+    const answer = (data.choices?.[0]?.message?.content || '').toLowerCase().trim()
+    return answer.startsWith('yes')
+  } catch {
+    return true // on error, allow through
+  }
+}
+
 async function findPublicationByDomain(domain: string): Promise<string | null> {
   const pubs = await prisma.webPublication.findMany({
     where: { isActive: true, website: { not: null } },
@@ -137,7 +175,19 @@ async function autoPublishOne(article: ArticleToPublish): Promise<{ published: b
     return { published: false, reason: 'Could not extract article content' }
   }
 
-  // Step 2: AI analysis — summary, sentiment, keywords, industry, personalities
+  // Step 2: AI relevance check — verify article is actually about this client
+  const textToCheck = `${extracted.title || article.title} ${extracted.textContent || extracted.content}`.substring(0, 2000)
+  const isRelevant = await verifyRelevance(textToCheck, article.clientName, article.matchedKeyword)
+  if (!isRelevant) {
+    // Mark insight back to pending so it can be manually reviewed
+    await prisma.dailyInsight.update({
+      where: { id: article.insightId },
+      data: { status: 'pending' },
+    }).catch(() => {})
+    return { published: false, reason: `AI: not relevant to ${article.clientName}` }
+  }
+
+  // Step 3: AI analysis — summary, sentiment, keywords, industry, personalities
   const analysis = await analyzeArticle(extracted.textContent || extracted.content)
 
   // Step 3: Find publication by domain

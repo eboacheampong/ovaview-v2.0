@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
   Eye, CheckCircle, Trash2, Loader2,
-  ArrowLeft, RefreshCw, Globe, Search
+  ArrowLeft, RefreshCw, Globe, Search, ExternalLink
 } from 'lucide-react'
 import Link from 'next/link'
 import { format } from 'date-fns'
@@ -22,6 +22,7 @@ interface DailyInsight {
   industry?: string
   status: 'pending' | 'accepted' | 'archived'
   scrapedAt: string
+  webStorySlug?: string | null
 }
 
 const statusConfig = {
@@ -201,9 +202,20 @@ export default function ClientInsightsPage() {
         const article = row.original
         return (
           <div className="flex items-center gap-1 justify-end">
-            <Button variant="ghost" size="sm" onClick={() => window.open(article.url, '_blank')} title="View article">
-              <Eye className="h-4 w-4 text-blue-600" />
-            </Button>
+            {article.status === 'accepted' && article.webStorySlug ? (
+              <>
+                <Button variant="ghost" size="sm" onClick={() => window.open(`/media/web/${article.webStorySlug}`, '_blank')} title="View on our site">
+                  <Eye className="h-4 w-4 text-emerald-600" />
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => window.open(article.url, '_blank')} title="View original source">
+                  <ExternalLink className="h-4 w-4 text-blue-600" />
+                </Button>
+              </>
+            ) : (
+              <Button variant="ghost" size="sm" onClick={() => window.open(article.url, '_blank')} title="View original article">
+                <Eye className="h-4 w-4 text-blue-600" />
+              </Button>
+            )}
             {article.status === 'pending' && (
               <>
                 <Button variant="ghost" size="sm" onClick={() => handleAcceptArticle(article)} title="Accept & publish">

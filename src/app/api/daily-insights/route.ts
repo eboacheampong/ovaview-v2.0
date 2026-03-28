@@ -41,10 +41,29 @@ export async function GET(request: NextRequest) {
       skip: offset,
     })
 
+    // For accepted articles, find linked WebStory by sourceUrl
+    const acceptedUrls = articles
+      .filter(a => a.status === 'accepted')
+      .map(a => a.url)
+
+    const linkedStories = acceptedUrls.length > 0
+      ? await prisma.webStory.findMany({
+          where: { sourceUrl: { in: acceptedUrls } },
+          select: { sourceUrl: true, slug: true },
+        })
+      : []
+
+    const storyMap = new Map(linkedStories.map(s => [s.sourceUrl, s.slug]))
+
+    const articlesWithStory = articles.map(a => ({
+      ...a,
+      webStorySlug: storyMap.get(a.url) || null,
+    }))
+
     const total = await prisma.dailyInsight.count({ where })
 
     return NextResponse.json({
-      articles,
+      articles: articlesWithStory,
       total,
       limit,
       offset,
