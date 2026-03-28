@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { autoPublishArticles } from '@/lib/auto-publish-service'
 
 export const dynamic = 'force-dynamic'
 
@@ -297,22 +296,40 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    // Fetch available keywords and industries from DB for AI analysis
+    const [dbKeywords, dbIndustries] = await Promise.all([
+      prisma.keyword.findMany({ select: { name: true }, where: { isActive: true } }),
+      prisma.industry.findMany({
+        select: { name: true, subIndustries: { select: { name: true } } },
+        where: { isActive: true },
+      }),
+    ])
+    const availableKeywords = dbKeywords.map(k => k.name)
+    const availableIndustries = dbIndustries.map(i =>
+      `${i.name} (sub: ${i.subIndustries.map(s => s.name).join(', ')})`
+    )
+
     const clientInfo = forceClientId 
       ? `single client (${clientKeywordData[0]?.clientName})` 
       : `${clientKeywordData.length} clients`
     console.log(`[Scraper] ${sources.length} sources, ${clientInfo}, ${allKeywords.size} keywords`)
     clientKeywordData.forEach(c => console.log(`  -> ${c.clientName}: [${c.keywords.join(', ')}]`))
 
-    // 4. Call remote scraper with timeout
+    // 4. Call crawler-engine's full pipeline (scrape + extract + AI analyze)
     const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), 180000) // 3 minute timeout (Cheerio-first is fast)
+    const timeout = setTimeout(() => controller.abort(), 240000) // 4 min timeout for full pipeline
 
     let scraperResponse: Response
     try {
-      scraperResponse = await fetch(`${SCRAPER_API}/api/scrape`, {
+      scraperResponse = await fetch(`${SCRAPER_API}/api/scrape-and-analyze`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sources }),
+        body: JSON.stringify({
+          sources,
+          keywords: Array.from(allKeywords),
+          availableKeywords,
+          availableIndustries,
+        }),
         signal: controller.signal,
       })
     } catch (fetchError) {
@@ -540,22 +557,118 @@ export async function POST(request: NextRequest) {
     console.log(`[Scraper] Pass 2 done: deep-matched=${deepMatched}, final unmatched=${skippedNoMatch}`)
     console.log(`[Scraper] TOTAL: saved=${savedCount}, dupes=${duplicateCount}, unmatched=${skippedNoMatch}`)
 
-    // 7. AUTO-PUBLISH — if enabled, extract full content + AI analysis → create WebStories
-    let autoPublishResults = { published: 0, skipped: 0, errors: [] as string[] }
+    // 7. AUTO-PUBLISH — create WebStories directly from pre-analyzed articles
+    let autoPublished = 0
+    let autoPublishErrors: string[] = []
     if (autoPublish && savedForAutoPublish.length > 0) {
-      console.log(`[Scraper] Auto-publishing ${savedForAutoPublish.length} articles...`)
-      autoPublishResults = await autoPublishArticles(savedForAutoPublish, 20)
-      console.log(`[Scraper] Auto-publish: ${autoPublishResults.published} published, ${autoPublishResults.skipped} skipped`)
-      if (autoPublishResults.errors.length > 0) {
-        console.log(`[Scraper] Auto-publish errors: ${autoPublishResults.errors.join('; ')}`)
+      console.log(`[Scraper] Auto-publishing ${savedForAutoPublish.length} articles as WebStories...`)
+
+      // Build a map of article URL → full analyzed data from crawler-engine response
+      const analyzedMap = new Map<string, any>()
+      for (const a of articlesData) {
+        if (a.url) analyzedMap.set(a.url, a)
       }
+
+      for (const item of savedForAutoPublish) {
+        try {
+          // Check if WebStory already exists for this URL
+          const existing = await prisma.webStory.findFirst({ where: { sourceUrl: item.url } })
+          if (existing) {
+            await prisma.dailyInsight.update({ where: { id: item.insightId }, data: { status: 'accepted' } }).catch(() => {})
+            continue
+          }
+
+          const analyzed = analyzedMap.get(item.url) || {}
+
+          // Generate unique slug
+          const baseSlug = (analyzed.title || item.title || '').toLowerCase()
+            .replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').substring(0, 80).replace(/^-|-$/g, '')
+          let slug = baseSlug || `article-${Date.now()}`
+          let counter = 1
+          while (await prisma.webStory.findUnique({ where: { slug } })) {
+            slug = `${baseSlug}-${counter}`
+            counter++
+          }
+
+          // Find publication by domain
+          let publicationId: string | null = null
+          try {
+            const domain = new URL(item.url).hostname.replace('www.', '').toLowerCase()
+            const pub = await prisma.webPublication.findFirst({
+              where: { isActive: true, website: { contains: domain } },
+              select: { id: true },
+            })
+            publicationId = pub?.id || null
+          } catch {}
+
+          // Find industry
+          let industryId: string | null = null
+          if (analyzed.suggestedIndustry) {
+            const ind = await prisma.industry.findFirst({
+              where: { name: { equals: analyzed.suggestedIndustry, mode: 'insensitive' } },
+              select: { id: true },
+            })
+            industryId = ind?.id || null
+          }
+
+          // Find sub-industries
+          let subIndustryIds: string[] = []
+          if (analyzed.suggestedSubIndustries?.length) {
+            const subs = await prisma.subIndustry.findMany({
+              where: { name: { in: analyzed.suggestedSubIndustries, mode: 'insensitive' } },
+              select: { id: true },
+            })
+            subIndustryIds = subs.map((s: { id: string }) => s.id)
+          }
+
+          // Determine date
+          let storyDate = new Date()
+          const pd = analyzed.publishDate || analyzed.published_at
+          if (pd) { const d = new Date(pd); if (!isNaN(d.getTime())) storyDate = d }
+
+          // Create WebStory
+          await prisma.webStory.create({
+            data: {
+              title: (analyzed.title || item.title).trim(),
+              slug,
+              content: analyzed.content || null,
+              summary: analyzed.summary || item.description || null,
+              author: analyzed.author || null,
+              sourceUrl: item.url,
+              keywords: analyzed.suggestedKeywords?.join(', ') || item.matchedKeyword || null,
+              date: storyDate,
+              publicationId,
+              industryId,
+              sentimentPositive: analyzed.sentiment?.positive ?? null,
+              sentimentNeutral: analyzed.sentiment?.neutral ?? null,
+              sentimentNegative: analyzed.sentiment?.negative ?? null,
+              overallSentiment: analyzed.overallSentiment ?? null,
+              keyPersonalities: analyzed.keyPersonalities?.join(', ') || null,
+              subIndustries: subIndustryIds.length > 0
+                ? { create: subIndustryIds.map((id: string) => ({ subIndustryId: id })) }
+                : undefined,
+              images: analyzed.images?.length > 0
+                ? { create: analyzed.images.slice(0, 5).map((url: string) => ({ url })) }
+                : undefined,
+            },
+          })
+
+          // Mark insight as accepted
+          await prisma.dailyInsight.update({ where: { id: item.insightId }, data: { status: 'accepted' } }).catch(() => {})
+          autoPublished++
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err)
+          autoPublishErrors.push(`${item.title.substring(0, 40)}: ${msg}`)
+          console.error(`[AutoPublish] Failed: ${msg}`)
+        }
+      }
+
+      console.log(`[Scraper] Auto-published ${autoPublished} WebStories`)
     } else if (autoPublish) {
-      console.log(`[Scraper] Auto-publish ON but no keyword-matched articles to publish (savedForAutoPublish=0)`)
+      console.log(`[Scraper] Auto-publish ON but no keyword-matched articles to publish`)
     }
 
-    const autoMsg = autoPublish && savedForAutoPublish.length > 0
-      ? ` Auto-published ${autoPublishResults.published} as WebStories.`
-      : ''
+    const autoMsg = autoPublished > 0 ? ` Auto-published ${autoPublished} as WebStories.` : ''
 
     return NextResponse.json({
       success: true,
@@ -567,8 +680,8 @@ export async function POST(request: NextRequest) {
         duplicates: duplicateCount,
         skippedNoMatch,
         sources: sources.length,
-        autoPublished: autoPublishResults.published,
-        autoPublishSkipped: autoPublishResults.skipped,
+        autoPublished,
+        autoPublishErrors: autoPublishErrors.length > 0 ? autoPublishErrors : undefined,
       },
     })
   } catch (error) {
