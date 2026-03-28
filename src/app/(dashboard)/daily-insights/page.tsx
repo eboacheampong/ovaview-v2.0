@@ -30,8 +30,37 @@ export default function DailyInsightsPage() {
   const [isClearing, setIsClearing] = useState(false)
   const [scraperMessage, setScraperMessage] = useState<string | null>(null)
   const [scraperStatus, setScraperStatus] = useState<'success' | 'error' | null>(null)
+  const [autoPublish, setAutoPublish] = useState(false)
 
   useEffect(() => { fetchSummary() }, [])
+
+  // Fetch auto-publish setting
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const res = await fetch('/api/scraper-settings')
+        if (res.ok) {
+          const data = await res.json()
+          setAutoPublish(data.settings?.auto_publish_scrapes === 'true')
+        }
+      } catch {}
+    }
+    fetchSettings()
+  }, [])
+
+  const toggleAutoPublish = async () => {
+    const newValue = !autoPublish
+    setAutoPublish(newValue)
+    try {
+      await fetch('/api/scraper-settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'auto_publish_scrapes', value: String(newValue) }),
+      })
+    } catch {
+      setAutoPublish(!newValue)
+    }
+  }
 
   const fetchSummary = async () => {
     try {
@@ -105,7 +134,16 @@ export default function DailyInsightsPage() {
           <h1 className="text-xl lg:text-2xl font-bold text-gray-800">Web Insights</h1>
           <p className="text-gray-500 mt-0.5 text-sm">Review scraped web articles by client</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          <label className="flex items-center gap-2 cursor-pointer" title={autoPublish ? 'Scraped articles will be auto-published as WebStories' : 'Scraped articles will need manual review'}>
+            <span className="text-xs text-gray-500 whitespace-nowrap">{autoPublish ? 'Auto-Publish' : 'Manual Review'}</span>
+            <button
+              onClick={toggleAutoPublish}
+              className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors duration-200 ${autoPublish ? 'bg-emerald-500' : 'bg-gray-300'}`}
+            >
+              <span className={`inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${autoPublish ? 'translate-x-6' : 'translate-x-1'}`} />
+            </button>
+          </label>
           <Button onClick={handleClearInsights} disabled={isClearing || isScraperRunning} variant="outline" className="gap-2 text-red-600 border-red-200 hover:bg-red-50">
             {isClearing ? <><Loader2 className="h-4 w-4 animate-spin" /> Clearing...</> : <><Trash2 className="h-4 w-4" /> Clear Insights</>}
           </Button>

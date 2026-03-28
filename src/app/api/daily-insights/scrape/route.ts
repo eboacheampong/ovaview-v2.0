@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { autoPublishArticles } from '@/lib/auto-publish-service'
 
 export const dynamic = 'force-dynamic'
 
@@ -409,6 +410,7 @@ export async function POST(request: NextRequest) {
     let duplicateCount = 0
     let skippedNoMatch = 0
     const unmatchedArticles: any[] = []
+    const savedForAutoPublish: { insightId: string; title: string; url: string; description: string; source: string; clientId: string; clientName: string; matchedKeyword: string }[] = []
 
     for (const article of recentArticles) {
       try {
@@ -431,7 +433,7 @@ export async function POST(request: NextRequest) {
           if (existing) { duplicateCount++; continue }
 
           const matchedKw = matches.find(m => m.clientId === cid)?.keyword || ''
-          await prisma.dailyInsight.create({
+          const insight = await prisma.dailyInsight.create({
             data: {
               title: title.substring(0, 255), url,
               description: description ? description.substring(0, 1000) : '',
@@ -442,6 +444,17 @@ export async function POST(request: NextRequest) {
             },
           })
           savedCount++
+
+          // Track for auto-publish
+          if (autoPublish) {
+            const clientEntry = clientKeywordData.find(c => c.clientId === cid)
+            savedForAutoPublish.push({
+              insightId: insight.id, title, url,
+              description: description || '', source: source || '',
+              clientId: cid, clientName: clientEntry?.clientName || '',
+              matchedKeyword: matchedKw,
+            })
+          }
         }
       } catch (error) {
         console.error('Pass 1 error:', error)
@@ -494,7 +507,7 @@ export async function POST(request: NextRequest) {
             if (existing) { duplicateCount++; continue }
 
             const matchedKw = matches.find(m => m.clientId === cid)?.keyword || ''
-            await prisma.dailyInsight.create({
+            const insight = await prisma.dailyInsight.create({
               data: {
                 title: (article.title || '').substring(0, 255),
                 url: article.url,
@@ -507,6 +520,16 @@ export async function POST(request: NextRequest) {
             })
             savedCount++
             deepMatched++
+
+            if (autoPublish) {
+              const clientEntry = clientKeywordData.find(c => c.clientId === cid)
+              savedForAutoPublish.push({
+                insightId: insight.id, title: article.title || '', url: article.url,
+                description: article.description || '', source: article.source || '',
+                clientId: cid, clientName: clientEntry?.clientName || '',
+                matchedKeyword: matchedKw,
+              })
+            }
           } catch (error) {
             console.error('Pass 2 save error:', error)
           }
@@ -517,9 +540,21 @@ export async function POST(request: NextRequest) {
     console.log(`[Scraper] Pass 2 done: deep-matched=${deepMatched}, final unmatched=${skippedNoMatch}`)
     console.log(`[Scraper] TOTAL: saved=${savedCount}, dupes=${duplicateCount}, unmatched=${skippedNoMatch}`)
 
+    // 7. AUTO-PUBLISH — if enabled, extract full content + AI analysis → create WebStories
+    let autoPublishResults = { published: 0, skipped: 0, errors: [] as string[] }
+    if (autoPublish && savedForAutoPublish.length > 0) {
+      console.log(`[Scraper] Auto-publishing ${savedForAutoPublish.length} articles...`)
+      autoPublishResults = await autoPublishArticles(savedForAutoPublish, 20)
+      console.log(`[Scraper] Auto-publish: ${autoPublishResults.published} published, ${autoPublishResults.skipped} skipped`)
+    }
+
+    const autoMsg = autoPublish && savedForAutoPublish.length > 0
+      ? ` Auto-published ${autoPublishResults.published} as WebStories.`
+      : ''
+
     return NextResponse.json({
       success: true,
-      message: `Scraped ${sources.length} sources. Saved ${savedCount} articles (${deepMatched} from deep scan), skipped ${duplicateCount} duplicates, ${skippedNoMatch} unmatched.`,
+      message: `Scraped ${sources.length} sources. Saved ${savedCount} articles (${deepMatched} from deep scan), skipped ${duplicateCount} duplicates, ${skippedNoMatch} unmatched.${autoMsg}`,
       stats: {
         scraped: articlesData.length,
         saved: savedCount,
@@ -527,6 +562,8 @@ export async function POST(request: NextRequest) {
         duplicates: duplicateCount,
         skippedNoMatch,
         sources: sources.length,
+        autoPublished: autoPublishResults.published,
+        autoPublishSkipped: autoPublishResults.skipped,
       },
     })
   } catch (error) {
