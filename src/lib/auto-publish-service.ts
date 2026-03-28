@@ -175,19 +175,7 @@ async function autoPublishOne(article: ArticleToPublish): Promise<{ published: b
     return { published: false, reason: 'Could not extract article content' }
   }
 
-  // Step 2: AI relevance check — verify article is actually about this client
-  const textToCheck = `${extracted.title || article.title} ${extracted.textContent || extracted.content}`.substring(0, 2000)
-  const isRelevant = await verifyRelevance(textToCheck, article.clientName, article.matchedKeyword)
-  if (!isRelevant) {
-    // Mark insight back to pending so it can be manually reviewed
-    await prisma.dailyInsight.update({
-      where: { id: article.insightId },
-      data: { status: 'pending' },
-    }).catch(() => {})
-    return { published: false, reason: `AI: not relevant to ${article.clientName}` }
-  }
-
-  // Step 3: AI analysis — summary, sentiment, keywords, industry, personalities
+  // Step 2: AI analysis — summary, sentiment, keywords, industry, personalities
   const analysis = await analyzeArticle(extracted.textContent || extracted.content)
 
   // Step 3: Find publication by domain

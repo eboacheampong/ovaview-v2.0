@@ -422,35 +422,8 @@ export async function POST(request: NextRequest) {
         const uniqueClientIds = Array.from(new Set(matches.map(m => m.clientId)))
 
         if (uniqueClientIds.length === 0) {
-          // When auto-publish is ON, save unmatched articles for ALL clients
-          // so the AI can verify relevance during auto-publish
-          if (autoPublish) {
-            for (const entry of clientKeywordData) {
-              const existing = await prisma.dailyInsight.findFirst({ where: { url, clientId: entry.clientId } })
-              if (existing) { duplicateCount++; continue }
-
-              const insight = await prisma.dailyInsight.create({
-                data: {
-                  title: title.substring(0, 255), url,
-                  description: description ? description.substring(0, 1000) : '',
-                  source: source || '',
-                  industry: industry || 'general',
-                  clientId: entry.clientId, status: 'pending',
-                  scrapedAt: scraped_at ? new Date(scraped_at) : new Date(),
-                },
-              })
-              savedCount++
-              savedForAutoPublish.push({
-                insightId: insight.id, title, url,
-                description: description || '', source: source || '',
-                clientId: entry.clientId, clientName: entry.clientName,
-                matchedKeyword: '',
-              })
-            }
-          } else {
-            // Manual mode: save for Pass 2 deep scan
-            unmatchedArticles.push(article)
-          }
+          // Save for Pass 2 deep scan (regardless of auto-publish mode)
+          unmatchedArticles.push(article)
           continue
         }
 
@@ -573,6 +546,11 @@ export async function POST(request: NextRequest) {
       console.log(`[Scraper] Auto-publishing ${savedForAutoPublish.length} articles...`)
       autoPublishResults = await autoPublishArticles(savedForAutoPublish, 20)
       console.log(`[Scraper] Auto-publish: ${autoPublishResults.published} published, ${autoPublishResults.skipped} skipped`)
+      if (autoPublishResults.errors.length > 0) {
+        console.log(`[Scraper] Auto-publish errors: ${autoPublishResults.errors.join('; ')}`)
+      }
+    } else if (autoPublish) {
+      console.log(`[Scraper] Auto-publish ON but no keyword-matched articles to publish (savedForAutoPublish=0)`)
     }
 
     const autoMsg = autoPublish && savedForAutoPublish.length > 0
