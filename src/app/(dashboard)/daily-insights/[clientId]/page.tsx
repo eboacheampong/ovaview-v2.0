@@ -45,6 +45,8 @@ export default function ClientInsightsPage() {
   const [isSocialScraperRunning, setIsSocialScraperRunning] = useState(false)
   const [scraperMessage, setScraperMessage] = useState<string | null>(null)
   const [scraperStatus, setScraperStatus] = useState<'success' | 'warning' | 'error' | null>(null)
+  const [autoPublish, setAutoPublish] = useState(false)
+  const [loadingSettings, setLoadingSettings] = useState(true)
 
   const fetchArticles = useCallback(async () => {
     try {
@@ -63,6 +65,35 @@ export default function ClientInsightsPage() {
   }, [clientId, statusFilter])
 
   useEffect(() => { fetchArticles() }, [fetchArticles])
+
+  // Fetch auto-publish setting
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const res = await fetch('/api/scraper-settings')
+        if (res.ok) {
+          const data = await res.json()
+          setAutoPublish(data.settings?.auto_publish_scrapes === 'true')
+        }
+      } catch {}
+      setLoadingSettings(false)
+    }
+    fetchSettings()
+  }, [])
+
+  const toggleAutoPublish = async () => {
+    const newValue = !autoPublish
+    setAutoPublish(newValue)
+    try {
+      await fetch('/api/scraper-settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'auto_publish_scrapes', value: String(newValue) }),
+      })
+    } catch {
+      setAutoPublish(!newValue) // revert on error
+    }
+  }
 
   useEffect(() => {
     const fetchClient = async () => {
@@ -238,7 +269,17 @@ export default function ClientInsightsPage() {
             </p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          <label className="flex items-center gap-2 cursor-pointer text-sm" title={autoPublish ? 'Articles will be auto-accepted' : 'Articles will need manual review'}>
+            <span className="text-gray-500 text-xs">{autoPublish ? 'Auto' : 'Manual'}</span>
+            <button
+              onClick={toggleAutoPublish}
+              disabled={loadingSettings}
+              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${autoPublish ? 'bg-emerald-500' : 'bg-gray-300'}`}
+            >
+              <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${autoPublish ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
+            </button>
+          </label>
           <Button onClick={handleRunScraper} disabled={isScraperRunning || isSocialScraperRunning} className="gap-2 bg-orange-500 hover:bg-orange-600" size="sm">
             {isScraperRunning ? (
               <><Loader2 className="h-4 w-4 animate-spin" /> Scraping...</>

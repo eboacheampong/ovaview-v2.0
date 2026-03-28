@@ -395,7 +395,16 @@ export async function POST(request: NextRequest) {
     const skippedOld = articlesData.length - recentArticles.length
     if (skippedOld > 0) console.log(`[Scraper] Filtered out ${skippedOld} articles older than 24h`)
 
-    // 5. PASS 1 — Quick match on title + description + URL
+    // 5. Check auto-publish setting
+    let autoPublish = false
+    try {
+      const setting = await prisma.crawlerConfig.findUnique({ where: { key: 'auto_publish_scrapes' } })
+      autoPublish = setting?.value === 'true'
+    } catch { /* setting doesn't exist yet, default false */ }
+    const insightStatus = autoPublish ? 'accepted' : 'pending'
+    console.log(`[Scraper] Auto-publish: ${autoPublish ? 'ON' : 'OFF'} → saving as '${insightStatus}'`)
+
+    // 6. PASS 1 — Quick match on title + description + URL
     let savedCount = 0
     let duplicateCount = 0
     let skippedNoMatch = 0
@@ -428,7 +437,7 @@ export async function POST(request: NextRequest) {
               description: description ? description.substring(0, 1000) : '',
               source: source || '',
               industry: matchedKw || industry || 'general',
-              clientId: cid, status: 'pending',
+              clientId: cid, status: insightStatus,
               scrapedAt: scraped_at ? new Date(scraped_at) : new Date(),
             },
           })
@@ -492,7 +501,7 @@ export async function POST(request: NextRequest) {
                 description: (article.description || '').substring(0, 1000),
                 source: article.source || '',
                 industry: matchedKw || article.industry || 'general',
-                clientId: cid, status: 'pending',
+                clientId: cid, status: insightStatus,
                 scrapedAt: article.scraped_at ? new Date(article.scraped_at) : new Date(),
               },
             })
