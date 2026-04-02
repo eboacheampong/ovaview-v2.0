@@ -10,7 +10,7 @@ const CRON_SECRET = process.env.CRON_SECRET
  * AI Auto-Publish Cron Endpoint
  * 
  * Processes pending DailyInsights and SocialPosts:
- * 1. Fetches article content via Jina Reader
+ * 1. Fetches article content via direct fetch + Readability
  * 2. AI verifies relevance to client
  * 3. AI extracts all fields (summary, sentiment, keywords, industry, etc.)
  * 4. Creates WebStory or accepts SocialPost automatically

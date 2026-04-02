@@ -5,6 +5,19 @@ const nextConfig = {
   experimental: {
     instrumentationHook: true,
   },
+  // Proxy /api/* to Express backend when NEXT_PUBLIC_API_URL is set
+  async rewrites() {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL
+    if (apiUrl && apiUrl !== 'local') {
+      return [
+        {
+          source: '/api/:path*',
+          destination: `${apiUrl}/:path*`,
+        },
+      ]
+    }
+    return []
+  },
   // Configure webpack for @xenova/transformers (client-side Whisper)
   webpack: (config, { isServer }) => {
     // Only apply these settings for client-side bundle

@@ -84,274 +84,6 @@ async function fetchWithRetry(url: string, retries = 2): Promise<Response> {
   throw lastError || new Error('Failed to fetch after retries')
 }
 
-// Clean markdown content from Jina Reader — strips nav, ads, social links, tracking, etc.
-function cleanJinaMarkdown(content: string, title: string): string {
-  let text = content
-
-  // ---- PHASE 1: Find the article body start ----
-  // Jina output often comes as a wall of text with inline === underlines.
-  // The title appears multiple times; the article body follows the LAST
-  // occurrence of the title (usually with ===+ underline).
-  if (title && title.length > 10) {
-    const titleLower = title.toLowerCase().trim()
-    const textLower = text.toLowerCase()
-
-    // Find ALL occurrences of the title
-    const indices: number[] = []
-    let searchFrom = 0
-    while (true) {
-      const idx = textLower.indexOf(titleLower, searchFrom)
-      if (idx === -1) break
-      indices.push(idx)
-      searchFrom = idx + titleLower.length
-    }
-
-    if (indices.length > 0) {
-      // Use the LAST occurrence — it's closest to the article body
-      const lastIdx = indices[indices.length - 1]
-      const afterTitle = lastIdx + title.length
-
-      // Skip past any === underline that follows (may be on same line with spaces)
-      const afterTitleText = text.slice(afterTitle)
-      const underlineMatch = afterTitleText.match(/^\s*=+\s*/)
-      if (underlineMatch) {
-        text = text.slice(afterTitle + underlineMatch[0].length)
-      } else {
-        text = text.slice(afterTitle)
-      }
-    }
-  }
-
-  // ---- PHASE 2: Cut at footer/junk markers ----
-  // Try the earliest match among all footer patterns (not just first pattern that matches)
-  const footerPatterns: Array<{ pattern: RegExp; minPos: number }> = [
-    { pattern: /\*\*President [A-Z]/,          minPos: 100 },
-    { pattern: /\*\*Chaos at /,                minPos: 100 },
-    { pattern: /\*\*Ghana Armed Forces/,       minPos: 100 },
-    { pattern: /\*\*Watch the promo/,          minPos: 100 },
-    { pattern: /\*\*Watch citizens/,           minPos: 100 },
-    { pattern: /\*\*Comments:\*\*/i,           minPos: 100 },
-    { pattern: /This article has \d+ ?comment/i, minPos: 100 },
-    { pattern: /Navigation Links/i,            minPos: 100 },
-    { pattern: /Useful links/i,                minPos: 100 },
-    { pattern: /Download Our App/i,            minPos: 100 },
-    { pattern: /Copyright ©/i,                 minPos: 100 },
-    { pattern: /\bRelated Articles?\b/i,       minPos: 100 },
-    { pattern: /\bYou may also like\b/i,       minPos: 100 },
-    { pattern: /\bMore stories\b/i,            minPos: 100 },
-    { pattern: /### News!\[/,                  minPos: 100 },
-    { pattern: /### Sports!\[/,                minPos: 100 },
-    { pattern: /### Entertainment!\[/,         minPos: 100 },
-    { pattern: /### Africa!\[/,                minPos: 100 },
-    { pattern: /### Opinions!\[/,              minPos: 100 },
-    { pattern: /Nominate now/i,                minPos: 100 },
-    { pattern: /_The wait is over!/i,          minPos: 100 },
-    { pattern: /\* {0,3}Tags\b/,              minPos: 100 },
-    { pattern: /Tags:[A-Z]/,                  minPos: 100 },
-    { pattern: /\bLEAVE A REPLY\b/i,          minPos: 100 },
-    { pattern: /\bRELATED ARTICLES\b/i,        minPos: 100 },
-    { pattern: /\bRelated\*\*Posts\*\*/i,      minPos: 100 },
-    { pattern: /\bPrevious article\b/i,        minPos: 100 },
-    { pattern: /\bPrevious Post\b/i,           minPos: 100 },
-    { pattern: /\bNext Post\b/i,               minPos: 100 },
-    { pattern: /\bMost Popular\b/i,            minPos: 100 },
-    { pattern: /\bRecent Comments\b/i,         minPos: 100 },
-    { pattern: /\bADVERTISEMENT\b/,           minPos: 100 },
-    { pattern: /- Advertisment -/i,            minPos: 100 },
-    { pattern: /\bABOUT US\b/,                minPos: 100 },
-    { pattern: /\bFOLLOW US\b/,               minPos: 100 },
-    { pattern: /#### Explore\b/,               minPos: 100 },
-    { pattern: /#### Green Economy\b/,         minPos: 100 },
-    { pattern: /#### Sustainability\b/,        minPos: 100 },
-    { pattern: /\bLoad more\b/i,               minPos: 100 },
-    { pattern: /\bNo Result\b/i,               minPos: 100 },
-    { pattern: /\bView All Result\b/i,         minPos: 100 },
-    { pattern: /All Rights Reserved/i,         minPos: 100 },
-    { pattern: /Get the news that matters!/i,  minPos: 100 },
-  ]
-
-  let earliestCut = text.length
-  for (const { pattern, minPos } of footerPatterns) {
-    const match = text.match(pattern)
-    if (match?.index !== undefined && match.index > minPos && match.index < earliestCut) {
-      earliestCut = match.index
-    }
-  }
-  if (earliestCut < text.length) {
-    text = text.slice(0, earliestCut)
-  }
-
-  // ---- PHASE 4: Strip all markdown artifacts ----
-
-  // Remove image-linked elements: [![...](...)(...)](...)
-  text = text.replace(/\[!\[[^\]]*\]\([^)]*\)\]\([^)]*\)/g, '')
-
-  // Remove markdown images: ![...](...)
-  text = text.replace(/!\[[^\]]*\]\([^)]*\)/g, '')
-
-  // Remove empty links: [](...)
-  text = text.replace(/\[\]\([^)]*\)/g, '')
-
-  // Remove social share links
-  text = text.replace(/\[(Facebook|Twitter|Pinterest|WhatsApp|LinkedIn|Share|More)\]\([^)]*\)/gi, '')
-
-  // Remove navigation links
-  text = text.replace(/\[«\s*Prev\]\([^)]*\)/gi, '')
-  text = text.replace(/\[Next\s*»\]\([^)]*\)/gi, '')
-  text = text.replace(/\[Comments?\s*\(\d+\)\]\([^)]*\)/gi, '')
-  text = text.replace(/\[Listen to Article\]\([^)]*\)/gi, '')
-  text = text.replace(/\[Disclaimer\]\([^)]*\)/gi, '')
-
-  // Remove "Share:" prefix
-  text = text.replace(/\*\s*Share:\s*/g, '')
-
-  // Remove "Source:" lines
-  text = text.replace(/\*\*Source:\*\*[^.]*?\./g, '')
-
-  // Remove date lines like "Business News of Tuesday, 18 November 2025"
-  text = text.replace(/Business News of [A-Za-z]+,\s*\d+\s+[A-Za-z]+\s+\d{4}/g, '')
-
-  // Remove date links [2025-11-18](...)
-  text = text.replace(/\[\d{4}-\d{2}-\d{2}\]\([^)]*\)/g, '')
-
-  // Remove breadcrumbs
-  text = text.replace(/You are here:[^.]*?\./gi, '')
-  text = text.replace(/\*\*Article \d+\*\*/g, '')
-
-  // Remove image captions stuck to article start (e.g. "Dr Cassiel Forson (R) and some delegations")
-  // These are typically short descriptive text right before the article body starts with a proper sentence
-  // We handle this by looking for the pattern: caption text followed by a proper sentence start
-
-  // Remove "Ads by" text
-  text = text.replace(/x?\s*Ads by[^\n]*/gi, '')
-
-  // Remove [See also ...] cross-links (Surveillance Ghana pattern)
-  text = text.replace(/\[See also [^\]]*\]\([^)]*\)/gi, '')
-
-  // Remove "Author:" bylines at end of articles
-  text = text.replace(/Author:\s*[^\n]*/gi, '')
-
-  // Remove reading time / byline metadata
-  text = text.replace(/Reading Time:\s*\d+\s*min read/gi, '')
-  text = text.replace(/by[A-Z][a-zA-Z]+\s+[A-Z][a-zA-Z]+\s*$/gm, '')
-
-  // Remove "Share" standalone word
-  text = text.replace(/(?:^|\s)Share(?:\s|$)/g, ' ')
-
-  // Remove category breadcrumbs like [Agribusiness][Headline]
-  text = text.replace(/\[(Agribusiness|Headline|Featured|Breaking|Opinion|Editorial)\]\([^)]*\)/gi, '')
-
-  // Remove "Tweet" standalone
-  text = text.replace(/\bTweet\b/g, '')
-
-  // Remove "0" standalone (share count)
-  text = text.replace(/(?:^|\n)\s*0\s*(?:\n|$)/g, '\n')
-
-  // Remove "Search" standalone
-  text = text.replace(/(?:^|\n)\s*Search\s*(?:\n|$)/g, '\n')
-
-  // Remove Taboola/sponsored junk
-  text = text.replace(/\[Sponsored\]\([^)]*\)/gi, '')
-  text = text.replace(/\bSponsored\b/g, '')
-  text = text.replace(/\bUndo\b/g, '')
-  text = text.replace(/\bFANYIL\b/g, '')
-  text = text.replace(/\btaboola\b/gi, '')
-  text = text.replace(/\bDiscover\b/g, '')
-  text = text.replace(/\bRead More\b/g, '')
-  text = text.replace(/\bLearn More\b/g, '')
-  text = text.replace(/\bShop Now\b/g, '')
-  text = text.replace(/\bSkip\b/g, '')
-
-  // Remove login/signup/register modal text
-  text = text.replace(/Sign in to continue/gi, '')
-  text = text.replace(/Sign up to get started/gi, '')
-  text = text.replace(/Already have an account\?/gi, '')
-  text = text.replace(/New here\?/gi, '')
-  text = text.replace(/Forgot password\?/gi, '')
-  text = text.replace(/SIGN IN\s*=+/gi, '')
-  text = text.replace(/RESET PASSWORD\s*=+/gi, '')
-  text = text.replace(/REGISTER\s*=+/gi, '')
-  text = text.replace(/Welcome,\s*=+/gi, '')
-  text = text.replace(/Hello,\s*=+/gi, '')
-
-  // Remove terms and conditions blocks
-  text = text.replace(/### Terms and conditions[\s\S]*?Terms & Privacy Policy/gi, '')
-
-  // Remove comment form text
-  text = text.replace(/Comment:\s*Please enter your comment!/gi, '')
-  text = text.replace(/Name:\*\s*Please enter your name here/gi, '')
-  text = text.replace(/Email:\*\s*You have entered an incorrect email address!/gi, '')
-  text = text.replace(/Please enter your email address here/gi, '')
-  text = text.replace(/Website:\s*/gi, '')
-  text = text.replace(/- \[x\] Save my name.*?next time I comment\./gi, '')
-  text = text.replace(/Cancel reply/gi, '')
-
-  // Remove WhatsApp channel promos
-  text = text.replace(/Get the news that matters![^\n]*/gi, '')
-  text = text.replace(/Join Here:[^\n]*/gi, '')
-
-  // Remove form field labels
-  text = text.replace(/\*\s*(Surname|Other names|Email|Phone|Select your date of birth|Gender|Do you accept the terms\?)\s*/gi, '')
-
-  // Remove heading underlines (orphaned === or ---)
-  text = text.replace(/\s*={3,}\s*/g, ' ')
-  text = text.replace(/\s*-{3,}\s*/g, ' ')
-
-  // Remove any remaining markdown links but KEEP the link text if it looks like article content
-  // Only strip links where the text is a nav-style label (not a sentence fragment)
-  text = text.replace(/\[([^\]]*)\]\(https?:\/\/[^)]+\)/g, (match, linkText: string) => {
-    const t = linkText.trim()
-    // Keep link text if it's part of a sentence (has spaces and lowercase words)
-    if (t.length > 50 && t.includes(' ')) return t
-    // Remove if it looks like a nav item, button, or short label
-    if (t.length < 5) return ''
-    // Remove if it's a site section name
-    if (/^(Home|News|Sports|Business|Entertainment|Africa|Opinions|More|Login|Sign up|Sitemap|Partners|About Us|FAQ|Advertising|Privacy Policy|Contact Us|Newsletter|Editorial Team|Archives|Marketplace|Property|Podcast|Don't Miss|Lifestyle|Events|How To Spend|Load more|No Result|View All Result|Terms of Use|Breaking News|Explainers|Listen Live|Submit an Opinion)$/i.test(t)) return ''
-    // Remove if it starts with "Image" (image alt text)
-    if (/^Image \d+/i.test(t)) return ''
-    // Otherwise keep the text (it might be meaningful)
-    return t
-  })
-
-  // Remove bullet list items that are just links
-  text = text.replace(/\*\s+\[[^\]]+\]\([^)]+\)\s*/g, '')
-
-  // Remove standalone heading-style section names
-  text = text.replace(/#{1,3}\s*(Home|News|Sports|Business|Entertainment|Africa|Opinions|Cartoon|Country|Memories|Cartoons|Say It Loud|GhanaWeb TV|Agribusiness|Headline|Featured|Sustainability|Climate Change|Artificial Intelligence|Renewable Energy|Mining|Education|Technology|Entrepreneurship|Insurance|Crypto Currency)\s*/gi, '')
-
-  // Remove "x" close buttons (standalone)
-  text = text.replace(/\bx\b(?=\s+[A-Z])/g, '')
-
-  // Remove standalone dates that are part of related article listings
-  // (e.g., "11 March 2026" or "March 11, 2026" on their own)
-  text = text.replace(/(?:^|\n)\s*\d{1,2}\s+(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4}\s*(?:\n|$)/gi, '\n')
-  text = text.replace(/(?:^|\n)\s*(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s+\d{4}\s*(?:\n|$)/gi, '\n')
-
-  // Remove tracking pixel images (long base64/encoded URLs)
-  text = text.replace(/!\[Image \d+\]\([^)]{200,}\)/g, '')
-
-  // ---- PHASE 5: Final cleanup ----
-  // Collapse multiple spaces into one
-  text = text.replace(/[ \t]+/g, ' ')
-
-  // Collapse multiple newlines
-  text = text.replace(/\n\s*\n\s*\n/g, '\n\n')
-
-  // Trim
-  text = text.trim()
-
-  // Remove tiny fragments (less than 3 chars per line)
-  text = text.split('\n').filter(line => {
-    const t = line.trim()
-    if (t.length === 0) return true
-    if (t.length < 3) return false
-    if (/^[*\-_=|#>\s]+$/.test(t)) return false
-    return true
-  }).join('\n')
-
-  return text.replace(/\n{3,}/g, '\n\n').trim()
-}
-
 
 
 
@@ -487,96 +219,6 @@ function extractFromHTML(html: string, url: string): any {
   }
 }
 
-// Fallback: use Jina Reader API for JS-rendered sites
-async function fetchViaJinaReader(url: string): Promise<{ title: string; content: string; textContent: string; author: string; publishDate: string; images: string[] } | null> {
-  try {
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 20000)
-
-    const headers: Record<string, string> = {
-      'Accept': 'application/json',
-      'X-Return-Format': 'json',
-      'X-No-Cache': 'true',
-    }
-
-    // Use API key if available — authenticated requests bypass anonymous rate limits
-    const jinaApiKey = process.env.JINA_API_KEY
-    if (jinaApiKey) {
-      headers['Authorization'] = `Bearer ${jinaApiKey}`
-    }
-
-    const response = await fetch(`https://r.jina.ai/${url}`, {
-      signal: controller.signal,
-      headers,
-    })
-
-    clearTimeout(timeoutId)
-
-    if (!response.ok) {
-      // Try to read error body for better diagnostics
-      try {
-        const errBody = await response.json()
-        const errMsg = errBody?.message || errBody?.readableMessage || `HTTP ${response.status}`
-        console.log(`Jina Reader returned ${response.status}:`, errMsg)
-      } catch {
-        console.log(`Jina Reader returned ${response.status}`)
-      }
-      return null
-    }
-
-    const data = await response.json()
-
-    // Handle Jina error responses that come with 200 status but null data
-    if (!data?.data) {
-      console.log('Jina Reader returned empty data:', data?.message || data?.readableMessage || 'unknown')
-      return null
-    }
-
-    const rawContent = data.data.content || ''
-    const title = data.data.title || ''
-
-    if (rawContent.trim().length < 100) return null
-
-    // Clean the Jina markdown output
-    const cleanedContent = cleanJinaMarkdown(rawContent, title)
-
-    if (cleanedContent.trim().length < 100) return null
-
-    // Convert cleaned markdown to simple HTML paragraphs for consistency
-    const htmlContent = cleanedContent
-      .split('\n\n')
-      .filter((p: string) => p.trim().length > 0)
-      .map((p: string) => {
-        const trimmed = p.trim()
-        // Skip lines that are just markdown headings used as section breaks
-        if (/^#+\s/.test(trimmed)) {
-          const headingText = trimmed.replace(/^#+\s*/, '')
-          return `<h3>${headingText}</h3>`
-        }
-        return `<p>${trimmed}</p>`
-      })
-      .join('\n')
-
-    const textContent = cleanedContent
-      .replace(/!\[.*?\]\(.*?\)/g, '') // Remove image markdown
-      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Convert links to text
-      .replace(/[#*_~`]/g, '') // Remove markdown formatting
-      .replace(/\n{2,}/g, '\n\n')
-      .trim()
-
-    return {
-      title,
-      content: htmlContent,
-      textContent,
-      author: data.data?.author || '',
-      publishDate: data.data?.publishedTime || '',
-      images: data.data?.images || [],
-    }
-  } catch (err) {
-    console.log('Jina Reader fallback failed:', err instanceof Error ? err.message : 'unknown error')
-    return null
-  }
-}
 
 // Extract content from Next.js RSC (React Server Components) pages
 function extractFromNextJsRSC(document: any, url: string): any {
@@ -888,7 +530,6 @@ export async function POST(request: NextRequest) {
 
     // ---- STEP 2: Try local extraction (Readability → RSC → fallback) ----
     let extractedContent: any = null
-    let usedJina = false
 
     if (!fetchFailed && html!) {
       // Parse HTML using linkedom
@@ -945,27 +586,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // ---- STEP 5: If all else failed, try Jina Reader (handles JS-rendered sites) ----
-    if (!extractedContent || !extractedContent.content || extractedContent.content.trim().length < 100) {
-      console.log('Cache fallbacks failed, trying Jina Reader for:', url)
-      const jinaResult = await fetchViaJinaReader(url)
-
-      if (jinaResult && jinaResult.content.length >= 100) {
-        usedJina = true
-        extractedContent = {
-          title: jinaResult.title,
-          content: jinaResult.content,
-          textContent: jinaResult.textContent,
-          excerpt: jinaResult.textContent.slice(0, 200),
-          byline: jinaResult.author,
-          siteName: extractSiteName({ querySelector: () => null }, url),
-          publishDate: jinaResult.publishDate,
-          jinaImages: jinaResult.images || [],
-        }
-      }
-    }
-
-    // ---- STEP 6: If everything failed, return helpful error ----
+    // ---- STEP 5: If everything failed, return helpful error ----
     if (!extractedContent || !extractedContent.content) {
       let errorMsg = 'Could not extract article content.'
       if (fetchFailed) {
@@ -976,7 +597,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: errorMsg }, { status: 400 })
     }
 
-    // ---- STEP 7: Extract metadata ----
+    // ---- STEP 6: Extract metadata ----
     // Re-parse HTML for metadata extraction — prefer direct fetch, fall back to cached HTML
     let metaDoc: any = null
     const metaHtml = (!fetchFailed && html!) ? html : cacheHtml
@@ -1054,39 +675,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // If no images from meta tags and Jina was used, extract from Jina response
-    if (images.length === 0 && usedJina && extractedContent.jinaImages?.length > 0) {
-      // Jina images array — filter for likely article images (skip tiny icons/logos)
-      for (const imgUrl of extractedContent.jinaImages) {
-        if (imgUrl && typeof imgUrl === 'string' && imgUrl.startsWith('http') && !images.includes(imgUrl)) {
-          // Skip common non-article images (logos, icons, tracking pixels)
-          const lower = imgUrl.toLowerCase()
-          if (lower.includes('logo') || lower.includes('icon') || lower.includes('favicon') ||
-              lower.includes('pixel') || lower.includes('tracking') || lower.includes('primis.tech') ||
-              lower.includes('1x1') || lower.includes('spacer')) continue
-          images.push(imgUrl)
-        }
-      }
-    }
-
-    // Last resort: extract image URLs from the raw Jina markdown content
-    if (images.length === 0 && usedJina) {
-      const imgRegex = /!\[[^\]]*\]\((https?:\/\/[^)]+)\)/g
-      const rawContent = extractedContent.content || ''
-      let imgMatch
-      while ((imgMatch = imgRegex.exec(rawContent)) !== null) {
-        const imgUrl = imgMatch[1]
-        const lower = imgUrl.toLowerCase()
-        if (lower.includes('logo') || lower.includes('icon') || lower.includes('favicon') ||
-            lower.includes('primis.tech') || lower.includes('1x1') || lower.includes('spacer') ||
-            lower.includes('searchIcon') || lower.includes('design/newtop')) continue
-        if (!images.includes(imgUrl)) images.push(imgUrl)
-      }
-    }
-
-    // ---- STEP 8: Clean content (skip if Jina already cleaned it) ----
+    // ---- STEP 7: Clean content ----
     let cleanedContent = extractedContent.content || ''
-    if (!usedJina && cleanedContent) {
+    if (cleanedContent) {
       try {
         const { document: contentDoc } = parseHTML(cleanedContent)
 

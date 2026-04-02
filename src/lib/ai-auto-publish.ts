@@ -98,33 +98,7 @@ async function fetchArticleContent(url: string): Promise<{
   title: string; content: string; author: string; date: string; image: string; publication: string
 } | null> {
   try {
-    // Try Jina Reader first (best quality)
-    const jinaKey = process.env.JINA_API_KEY
-    if (jinaKey) {
-      const jinaRes = await fetch(`https://r.jina.ai/${url}`, {
-        headers: {
-          'Authorization': `Bearer ${jinaKey}`,
-          'Accept': 'application/json',
-          'X-Return-Format': 'json',
-        },
-        signal: AbortSignal.timeout(15000),
-      })
-      if (jinaRes.ok) {
-        const jina = await jinaRes.json()
-        if (jina.data?.content && jina.data.content.length > 100) {
-          return {
-            title: jina.data.title || '',
-            content: jina.data.content.substring(0, 5000),
-            author: jina.data.author || '',
-            date: jina.data.publishedTime || '',
-            image: jina.data.image || '',
-            publication: jina.data.siteName || new URL(url).hostname.replace('www.', ''),
-          }
-        }
-      }
-    }
-
-    // Fallback: direct fetch + parse
+    // Direct fetch + parse
     const res = await fetch(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
