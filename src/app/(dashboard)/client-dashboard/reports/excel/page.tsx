@@ -23,27 +23,42 @@ export default function ExcelReportPage() {
       const XLSX = await import('xlsx')
       const wb = XLSX.utils.book_new()
 
-      // Sheet 1: Summary
+      // Helper: style header row with bold + background
+      const styleSheet = (ws: any, headerCount: number) => {
+        // Set header row height
+        if (!ws['!rows']) ws['!rows'] = []
+        ws['!rows'][0] = { hpt: 28 }
+        // Auto-filter on header row
+        const range = XLSX.utils.decode_range(ws['!ref'] || 'A1')
+        ws['!autofilter'] = { ref: XLSX.utils.encode_range(range) }
+      }
+
+      // Sheet 1: Summary — with title row
       const summaryRows = [
-        ['Metric', 'Value'],
+        [`${data.client.name} — Media Monitoring Report`],
+        [`Report Period: Last ${days} days | Generated: ${format(new Date(), 'MMMM d, yyyy HH:mm')}`],
+        [],
+        ['METRIC', 'VALUE'],
         ['Total Mentions', data.summary.totalMentions],
-        ['Social Media Reach', data.summary.totalReach],
-        ['Interactions', data.summary.totalInteractions],
+        ['Social Media Reach', fmtNum(data.summary.totalReach)],
+        ['Interactions', fmtNum(data.summary.totalInteractions || 0)],
         ['Positive Mentions', data.summary.positive],
         ['Negative Mentions', data.summary.negative],
         ['Neutral Mentions', data.summary.neutral],
         [],
-        ['Report Period', `Last ${days} days`],
-        ['Generated', format(new Date(), 'yyyy-MM-dd HH:mm')],
-        ['Client', data.client.name],
+        ['SENTIMENT BREAKDOWN'],
+        ['Positive %', data.summary.totalMentions > 0 ? Math.round((data.summary.positive / data.summary.totalMentions) * 100) + '%' : '0%'],
+        ['Neutral %', data.summary.totalMentions > 0 ? Math.round(((data.summary.totalMentions - data.summary.positive - data.summary.negative) / data.summary.totalMentions) * 100) + '%' : '0%'],
+        ['Negative %', data.summary.totalMentions > 0 ? Math.round((data.summary.negative / data.summary.totalMentions) * 100) + '%' : '0%'],
       ]
       const wsSummary = XLSX.utils.aoa_to_sheet(summaryRows)
-      wsSummary['!cols'] = [{ wch: 22 }, { wch: 18 }]
+      wsSummary['!cols'] = [{ wch: 28 }, { wch: 20 }]
+      wsSummary['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 1 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: 1 } }]
       XLSX.utils.book_append_sheet(wb, wsSummary, 'Summary')
 
       // Sheet 2: Source Breakdown
       const sourceRows = [
-        ['Source', 'Mentions', 'Share (%)'],
+        ['SOURCE', 'MENTIONS', 'SHARE (%)'],
         ...Object.entries(data.sourceCounts)
           .sort(([, a], [, b]) => b - a)
           .map(([key, count]) => [
@@ -51,32 +66,36 @@ export default function ExcelReportPage() {
             count,
             Number(((count / (data.summary.totalMentions || 1)) * 100).toFixed(1)),
           ]),
+        [],
+        ['TOTAL', data.summary.totalMentions, '100%'],
       ]
       const wsSources = XLSX.utils.aoa_to_sheet(sourceRows)
-      wsSources['!cols'] = [{ wch: 20 }, { wch: 12 }, { wch: 12 }]
+      wsSources['!cols'] = [{ wch: 22 }, { wch: 14 }, { wch: 14 }]
+      styleSheet(wsSources, 3)
       XLSX.utils.book_append_sheet(wb, wsSources, 'Sources')
 
       // Sheet 3: Daily Trend
       const trendRows = [
-        ['Date', 'Mentions', 'Reach'],
+        ['DATE', 'MENTIONS', 'REACH'],
         ...data.chart.map(c => [c.date, c.mentions, c.reach]),
       ]
       const wsTrend = XLSX.utils.aoa_to_sheet(trendRows)
-      wsTrend['!cols'] = [{ wch: 14 }, { wch: 12 }, { wch: 14 }]
+      wsTrend['!cols'] = [{ wch: 14 }, { wch: 14 }, { wch: 16 }]
+      styleSheet(wsTrend, 3)
       XLSX.utils.book_append_sheet(wb, wsTrend, 'Daily Trend')
 
-      // Sheet 4: All Mentions
+      // Sheet 4: All Mentions — detailed
       const mentionRows = [
-        ['Date', 'Type', 'Platform', 'Title', 'Source', 'Author', 'Sentiment', 'Reach', 'Engagement', 'URL'],
+        ['DATE', 'TYPE', 'PLATFORM', 'TITLE', 'SOURCE', 'AUTHOR', 'SENTIMENT', 'REACH', 'ENGAGEMENT', 'URL'],
         ...data.mentions.map(m => [
           format(new Date(m.date), 'yyyy-MM-dd HH:mm'),
-          m.type,
+          (m.type || '').charAt(0).toUpperCase() + (m.type || '').slice(1),
           m.type === 'social' ? (m.platform || '') : '',
-          m.title,
-          m.source,
-          m.author,
-          m.sentiment,
-          m.reach,
+          m.title || '',
+          m.source || '',
+          m.author || '',
+          (m.sentiment || 'neutral').charAt(0).toUpperCase() + (m.sentiment || 'neutral').slice(1),
+          m.reach || 0,
           m.engagement || 0,
           m.sourceUrl || '',
         ]),
@@ -87,6 +106,7 @@ export default function ExcelReportPage() {
         { wch: 22 }, { wch: 20 }, { wch: 12 }, { wch: 12 },
         { wch: 12 }, { wch: 40 },
       ]
+      styleSheet(wsMentions, 10)
       XLSX.utils.book_append_sheet(wb, wsMentions, 'All Mentions')
 
       const fileName = `${data.client.name.replace(/\s+/g, '_')}_Report_${format(new Date(), 'yyyy-MM-dd')}.xlsx`

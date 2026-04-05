@@ -167,7 +167,7 @@ export default function PdfReportPage() {
   const [sentimentFilter, setSentimentFilter] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [sectionSearch, setSectionSearch] = useState('')
-  const [includeInsights, setIncludeInsights] = useState(true)
+  const [includeInsights, setIncludeInsights] = useState(false)
   const [reportData, setReportData] = useState<ReportData | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
@@ -948,6 +948,15 @@ export default function PdfReportPage() {
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          {/* AI Insights Toggle — prominent */}
+          <button onClick={() => setIncludeInsights(!includeInsights)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-all ${includeInsights ? 'bg-purple-50 border-purple-300 text-purple-700' : 'bg-gray-50 border-gray-200 text-gray-500'}`}>
+            <Sparkles className={`h-4 w-4 ${includeInsights ? 'text-purple-500' : 'text-gray-400'}`} />
+            AI Insights {includeInsights ? 'ON' : 'OFF'}
+            <div className={`w-8 h-4 rounded-full transition-colors relative ${includeInsights ? 'bg-purple-500' : 'bg-gray-300'}`}>
+              <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-transform ${includeInsights ? 'translate-x-4' : 'translate-x-0.5'}`} />
+            </div>
+          </button>
           <button
             onClick={() => setShowPreview(!showPreview)}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm border border-gray-200 bg-white hover:bg-gray-50 text-gray-600 transition-colors"
