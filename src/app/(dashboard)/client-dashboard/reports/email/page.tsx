@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Loader2, Mail, Clock, CheckCircle, AlertCircle, Send } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { format } from 'date-fns'
@@ -20,7 +20,23 @@ export default function EmailReportsPage() {
   const [sending, setSending] = useState(false)
   const [sent, setSent] = useState(false)
   const [error, setError] = useState('')
-  const [history] = useState<SentReport[]>([])
+  const [history, setHistory] = useState<SentReport[]>([])
+
+  // Fetch report history
+  useEffect(() => {
+    fetch('/api/logs/email?limit=20')
+      .then(r => r.ok ? r.json() : { data: [] })
+      .then(d => {
+        setHistory((d.data || []).map((log: any) => ({
+          id: log.id,
+          sentAt: log.sentAt,
+          recipients: log.recipient,
+          period: log.subject?.includes('Monthly') ? 'Monthly' : log.subject?.includes('Weekly') ? 'Weekly' : 'Daily',
+          status: log.status === 'sent' ? 'sent' : 'failed',
+        })))
+      })
+      .catch(() => {})
+  }, [])
 
   const handleSendNow = async () => {
     if (!email.trim()) { setError('Please enter an email address'); return }
@@ -40,6 +56,10 @@ export default function EmailReportsPage() {
       if (res.ok) {
         setSent(true)
         setTimeout(() => setSent(false), 5000)
+        // Refresh history
+        fetch('/api/logs/email?limit=20').then(r => r.ok ? r.json() : { data: [] }).then(d => {
+          setHistory((d.data || []).map((log: any) => ({ id: log.id, sentAt: log.sentAt, recipients: log.recipient, period: log.subject?.includes('Monthly') ? 'Monthly' : log.subject?.includes('Weekly') ? 'Weekly' : 'Daily', status: log.status === 'sent' ? 'sent' : 'failed' })))
+        }).catch(() => {})
       } else {
         const data = await res.json().catch(() => ({}))
         setError(data.error || 'Failed to send report')
