@@ -410,12 +410,12 @@ export default function PdfReportPage() {
 
         // KPI cards - bigger
         const kpis = [
-          { l: 'Total Mentions', v: s.totalMentions.toString(), c: [31,41,55] },
+          { l: 'Total Mentions', v: (s.totalMentions || 0).toString(), c: [31,41,55] },
           { l: 'Media Reach', v: fmtNum(s.totalReach), c: [31,41,55] },
           { l: 'Interactions', v: fmtNum(s.totalInteractions), c: [31,41,55] },
-          { l: 'Positive', v: s.positive.toString(), c: [16,185,129] },
-          { l: 'Negative', v: s.negative.toString(), c: [239,68,68] },
-          { l: 'Neutral', v: s.neutral.toString(), c: [107,114,128] },
+          { l: 'Positive', v: (s.positive || 0).toString(), c: [16,185,129] },
+          { l: 'Negative', v: (s.negative || 0).toString(), c: [239,68,68] },
+          { l: 'Neutral', v: (s.neutral || 0).toString(), c: [107,114,128] },
         ]
         kpis.forEach((k, i) => {
           const kx = 0.6 + i * 2.0, ky = 1.5
@@ -493,7 +493,7 @@ export default function PdfReportPage() {
           doc.setDrawColor(229,231,235); doc.setLineWidth(0.01); doc.roundedRect(cx, cy, cW, cH, 0.08, 0.08, 'S')
           doc.setFontSize(13); doc.setTextColor(BRAND.r, BRAND.g, BRAND.b); doc.setFont('helvetica','bold')
           doc.text(ms.type, cx + 0.2, cy + 0.4)
-          doc.setFontSize(30); doc.setTextColor(31,41,55); doc.text(ms.mentions.toString(), cx + 0.2, cy + 1.0)
+          doc.setFontSize(30); doc.setTextColor(31,41,55); doc.text((ms.mentions || 0).toString(), cx + 0.2, cy + 1.0)
           doc.setFontSize(10); doc.setTextColor(107,114,128); doc.setFont('helvetica','normal')
           doc.text('mentions', cx + 0.2, cy + 1.3)
           doc.setFontSize(11); doc.setTextColor(75,85,99)
@@ -654,7 +654,7 @@ export default function PdfReportPage() {
           const lbl = src.name.length > 14 ? src.name.slice(0, 13) + '…' : src.name
           doc.text(lbl, bx + barW / 2, chartY + chartH2 + 0.2, { align: 'center' })
           doc.setFontSize(8); doc.setTextColor(31,41,55); doc.setFont('helvetica','bold')
-          doc.text(src.count.toString(), bx + barW / 2, by - 0.1, { align: 'center' })
+          doc.text((src.count || 0).toString(), bx + barW / 2, by - 0.1, { align: 'center' })
           doc.setFont('helvetica','normal')
         })
         if (hasInsights && data.insights.top_sources) {
@@ -679,7 +679,7 @@ export default function PdfReportPage() {
           const c = CC[i % CC.length]
           doc.setFillColor(c[0], c[1], c[2]); doc.roundedRect(barX, y, bw, barH, 0.04, 0.04, 'F')
           doc.setFontSize(9); doc.setTextColor(31,41,55); doc.setFont('helvetica','bold')
-          doc.text(kw.count.toString(), barX + bw + 0.15, y + 0.22)
+          doc.text((kw.count || 0).toString(), barX + bw + 0.15, y + 0.22)
           // Sentiment mini bar
           const sbX = 11.0, sbW = 1.5
           const tot = kw.positive + kw.neutral + kw.negative || 1
@@ -761,10 +761,10 @@ export default function PdfReportPage() {
           head: [['#', 'Name', 'Outlet', 'Articles', 'Reach']],
           body: data.topJournalists.slice(0, 15).map((j, i) => [
             (i + 1).toString(),
-            j.name.length > 30 ? j.name.slice(0, 29) + '…' : j.name,
-            j.outlet.length > 25 ? j.outlet.slice(0, 24) + '…' : j.outlet,
-            j.count.toString(),
-            fmtNum(j.reach),
+            (j.name || '').length > 30 ? (j.name || '').slice(0, 29) + '…' : (j.name || ''),
+            (j.outlet || '').length > 25 ? (j.outlet || '').slice(0, 24) + '…' : (j.outlet || ''),
+            (j.count || j.articles || 0).toString(),
+            fmtNum(j.reach || 0),
           ]),
           theme: 'striped',
           headStyles: {
@@ -809,7 +809,7 @@ export default function PdfReportPage() {
           else { const cc = CC[(i - 1) % CC.length]; doc.setFillColor(cc[0], cc[1], cc[2]) }
           doc.roundedRect(barX, y + 0.05, bw, barH - 0.1, 0.05, 0.05, 'F')
           doc.setFontSize(10); doc.setTextColor(255,255,255); doc.setFont('helvetica','bold')
-          if (bw > 0.8) doc.text(c.mentions.toString(), barX + bw - 0.5, y + 0.38)
+          if (bw > 0.8) doc.text((c.mentions || 0).toString(), barX + bw - 0.5, y + 0.38)
         })
         if (hasInsights && data.insights.competitors) {
           const insY = startY + compData.length * (barH + gap) + 0.2
