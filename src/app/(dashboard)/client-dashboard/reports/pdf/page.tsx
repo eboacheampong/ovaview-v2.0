@@ -210,7 +210,7 @@ export default function PdfReportPage() {
 
   useEffect(() => {
     if (clientId) fetchReportData()
-  }, [clientId, days])
+  }, [clientId, days, includeInsights])
 
   // Section management
   const toggleSection = (id: string) => {
@@ -827,9 +827,9 @@ export default function PdfReportPage() {
         const mentionRows = data.mentions.slice(0, 40).map(m => [
           format(new Date(m.date), 'MMM d, yyyy'),
           m.type === 'social' ? (m.platform || 'Social') : m.type.charAt(0).toUpperCase() + m.type.slice(1),
-          m.title.length > 45 ? m.title.slice(0, 44) + '...' : m.title,
-          m.source.length > 18 ? m.source.slice(0, 17) + '...' : m.source,
-          m.sentiment.charAt(0).toUpperCase() + m.sentiment.slice(1),
+          (m.title || '').length > 45 ? (m.title || '').slice(0, 44) + '...' : (m.title || ''),
+          (m.source || '').length > 18 ? (m.source || '').slice(0, 17) + '...' : (m.source || ''),
+          (m.sentiment || 'neutral').charAt(0).toUpperCase() + (m.sentiment || 'neutral').slice(1),
           fmtNum(m.reach),
         ])
         autoTable(doc, {
