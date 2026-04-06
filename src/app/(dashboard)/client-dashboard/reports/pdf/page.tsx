@@ -338,13 +338,13 @@ export default function PdfReportPage() {
         if (!rawText) return y
         const text = cleanAIText(rawText)
         const textW = w - 0.6
-        doc.setFontSize(10); doc.setFont('helvetica','normal'); doc.setTextColor(45,45,45)
+        doc.setFontSize(11); doc.setFont('helvetica','normal'); doc.setTextColor(45,45,45)
         const lines = doc.splitTextToSize(text, textW)
-        const lineH = 0.2
-        const headerH = 0.35
+        const lineH = 0.22
+        const headerH = 0.38
         const availH = Math.min(maxH, FOOTER_Y - y - 0.1)
         if (availH < 0.6) return y
-        const boxH = Math.min(lines.length * lineH + headerH + 0.25, availH)
+        const boxH = Math.min(lines.length * lineH + headerH + 0.3, availH)
 
         // Card
         doc.setFillColor(252,252,252)
@@ -354,10 +354,10 @@ export default function PdfReportPage() {
         doc.setFillColor(BRAND.r, BRAND.g, BRAND.b)
         doc.rect(x, y + 0.06, 0.04, boxH - 0.12, 'F')
         // Label
-        doc.setFontSize(8); doc.setFont('helvetica','bold'); doc.setTextColor(BRAND.r, BRAND.g, BRAND.b)
-        doc.text('AI INSIGHT', x + 0.25, y + 0.22)
-        // Body
-        doc.setFont('helvetica','normal'); doc.setTextColor(55,65,81); doc.setFontSize(10)
+        doc.setFontSize(9); doc.setFont('helvetica','bold'); doc.setTextColor(BRAND.r, BRAND.g, BRAND.b)
+        doc.text('INSIGHT', x + 0.25, y + 0.25)
+        // Body — bigger text
+        doc.setFont('helvetica','normal'); doc.setTextColor(55,65,81); doc.setFontSize(11)
         const maxLines = Math.floor((boxH - headerH - 0.15) / lineH)
         lines.slice(0, maxLines).forEach((line: string, li: number) => {
           doc.text(line, x + 0.25, y + headerH + li * lineH)
@@ -427,7 +427,7 @@ export default function PdfReportPage() {
         // Card header
         let y = cardY + 0.4
         doc.setFontSize(14); doc.setFont('helvetica','bold'); doc.setTextColor(BRAND.r, BRAND.g, BRAND.b)
-        doc.text('Key Findings & Analysis', cardX + cardPadding, y)
+        doc.text('Key Findings', cardX + cardPadding, y)
         y += 0.15
         // Subtle divider line
         doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.01)
@@ -578,45 +578,60 @@ export default function PdfReportPage() {
       // ─── EXECUTIVE SUMMARY ───
       if (enabledSectionIds.includes('executive_summary')) {
         addPage(); accent(); pageTitle('Executive Summary')
-        doc.setFontSize(12); doc.setTextColor(107,114,128); doc.setFont('helvetica','normal')
+        doc.setFontSize(11); doc.setTextColor(107,114,128); doc.setFont('helvetica','normal')
         doc.text(`${clientName} — ${rangeStart} to ${rangeEnd}`, 0.6, 1.1)
 
-        // KPI cards - bigger
+        // Modern KPI cards with brand color accents and trend indicators
         const kpis = [
-          { l: 'Total Mentions', v: (s.totalMentions || 0).toString(), c: [31,41,55] },
-          { l: 'Media Reach', v: fmtNum(s.totalReach), c: [31,41,55] },
-          { l: 'Interactions', v: fmtNum(s.totalInteractions), c: [31,41,55] },
-          { l: 'Positive', v: (s.positive || 0).toString(), c: [31,41,55] },
-          { l: 'Negative', v: (s.negative || 0).toString(), c: [31,41,55] },
-          { l: 'Neutral', v: (s.neutral || 0).toString(), c: [31,41,55] },
+          { l: 'Total Mentions', v: (s.totalMentions || 0).toString(), icon: '📊', trend: null },
+          { l: 'Media Reach', v: fmtNum(s.totalReach), icon: '📡', trend: null },
+          { l: 'Interactions', v: fmtNum(s.totalInteractions), icon: '💬', trend: null },
+          { l: 'Positive', v: (s.positive || 0).toString(), icon: '✅', trend: s.positive > 0 ? Math.round((s.positive / Math.max(s.totalMentions, 1)) * 100) : 0 },
+          { l: 'Negative', v: (s.negative || 0).toString(), icon: '⚠️', trend: null },
+          { l: 'Neutral', v: (s.neutral || 0).toString(), icon: '◻️', trend: null },
         ]
+        const cardW = 1.85, cardH = 1.4, cardGap = 0.12
+        const totalW = kpis.length * cardW + (kpis.length - 1) * cardGap
+        const startX = (W - totalW) / 2
         kpis.forEach((k, i) => {
-          const kx = 0.6 + i * 2.0, ky = 1.5
-          doc.setFillColor(249,250,251); doc.roundedRect(kx, ky, 1.85, 1.2, 0.06, 0.06, 'F')
-          doc.setDrawColor(229,231,235); doc.setLineWidth(0.01); doc.roundedRect(kx, ky, 1.85, 1.2, 0.06, 0.06, 'S')
-          doc.setFontSize(9); doc.setTextColor(107,114,128); doc.setFont('helvetica','normal')
+          const kx = startX + i * (cardW + cardGap), ky = 1.4
+
+          // Card background
+          doc.setFillColor(255,255,255)
+          doc.roundedRect(kx, ky, cardW, cardH, 0.08, 0.08, 'F')
+          // Border
+          doc.setDrawColor(229,231,235); doc.setLineWidth(0.01)
+          doc.roundedRect(kx, ky, cardW, cardH, 0.08, 0.08, 'S')
+          // Brand color top accent
+          doc.setFillColor(BRAND.r, BRAND.g, BRAND.b)
+          doc.rect(kx + 0.08, ky, cardW - 0.16, 0.04, 'F')
+
+          // Label
+          doc.setFontSize(8); doc.setTextColor(156,163,175); doc.setFont('helvetica','bold')
           doc.text(k.l.toUpperCase(), kx + 0.15, ky + 0.35)
-          doc.setFontSize(28); doc.setTextColor(k.c[0], k.c[1], k.c[2]); doc.setFont('helvetica','bold')
-          doc.text(k.v, kx + 0.15, ky + 0.9)
+
+          // Value — large and bold
+          doc.setFontSize(30); doc.setTextColor(31,41,55); doc.setFont('helvetica','bold')
+          doc.text(k.v, kx + 0.15, ky + 0.95)
+
+          // Trend indicator for positive sentiment
+          if (k.trend !== null && k.trend > 0) {
+            doc.setFontSize(9); doc.setTextColor(16,185,129); doc.setFont('helvetica','bold')
+            doc.text(`${k.trend}% of total`, kx + 0.15, ky + 1.2)
+          }
+
+          // Subtle bottom line in brand color for first 3 cards
+          if (i < 3) {
+            doc.setFillColor(BRAND.r, BRAND.g, BRAND.b)
+            doc.setGState(new (doc as any).GState({ opacity: 0.15 }))
+            doc.rect(kx + 0.15, ky + cardH - 0.15, cardW - 0.3, 0.04, 'F')
+            doc.setGState(new (doc as any).GState({ opacity: 1 }))
+          }
         })
 
-        // Insight below KPIs
-        let nextY = 3.2
+        // Insight below KPIs — bigger and more prominent
         if (hasInsights && data.insights.executive_summary) {
-          nextY = insightBox(data.insights.executive_summary, 0.6, nextY, W - 1.2, 2.0)
-        }
-
-        // Brief text - bigger
-        if (nextY < FOOTER_Y - 1.0) {
-          doc.setFontSize(12); doc.setTextColor(75,85,99); doc.setFont('helvetica','normal')
-          const brief = [
-            `This report provides a comprehensive analysis of the media presence for ${clientName}.`,
-            `Data was captured from ${rangeStart} to ${rangeEnd} across ${Object.keys(data.sourceCounts).length} media channels.`,
-            `During this period, ${clientName} received ${s.totalMentions} total mentions with a combined reach of ${fmtNum(s.totalReach)}.`,
-          ]
-          brief.forEach((l, i) => {
-            if (nextY + i * 0.35 < FOOTER_Y) doc.text(l, 0.6, nextY + i * 0.35)
-          })
+          insightBox(data.insights.executive_summary, 0.6, 3.2, W - 1.2, FOOTER_Y - 3.2 - 0.1)
         }
       }
 
