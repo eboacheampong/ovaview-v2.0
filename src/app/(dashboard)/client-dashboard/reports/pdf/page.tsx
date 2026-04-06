@@ -317,22 +317,25 @@ export default function PdfReportPage() {
       const insightBox = (rawText: string, x: number, y: number, w: number, maxH: number): number => {
         if (!rawText) return y
         const text = cleanAIText(rawText)
-        doc.setFontSize(10.5); doc.setFont('helvetica','italic'); doc.setTextColor(75,85,99)
-        const lines = doc.splitTextToSize(text, w - 0.5)
+        doc.setFontSize(10.5); doc.setFont('helvetica','normal'); doc.setTextColor(55,65,81)
+        const lines = doc.splitTextToSize(text, w - 0.6)
         const lineH = 0.2
         const availH = Math.min(maxH, FOOTER_Y - y - 0.1)
-        if (availH < 0.6) return y // not enough space
-        const boxH = Math.min(lines.length * lineH + 0.4, availH)
-        doc.setFillColor(248,250,252); doc.setDrawColor(BRAND.r,BRAND.g,BRAND.b)
-        doc.setLineWidth(0.02)
+        if (availH < 0.6) return y
+        const boxH = Math.min(lines.length * lineH + 0.5, availH)
+        // Box background — light warm tone
+        doc.setFillColor(255,251,245); doc.setDrawColor(249,115,22)
+        doc.setLineWidth(0.015)
         doc.roundedRect(x, y, w, boxH, 0.06, 0.06, 'FD')
+        // Left accent bar
+        doc.setFillColor(249,115,22); doc.rect(x, y + 0.06, 0.04, boxH - 0.12, 'F')
         // Label
-        doc.setFontSize(8); doc.setFont('helvetica','bold'); doc.setTextColor(BRAND.r,BRAND.g,BRAND.b)
-        doc.text('AI INSIGHT', x + 0.2, y + 0.22)
-        // Body
-        doc.setFont('helvetica','italic'); doc.setTextColor(75,85,99); doc.setFontSize(10.5)
-        const maxLines = Math.floor((boxH - 0.4) / lineH)
-        doc.text(lines.slice(0, maxLines), x + 0.2, y + 0.45)
+        doc.setFontSize(8); doc.setFont('helvetica','bold'); doc.setTextColor(249,115,22)
+        doc.text('INSIGHT', x + 0.25, y + 0.22)
+        // Body — normal weight, not italic
+        doc.setFont('helvetica','normal'); doc.setTextColor(55,65,81); doc.setFontSize(10.5)
+        const maxLines = Math.floor((boxH - 0.5) / lineH)
+        doc.text(lines.slice(0, maxLines), x + 0.25, y + 0.45)
         return y + boxH + 0.2
       }
 
@@ -425,9 +428,9 @@ export default function PdfReportPage() {
           { l: 'Total Mentions', v: (s.totalMentions || 0).toString(), c: [31,41,55] },
           { l: 'Media Reach', v: fmtNum(s.totalReach), c: [31,41,55] },
           { l: 'Interactions', v: fmtNum(s.totalInteractions), c: [31,41,55] },
-          { l: 'Positive', v: (s.positive || 0).toString(), c: [16,185,129] },
-          { l: 'Negative', v: (s.negative || 0).toString(), c: [239,68,68] },
-          { l: 'Neutral', v: (s.neutral || 0).toString(), c: [107,114,128] },
+          { l: 'Positive', v: (s.positive || 0).toString(), c: [249,115,22] },
+          { l: 'Negative', v: (s.negative || 0).toString(), c: [30,58,95] },
+          { l: 'Neutral', v: (s.neutral || 0).toString(), c: [75,130,195] },
         ]
         kpis.forEach((k, i) => {
           const kx = 0.6 + i * 2.0, ky = 1.5
