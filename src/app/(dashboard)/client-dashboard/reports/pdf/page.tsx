@@ -378,6 +378,33 @@ export default function PdfReportPage() {
         doc.addPage([W, H], 'landscape')
       }
 
+      // Section title page — full-page divider with large centered title
+      const sectionTitlePage = (title: string, subtitle?: string) => {
+        addPage()
+        // Navy background
+        doc.setFillColor(30,58,95); doc.rect(0,0,W,H,'F')
+        // Decorative accent bar at top
+        doc.setFillColor(249,115,22); doc.rect(0,0,W,0.08,'F')
+        // Decorative circles
+        doc.setFillColor(255,255,255); doc.setGState(new (doc as any).GState({ opacity: 0.05 }))
+        doc.circle(W - 3, 2, 4, 'F')
+        doc.circle(1, H - 1, 3, 'F')
+        doc.setGState(new (doc as any).GState({ opacity: 1 }))
+        // Title
+        doc.setFontSize(36); doc.setTextColor(255,255,255); doc.setFont('times','bold')
+        const titleLines = doc.splitTextToSize(title, W - 3)
+        const titleY = H / 2 - (titleLines.length * 0.6) / 2
+        doc.text(titleLines, W / 2, titleY, { align: 'center' })
+        // Orange underline
+        doc.setDrawColor(249,115,22); doc.setLineWidth(0.03)
+        doc.line(W / 2 - 2, titleY + titleLines.length * 0.55, W / 2 + 2, titleY + titleLines.length * 0.55)
+        // Subtitle
+        if (subtitle) {
+          doc.setFontSize(14); doc.setTextColor(180,200,220); doc.setFont('helvetica','normal')
+          doc.text(subtitle, W / 2, titleY + titleLines.length * 0.55 + 0.5, { align: 'center' })
+        }
+      }
+
       // ─── COVER PAGE ───
       if (enabledSectionIds.includes('cover_page')) {
         doc.setFillColor(BRAND.r,BRAND.g,BRAND.b); doc.rect(0,0,W,H,'F')
@@ -415,6 +442,9 @@ export default function PdfReportPage() {
         // Mark first page as used so next section gets its own page
         isFirstPage = false
       }
+
+      // ─── SECTION DIVIDER: MEDIA PRESENCE ANALYSIS ───
+      sectionTitlePage('MEDIA PRESENCE ANALYSIS', `${clientName} — ${rangeStart} to ${rangeEnd}`)
 
       // ─── EXECUTIVE SUMMARY ───
       if (enabledSectionIds.includes('executive_summary')) {
@@ -537,6 +567,9 @@ export default function PdfReportPage() {
           if (ngw > 0) { doc.setFillColor(239,68,68); doc.roundedRect(bx + pw + nw, by, ngw, 0.14, 0.03, 0.03, 'F') }
         })
       }
+
+      // ─── SECTION DIVIDER: VISIBILITY OF [COMPANY] ───
+      sectionTitlePage(`VISIBILITY OF ${clientName.toUpperCase()}`, 'Media Coverage & Reach Analysis')
 
       // ─── COVERAGE TREND ───
       if (enabledSectionIds.includes('coverage_trend') && data.chart.length > 0) {
@@ -704,6 +737,10 @@ export default function PdfReportPage() {
           insightBox(data.insights.top_sources, 0.6, chartY + chartH2 + 0.45, W - 1.2, FOOTER_Y - (chartY + chartH2 + 0.45) - 0.1)
         }
       }
+
+      // ─── SECTION DIVIDER: VISIBILITY OF [INDUSTRY] ───
+      const industryNames = (data.industries || []).join(', ') || 'Industry'
+      sectionTitlePage(`VISIBILITY OF ${industryNames.toUpperCase()}`, 'Keywords, Personalities & Industry Analysis')
 
       // ─── KEYWORDS ───
       if (enabledSectionIds.includes('keywords') && data.topKeywords.length > 0) {
