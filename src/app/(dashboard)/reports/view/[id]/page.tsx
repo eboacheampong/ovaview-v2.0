@@ -122,12 +122,12 @@ const typeLabels: Record<string, string> = {
 }
 const DEFAULT_BRAND = '#D4941A'
 
-/* ─── Section header — uses brand color ─── */
+/* ─── Section header — brand color text on white, thin top accent line ─── */
 function SectionHeader({ children, icon, color }: { children: React.ReactNode; icon?: string; color: string }) {
   return (
-    <div className="px-6 py-3 flex items-center gap-2" style={{ backgroundColor: color }}>
+    <div className="px-6 py-3 flex items-center gap-2 bg-white" style={{ borderTop: `3px solid ${color}` }}>
       {icon && <span className="text-base">{icon}</span>}
-      <span className="text-sm font-bold text-white uppercase tracking-wider">{children}</span>
+      <span className="text-base font-bold uppercase tracking-wider" style={{ color }}>{children}</span>
     </div>
   )
 }
@@ -447,7 +447,7 @@ function MediaReportView({ data, report, brandColor }: { data: any; report: any;
       <div className="px-5 sm:px-6 pb-5">
         <SectionHeader icon="📊" color={brandColor}>Mentions vs Reach by Type</SectionHeader>
         <div className="border-2 border-gray-200 rounded-b-lg overflow-hidden">
-          <div className="grid grid-cols-3 text-[10px] font-bold text-white/80 px-4 py-2.5 uppercase tracking-wider" style={{ backgroundColor: brandColor }}>
+          <div className="grid grid-cols-3 text-[10px] font-bold px-4 py-2.5 uppercase tracking-wider bg-gray-50" style={{ color: brandColor }}>
             <span>Type</span><span className="text-center">Mentions</span><span className="text-right">Reach</span>
           </div>
           {[
@@ -508,7 +508,7 @@ function MediaReportView({ data, report, brandColor }: { data: any; report: any;
         <div className="px-5 sm:px-6 pb-5">
           <SectionHeader icon="📱" color={brandColor}>Social Media by Platform</SectionHeader>
           <div className="border-2 border-gray-200 rounded-b-lg overflow-hidden">
-            <div className="grid grid-cols-3 text-[10px] font-bold text-white/80 px-4 py-2.5 uppercase tracking-wider" style={{ backgroundColor: brandColor }}>
+            <div className="grid grid-cols-3 text-[10px] font-bold px-4 py-2.5 uppercase tracking-wider bg-gray-50" style={{ color: brandColor }}>
               <span>Platform</span><span className="text-center">Mentions</span><span className="text-right">Reach</span>
             </div>
             {stats.socialByPlatform.map((p: { platform: string; count: number; reach: number }, i: number) => {
