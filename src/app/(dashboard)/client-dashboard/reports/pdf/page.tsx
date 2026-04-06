@@ -1009,7 +1009,7 @@ export default function PdfReportPage() {
                 }
               } catch (err) { console.error('Failed to export with insights:', err) }
               finally { setIsExporting(false) }
-            }}}
+            }}
             disabled={isExporting || isLoading || !reportData}
             className="flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-medium text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 disabled:opacity-50 shadow-sm transition-all"
           >
