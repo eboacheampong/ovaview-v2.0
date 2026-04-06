@@ -452,6 +452,11 @@ export default function PdfReportPage() {
         addPage(); accent(); pageTitle('Media Source Distribution')
         const pieData = Object.entries(data.sourceCounts).map(([k, c]) => ({ name: SOURCE_LABELS[k] || k, value: c })).sort((a, b) => b.value - a.value)
         const pieTotal = pieData.reduce((s, d) => s + d.value, 0)
+        
+        // Add description text
+        doc.setFontSize(11); doc.setTextColor(107,114,128); doc.setFont('helvetica','normal')
+        doc.text(`There are ${pieTotal} total mentions across ${pieData.length} media ${pieData.length === 1 ? 'channel' : 'channels'} during this reporting period.`, 0.6, 1.1)
+        
         if (pieTotal > 0) {
           const pcx = 3.5, pcy = 3.8, pr = 2.0; let sa = -Math.PI / 2
           pieData.forEach((d, i) => {
@@ -594,11 +599,12 @@ export default function PdfReportPage() {
           doc.text(val.toString(), chartX - 0.15, ty + 0.04, { align: 'right' })
           if (t > 0) { doc.setDrawColor(240,240,240); doc.setLineWidth(0.005); doc.line(chartX, ty, chartX + chartW, ty) }
         }
-        const barW = Math.min((chartW - 0.02 * data.chart.length) / data.chart.length, 0.5)
-        const totalBW = data.chart.length * barW
+        const barGap = data.chart.length > 30 ? 0.02 : 0.06
+        const barW = Math.min((chartW - barGap * (data.chart.length + 1)) / data.chart.length, 0.5)
+        const totalBW = data.chart.length * barW + (data.chart.length - 1) * barGap
         const offX = (chartW - totalBW) / 2
         data.chart.forEach((d, i) => {
-          const bx = chartX + offX + i * barW
+          const bx = chartX + offX + i * (barW + barGap)
           const total = d.positive + d.neutral + d.negative
           const pH = (d.positive / maxVal) * chartH
           const nH = (d.neutral / maxVal) * chartH
@@ -973,7 +979,25 @@ export default function PdfReportPage() {
             Export Report
           </button>
           <button
-            onClick={() => { setIncludeInsights(true); handleExport() }}
+            onClick={async () => {
+              if (!reportData) return
+              setIsLoading(true)
+              try {
+                const res = await fetch('/api/pdf-report', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ clientId, days, sections: enabledSectionIds, includeInsights: true }),
+                })
+                if (res.ok) {
+                  const freshData = await res.json()
+                  setReportData(freshData)
+                  setIncludeInsights(true)
+                  // Small delay to let state settle, then export
+                  setTimeout(() => handleExport(), 100)
+                }
+              } catch (err) { console.error('Failed to fetch insights:', err) }
+              finally { setIsLoading(false) }
+            }}
             disabled={isExporting || isLoading || !reportData}
             className="flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-medium text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 disabled:opacity-50 shadow-sm transition-all"
           >
