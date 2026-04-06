@@ -305,11 +305,12 @@ export default function PdfReportPage() {
       const tri = (x1:number,y1:number,x2:number,y2:number,x3:number,y3:number) => {
         doc.lines([[x2-x1,y2-y1],[x3-x2,y3-y2],[x1-x3,y1-y3]],x1,y1,[1,1],'F',true)
       }
-      const accent = () => { doc.setFillColor(BRAND.r,BRAND.g,BRAND.b); doc.rect(0,0,W,0.06,'F') }
+      const accent = () => {} // header bar is now part of pageTitle
       const pageTitle = (t:string, y=0.7) => {
-        doc.setFontSize(24); doc.setTextColor(BRAND.r,BRAND.g,BRAND.b); doc.setFont('times','bold'); doc.text(t,0.6,y)
-        // Subtle underline
-        doc.setDrawColor(249,115,22); doc.setLineWidth(0.02); doc.line(0.6, y + 0.12, 0.6 + Math.min(t.length * 0.14, 4), y + 0.12)
+        // Full-width brand color header bar with white text (like the reference)
+        doc.setFillColor(BRAND.r,BRAND.g,BRAND.b); doc.rect(0,0,W,0.65,'F')
+        doc.setFontSize(22); doc.setTextColor(255,255,255); doc.setFont('helvetica','bold')
+        doc.text(t, 0.6, 0.42)
       }
 
       // Improved insight box: strips markdown, respects page boundary, bigger text
@@ -409,12 +410,11 @@ export default function PdfReportPage() {
         doc.setFillColor(255,255,255); doc.setGState(new (doc as any).GState({ opacity: 0.06 }))
         doc.circle(W - 2, 1.5, 4, 'F'); doc.circle(1, H - 0.5, 3, 'F')
         doc.setGState(new (doc as any).GState({ opacity: 1 }))
-        doc.setFillColor(249,115,22); doc.rect(0,0,W,0.08,'F')
         // Centered title
         doc.setFontSize(48); doc.setTextColor(255,255,255); doc.setFont('times','bold')
         doc.text('MEDIA PRESENCE', W / 2, H / 2 - 0.5, { align: 'center' })
         doc.text('ANALYSIS REPORT', W / 2, H / 2 + 0.4, { align: 'center' })
-        doc.setDrawColor(249,115,22); doc.setLineWidth(0.03)
+        doc.setDrawColor(255,255,255); doc.setLineWidth(0.03)
         doc.line(W / 2 - 3, H / 2 + 0.7, W / 2 + 3, H / 2 + 0.7)
         // Footer
         try { doc.addImage('/Ovaview-Media-Monitoring-Logo.png', 'PNG', W / 2 - 0.7, H - 1.0, 1.4, 0.42) } catch { doc.setFontSize(10); doc.setTextColor(255,255,255); doc.text('Ovaview Media Monitoring', W / 2, H - 0.7, { align: 'center' }) }
@@ -426,8 +426,6 @@ export default function PdfReportPage() {
         addPage()
         // White background (clean like the reference Brief page)
         doc.setFillColor(255,255,255); doc.rect(0,0,W,H,'F')
-        // Brand color accent bar at top
-        doc.setFillColor(BRAND.r,BRAND.g,BRAND.b); doc.rect(0,0,W,0.08,'F')
         doc.setFontSize(16); doc.setTextColor(120,120,120); doc.setFont('helvetica','normal')
         doc.text('THIS REPORT IS AN ANALYSIS OF THE PR PRESENCE OF', W / 2, H / 2 - 1.2, { align: 'center' })
         doc.setFontSize(38); doc.setTextColor(BRAND.r,BRAND.g,BRAND.b); doc.setFont('times','bold')
@@ -541,32 +539,58 @@ export default function PdfReportPage() {
         }
       }
 
-      // ─── SCOPE OF COVERAGE ───
+      // ─── SCOPE OF COVERAGE — donut rings like the reference ───
       if (enabledSectionIds.includes('scope_of_coverage')) {
-        addPage(); accent(); pageTitle('Scope of Coverage')
-        doc.setFontSize(12); doc.setTextColor(107,114,128); doc.setFont('helvetica','normal')
-        doc.text(`Breakdown of ${s.totalMentions} mentions across all media types`, 0.6, 1.15)
-        const cW = 3.6, cH = 2.2, cCols = 3, cGx = 0.4, cGy = 0.4
-        data.mediaStats.forEach((ms, i) => {
-          const col = i % cCols, row = Math.floor(i / cCols)
-          const cx = 0.6 + col * (cW + cGx), cy = 1.7 + row * (cH + cGy)
-          if (cy + cH > FOOTER_Y) return // skip if would overflow
-          doc.setFillColor(249,250,251); doc.roundedRect(cx, cy, cW, cH, 0.08, 0.08, 'F')
-          doc.setDrawColor(229,231,235); doc.setLineWidth(0.01); doc.roundedRect(cx, cy, cW, cH, 0.08, 0.08, 'S')
-          doc.setFontSize(13); doc.setTextColor(BRAND.r, BRAND.g, BRAND.b); doc.setFont('helvetica','bold')
-          doc.text(ms.type, cx + 0.2, cy + 0.4)
-          doc.setFontSize(30); doc.setTextColor(31,41,55); doc.text((ms.mentions || 0).toString(), cx + 0.2, cy + 1.0)
-          doc.setFontSize(10); doc.setTextColor(107,114,128); doc.setFont('helvetica','normal')
-          doc.text('mentions', cx + 0.2, cy + 1.3)
-          doc.setFontSize(11); doc.setTextColor(75,85,99)
-          doc.text(`Reach: ${fmtNum(ms.reach)}`, cx + 0.2, cy + 1.65)
-          // Sentiment bar
-          const bx = cx + 0.2, by = cy + 1.85, bw = cW - 0.4
-          const tot = ms.positive + ms.negative + ms.neutral || 1
-          const pw = (ms.positive / tot) * bw, nw = (ms.neutral / tot) * bw, ngw = (ms.negative / tot) * bw
-          if (pw > 0) { doc.setFillColor(16,185,129); doc.roundedRect(bx, by, pw, 0.14, 0.03, 0.03, 'F') }
-          if (nw > 0) { doc.setFillColor(107,114,128); doc.rect(bx + pw, by, nw, 0.14, 'F') }
-          if (ngw > 0) { doc.setFillColor(239,68,68); doc.roundedRect(bx + pw + nw, by, ngw, 0.14, 0.03, 0.03, 'F') }
+        addPage(); accent(); pageTitle('Scope of Coverage - Overall')
+        const mediaItems = data.mediaStats || []
+        const totalMentions = mediaItems.reduce((sum: number, ms: any) => sum + (ms.mentions || 0), 0) || 1
+        const cols = Math.min(mediaItems.length, 4)
+        const colW = (W - 1.2) / cols
+        const centerY = 2.8 // center of donut area
+        const ringR = 0.85 // ring radius in inches
+
+        mediaItems.slice(0, 4).forEach((ms: any, i: number) => {
+          const cx = 0.6 + i * colW + colW / 2
+          const percentage = (ms.mentions / totalMentions) * 100
+          const color = i % 2 === 0 ? [BRAND.r, BRAND.g, BRAND.b] : [107, 114, 128] // alternating brand/gray
+
+          // Background ring (light gray)
+          doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.12)
+          doc.circle(cx, centerY, ringR, 'S')
+
+          // Colored arc — draw as a thick colored ring segment
+          doc.setDrawColor(color[0], color[1], color[2]); doc.setLineWidth(0.12)
+          // Approximate arc with a partial circle using clip (jsPDF limitation — draw full ring for simplicity)
+          // For PDF we'll draw the colored ring proportionally
+          if (percentage > 0) {
+            const startAngle = -90 // start from top
+            const endAngle = startAngle + (percentage / 100) * 360
+            // Draw arc segments
+            const steps = Math.max(Math.round(percentage / 2), 2)
+            for (let s = 0; s < steps; s++) {
+              const a1 = (startAngle + (s / steps) * (endAngle - startAngle)) * Math.PI / 180
+              const a2 = (startAngle + ((s + 1) / steps) * (endAngle - startAngle)) * Math.PI / 180
+              const x1 = cx + ringR * Math.cos(a1), y1 = centerY + ringR * Math.sin(a1)
+              const x2 = cx + ringR * Math.cos(a2), y2 = centerY + ringR * Math.sin(a2)
+              doc.line(x1, y1, x2, y2)
+            }
+          }
+
+          // Count in center
+          doc.setFontSize(28); doc.setTextColor(31, 41, 55); doc.setFont('helvetica', 'bold')
+          doc.text((ms.mentions || 0).toString(), cx, centerY + 0.12, { align: 'center' })
+
+          // Label below ring
+          doc.setFontSize(13); doc.setTextColor(31, 41, 55); doc.setFont('helvetica', 'bold')
+          doc.text(ms.type, cx, centerY + ringR + 0.5, { align: 'center' })
+
+          // Description below label
+          doc.setFontSize(9); doc.setTextColor(107, 114, 128); doc.setFont('helvetica', 'normal')
+          const desc = ms.description || `${ms.mentions} mentions · Reach: ${fmtNum(ms.reach)}`
+          const descLines = doc.splitTextToSize(desc, colW - 0.4)
+          descLines.slice(0, 3).forEach((line: string, li: number) => {
+            doc.text(line, cx, centerY + ringR + 0.8 + li * 0.2, { align: 'center' })
+          })
         })
       }
 
@@ -834,38 +858,41 @@ export default function PdfReportPage() {
         }
       }
 
-      // ─── JOURNALISTS ───
+      // ─── JOURNALISTS — vertical bar chart ───
       if (enabledSectionIds.includes('journalists') && data.topJournalists.length > 0) {
         addPage(); accent(); pageTitle('Top Journalists & Authors')
-        const tableW = 10.5
-        const tableX = (W - tableW) / 2  // Center the table
-        autoTable(doc, {
-          startY: 1.3,
-          head: [['#', 'Name', 'Outlet', 'Articles', 'Reach']],
-          body: data.topJournalists.slice(0, 15).map((j, i) => [
-            (i + 1).toString(),
-            (j.name || '').length > 30 ? (j.name || '').slice(0, 29) + '…' : (j.name || ''),
-            (j.outlet || '').length > 25 ? (j.outlet || '').slice(0, 24) + '…' : (j.outlet || ''),
-            (j.count || 0).toString(),
-            fmtNum(j.reach || 0),
-          ]),
-          theme: 'striped',
-          headStyles: {
-            fillColor: [BRAND.r, BRAND.g, BRAND.b], textColor: 255, fontSize: 11,
-            font: 'helvetica', fontStyle: 'bold', halign: 'left', cellPadding: 0.15,
-          },
-          bodyStyles: { fontSize: 10, textColor: [75,85,99], cellPadding: 0.12 },
-          alternateRowStyles: { fillColor: [249,250,251] },
-          columnStyles: {
-            0: { cellWidth: 0.6, halign: 'center' },
-            1: { cellWidth: 3.5 },
-            2: { cellWidth: 3.0 },
-            3: { cellWidth: 1.2, halign: 'center' },
-            4: { cellWidth: 1.5, halign: 'right' },
-          },
-          margin: { left: tableX, right: tableX },
-          styles: { lineColor: [229,231,235], lineWidth: 0.01 },
-          tableWidth: tableW,
+        const journalists = data.topJournalists.slice(0, 10)
+        const maxCount = Math.max(...journalists.map(j => j.count), 1)
+        const chartX = 1.2, chartY = 1.5, chartW = W - 2.4, chartH = 5.5
+        const barGap = 0.3
+        const barW = (chartW - barGap * (journalists.length + 1)) / journalists.length
+        const maxBarH = chartH - 1.2 // leave room for labels
+
+        // Draw bars
+        journalists.forEach((j, i) => {
+          const x = chartX + barGap + i * (barW + barGap)
+          const bh = (j.count / maxCount) * maxBarH
+          const y = chartY + (maxBarH - bh)
+
+          // Bar
+          doc.setFillColor(BRAND.r, BRAND.g, BRAND.b)
+          doc.roundedRect(x, y, barW, bh, 0.05, 0.05, 'F')
+
+          // Count on top of bar
+          doc.setFontSize(11); doc.setTextColor(31,41,55); doc.setFont('helvetica','bold')
+          doc.text(j.count.toString(), x + barW / 2, y - 0.12, { align: 'center' })
+
+          // Name below bar (rotated or truncated)
+          doc.setFontSize(8); doc.setTextColor(107,114,128); doc.setFont('helvetica','normal')
+          const name = j.name.length > 14 ? j.name.slice(0, 13) + '…' : j.name
+          doc.text(name, x + barW / 2, chartY + maxBarH + 0.3, { align: 'center' })
+
+          // Outlet below name
+          if (j.outlet) {
+            doc.setFontSize(7); doc.setTextColor(156,163,175)
+            const outlet = j.outlet.length > 16 ? j.outlet.slice(0, 15) + '…' : j.outlet
+            doc.text(outlet, x + barW / 2, chartY + maxBarH + 0.55, { align: 'center' })
+          }
         })
       }
 
@@ -1336,22 +1363,32 @@ export default function PdfReportPage() {
                   </PreviewCard>
                 )}
 
-                {/* Scope of Coverage Preview */}
+                {/* Scope of Coverage Preview — donut rings */}
                 {enabledSectionIds.includes('scope_of_coverage') && (
                   <PreviewCard id="scope_of_coverage" active={activePreviewSection === 'scope_of_coverage'} label="Scope of Coverage">
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      {reportData.mediaStats.map(ms => (
-                        <div key={ms.type} className="bg-gray-50 rounded-lg p-3">
-                          <p className="text-xs font-semibold" style={{ color: brandColor }}>{ms.type}</p>
-                          <p className="text-2xl font-bold text-gray-800 mt-0.5">{ms.mentions}</p>
-                          <p className="text-[10px] text-gray-400">mentions · Reach: {fmtNum(ms.reach)}</p>
-                          <div className="flex gap-0.5 mt-1.5 h-1.5 rounded overflow-hidden">
-                            {ms.positive > 0 && <div className="bg-emerald-500" style={{ flex: ms.positive }} />}
-                            {ms.neutral > 0 && <div className="bg-gray-400" style={{ flex: ms.neutral }} />}
-                            {ms.negative > 0 && <div className="bg-red-500" style={{ flex: ms.negative }} />}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      {reportData.mediaStats.map((ms, i) => {
+                        const total = reportData.mediaStats.reduce((sum: number, m: any) => sum + (m.mentions || 0), 0) || 1
+                        const pct = ((ms.mentions || 0) / total) * 100
+                        const ringColor = i % 2 === 0 ? brandColor : '#6b7280'
+                        const circumference = 2 * Math.PI * 18
+                        const dashArray = `${(pct / 100) * circumference} ${circumference}`
+                        return (
+                          <div key={ms.type} className="flex flex-col items-center text-center">
+                            <div className="relative w-14 h-14 mb-1.5">
+                              <svg className="w-full h-full transform -rotate-90" viewBox="0 0 44 44">
+                                <circle cx="22" cy="22" r="18" fill="none" stroke="#e5e7eb" strokeWidth="4" />
+                                <circle cx="22" cy="22" r="18" fill="none" stroke={ringColor} strokeWidth="4" strokeDasharray={dashArray} strokeLinecap="round" />
+                              </svg>
+                              <div className="absolute inset-0 flex items-center justify-center">
+                                <span className="text-sm font-bold text-gray-800">{ms.mentions}</span>
+                              </div>
+                            </div>
+                            <p className="text-[10px] font-bold text-gray-800">{ms.type}</p>
+                            <p className="text-[8px] text-gray-400 mt-0.5 leading-tight">Reach: {fmtNum(ms.reach)}</p>
                           </div>
-                        </div>
-                      ))}
+                        )
+                      })}
                     </div>
                   </PreviewCard>
                 )}
@@ -1493,18 +1530,21 @@ export default function PdfReportPage() {
                   </PreviewCard>
                 )}
 
-                {/* Journalists Preview */}
+                {/* Journalists Preview — bar chart */}
                 {enabledSectionIds.includes('journalists') && reportData.topJournalists.length > 0 && (
                   <PreviewCard id="journalists" active={activePreviewSection === 'journalists'} label="Top Journalists & Authors">
-                    <div className="space-y-1.5">
-                      {reportData.topJournalists.slice(0, 8).map((j, i) => (
-                        <div key={i} className="flex items-center gap-2 text-[11px]">
-                          <span className="w-5 h-5 rounded-full bg-gray-200 flex items-center justify-center text-[9px] font-bold text-gray-500 shrink-0">{i + 1}</span>
-                          <span className="text-gray-700 font-medium flex-1 truncate">{j.name}</span>
-                          <span className="text-gray-400 truncate max-w-[100px]">{j.outlet}</span>
-                          <span className="font-semibold text-gray-800">{j.count}</span>
-                        </div>
-                      ))}
+                    <div className="flex items-end gap-1 h-28">
+                      {reportData.topJournalists.slice(0, 8).map((j, i) => {
+                        const max = Math.max(...reportData.topJournalists.slice(0, 8).map(x => x.count), 1)
+                        const h = Math.max((j.count / max) * 100, 8)
+                        return (
+                          <div key={i} className="flex flex-col items-center flex-1 min-w-0">
+                            <span className="text-[9px] font-bold text-gray-700 mb-0.5">{j.count}</span>
+                            <div className="w-full rounded-t" style={{ height: `${h}%`, backgroundColor: brandColor, minWidth: '12px' }} title={`${j.name} — ${j.outlet}`} />
+                            <span className="text-[7px] text-gray-500 mt-1 truncate w-full text-center leading-tight">{j.name.split(' ').pop()}</span>
+                          </div>
+                        )
+                      })}
                     </div>
                   </PreviewCard>
                 )}

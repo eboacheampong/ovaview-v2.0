@@ -704,8 +704,8 @@ function JournalistsSlide({ journalists }: { journalists: any[] }) {
               <span className="text-base font-bold text-gray-700 mb-2">{j.count}</span>
               {/* Bar */}
               <div 
-                className="w-full bg-gray-900 rounded-t-sm"
-                style={{ height: `${Math.max(heightPercent * 2.5, 40)}px` }}
+                className="w-full rounded-t-sm"
+                style={{ height: `${Math.max(heightPercent * 2.5, 40)}px`, backgroundColor: '#D4941A' }}
               />
               {/* Name and outlet below */}
               <div className="mt-3 text-center">
