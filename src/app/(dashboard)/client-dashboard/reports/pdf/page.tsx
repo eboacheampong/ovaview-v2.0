@@ -133,20 +133,24 @@ function cleanAIText(text: string): string {
     .trim()
 }
 
-/** Sanitize text for jsPDF — strip emoji and non-Latin characters that cause spacing issues */
+/** Sanitize text for jsPDF — strip emoji and non-printable characters that cause spacing issues */
 function sanitizeForPdf(text: string): string {
   if (!text) return ''
-  return text
-    // eslint-disable-next-line no-control-regex
-    .replace(/[\u{1F600}-\u{1F9FF}|\u{2600}-\u{26FF}|\u{2700}-\u{27BF}|\u{1F300}-\u{1F5FF}|\u{1F680}-\u{1F6FF}|\u{1FA00}-\u{1FAFF}|\u{200D}|\u{FE0F}|\u{20E3}|\u{E0020}-\u{E007F}]/gu, '')
-    .replace(/[\u0080-\u00FF]/g, c => {
-      // Keep common Latin-1 characters
-      const code = c.charCodeAt(0)
-      if ((code >= 0xC0 && code <= 0xFF) || code === 0xA9 || code === 0xAE) return c
-      return ''
-    })
-    .replace(/\s{2,}/g, ' ')
-    .trim()
+  // Remove surrogate pairs (emoji and other non-BMP characters) and zero-width joiners
+  let result = ''
+  for (let i = 0; i < text.length; i++) {
+    const code = text.charCodeAt(i)
+    // Skip surrogate pairs (emoji etc)
+    if (code >= 0xD800 && code <= 0xDBFF) { i++; continue }
+    if (code >= 0xDC00 && code <= 0xDFFF) continue
+    // Skip zero-width joiners, variation selectors, combining enclosing keycap
+    if (code === 0x200D || code === 0xFE0F || code === 0x20E3) continue
+    // Skip other problematic ranges
+    if (code >= 0x2600 && code <= 0x27BF) continue // misc symbols & dingbats
+    // Keep everything else
+    result += text[i]
+  }
+  return result.replace(/\s{2,}/g, ' ').trim()
 }
 
 /* ─── Preview Card Component ─── */
