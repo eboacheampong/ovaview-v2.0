@@ -589,17 +589,27 @@ export default function PdfReportPage() {
             doc.line(scx, scy, scx + sr * Math.cos(ssa), scy + sr * Math.sin(ssa))
             ssa += sl
           })
-          let sly = 1.8; doc.setFontSize(15)
+          let sly = 1.5; doc.setFontSize(15)
+          
+          // Summary line
+          doc.setFontSize(11); doc.setTextColor(75,85,99); doc.setFont('helvetica','normal')
+          const dominant = sentData.reduce((a, b) => a.value >= b.value ? a : b)
+          doc.text(`Overall sentiment across ${sentTotal} mentions is ${dominant.name.toLowerCase()}, with ${dominant.value} ${dominant.name.toLowerCase()} mention${dominant.value !== 1 ? 's' : ''}.`, 7.0, sly)
+          sly += 0.5
+          
+          doc.setFontSize(14)
           sentData.forEach(d => {
             doc.setFillColor(d.c[0], d.c[1], d.c[2]); doc.rect(7.0, sly - 0.1, 0.25, 0.25, 'F')
-            doc.setTextColor(55,65,81); doc.setFont('helvetica','normal')
-            doc.text(`${d.name}: ${d.value} (${((d.value / sentTotal) * 100).toFixed(1)}%)`, 7.5, sly + 0.08)
-            sly += 0.55
+            doc.setTextColor(55,65,81); doc.setFont('helvetica','bold')
+            doc.text(d.name, 7.5, sly + 0.08)
+            doc.setFont('helvetica','normal'); doc.setTextColor(107,114,128); doc.setFontSize(11)
+            doc.text(`${d.value} mention${d.value !== 1 ? 's' : ''} — ${((d.value / sentTotal) * 100).toFixed(1)}% of total coverage`, 7.5, sly + 0.35)
+            doc.setFontSize(14)
+            sly += 0.65
           })
-          const dominant = sentData.reduce((a, b) => a.value >= b.value ? a : b)
+          
           doc.setFontSize(12); doc.setTextColor(75,85,99)
-          doc.text(`Overall sentiment is predominantly ${dominant.name.toLowerCase()},`, 7.0, 3.8)
-          doc.text(`accounting for ${((dominant.value / sentTotal) * 100).toFixed(1)}% of all mentions.`, 7.0, 4.15)
+          doc.text(`This indicates a ${dominant.name.toLowerCase() === 'positive' ? 'favorable' : dominant.name.toLowerCase() === 'negative' ? 'challenging' : 'balanced'} media environment for ${clientName}.`, 7.0, sly + 0.2)
           if (hasInsights && data.insights.sentiment_analysis) {
             insightBox(data.insights.sentiment_analysis, 7.0, 4.5, 5.5, FOOTER_Y - 4.5 - 0.1)
           }
@@ -675,8 +685,10 @@ export default function PdfReportPage() {
         const barW = Math.min((chartW2 - barGap * (sources.length + 1)) / sources.length, 0.7)
         const totalBW = sources.length * barW + (sources.length - 1) * barGap
         const offX = (chartW2 - totalBW) / 2
+        // Alternating orange/navy bars
+        const barColors: [number,number,number][] = [[249,115,22],[30,58,95]]
         sources.forEach((src, i) => {
-          const c = CC[i % CC.length], barH = (src.count / maxVal) * chartH2
+          const c = barColors[i % 2], barH = (src.count / maxVal) * chartH2
           const bx = chartX + offX + i * (barW + barGap), by = chartY + chartH2 - barH
           doc.setFillColor(c[0], c[1], c[2]); doc.roundedRect(bx, by, barW, barH, 0.03, 0.03, 'F')
           doc.setFontSize(7); doc.setTextColor(75,85,99)
@@ -705,7 +717,8 @@ export default function PdfReportPage() {
           doc.text(label.charAt(0).toUpperCase() + label.slice(1), 0.6, y + 0.22)
           const barX = 2.8, maxBarW = 7.0
           const bw = (kw.count / maxKw) * maxBarW
-          const c = CC[i % CC.length]
+          const kwBarColors: [number,number,number][] = [[249,115,22],[30,58,95]]
+          const c = kwBarColors[i % 2]
           doc.setFillColor(c[0], c[1], c[2]); doc.roundedRect(barX, y, bw, barH, 0.04, 0.04, 'F')
           doc.setFontSize(9); doc.setTextColor(31,41,55); doc.setFont('helvetica','bold')
           doc.text((kw.count || 0).toString(), barX + bw + 0.15, y + 0.22)
