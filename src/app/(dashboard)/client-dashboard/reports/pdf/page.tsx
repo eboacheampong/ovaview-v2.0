@@ -278,7 +278,7 @@ export default function PdfReportPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reportData, includeInsights, clientId, days, enabledSectionIds, BRAND])
 
-  const doExport = async (data: ReportData) => {
+  const doExport = async (data: ReportData, forceInsights?: boolean) => {
     setIsExporting(true)
     try {
       const jsPDF = (await import('jspdf')).default
@@ -290,7 +290,7 @@ export default function PdfReportPage() {
       const clientName = data.client.name
       const rangeStart = format(new Date(Date.now() - days * 86400000), 'MMMM d, yyyy')
       const rangeEnd = format(new Date(), 'MMMM d, yyyy')
-      const hasInsights = includeInsights && Object.keys(data.insights).length > 0
+      const hasInsights = (forceInsights || includeInsights) && Object.keys(data.insights || {}).length > 0
 
       // Helpers
       const tri = (x1:number,y1:number,x2:number,y2:number,x3:number,y3:number) => {
@@ -472,11 +472,22 @@ export default function PdfReportPage() {
             sa += sl
           })
           let ly = 1.5; doc.setFontSize(13)
+          
+          // Summary line above legend
+          doc.setFontSize(11); doc.setTextColor(75,85,99); doc.setFont('helvetica','normal')
+          const topSource = pieData[0]
+          doc.text(`${topSource.name} leads with ${topSource.value} mention${topSource.value !== 1 ? 's' : ''} (${((topSource.value / pieTotal) * 100).toFixed(0)}%), followed by ${pieData.length - 1} other ${pieData.length - 1 === 1 ? 'source' : 'sources'}.`, 7.0, ly)
+          ly += 0.5
+          
+          doc.setFontSize(13)
           pieData.forEach((d, i) => {
             const c = CC[i % CC.length]; doc.setFillColor(c[0], c[1], c[2]); doc.rect(7.0, ly - 0.08, 0.22, 0.22, 'F')
-            doc.setTextColor(55, 65, 81); doc.setFont('helvetica', 'normal')
-            doc.text(`${d.name}  (${d.value} — ${((d.value / pieTotal) * 100).toFixed(1)}%)`, 7.4, ly + 0.07)
-            ly += 0.45
+            doc.setTextColor(55, 65, 81); doc.setFont('helvetica', 'bold')
+            doc.text(d.name, 7.4, ly + 0.07)
+            doc.setFont('helvetica', 'normal'); doc.setTextColor(107,114,128); doc.setFontSize(11)
+            doc.text(`${d.value} mention${d.value !== 1 ? 's' : ''} — ${((d.value / pieTotal) * 100).toFixed(1)}% of total coverage`, 7.4, ly + 0.35)
+            doc.setFontSize(13)
+            ly += 0.6
           })
           if (hasInsights && data.insights.media_sources) {
             insightBox(data.insights.media_sources, 7.0, Math.min(ly + 0.3, 4.5), 5.5, FOOTER_Y - Math.min(ly + 0.3, 4.5) - 0.1)
@@ -981,8 +992,9 @@ export default function PdfReportPage() {
           <button
             onClick={async () => {
               if (!reportData) return
-              setIsLoading(true)
+              setIsExporting(true)
               try {
+                // Always fetch fresh data with insights for this export
                 const res = await fetch('/api/pdf-report', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
@@ -992,12 +1004,12 @@ export default function PdfReportPage() {
                   const freshData = await res.json()
                   setReportData(freshData)
                   setIncludeInsights(true)
-                  // Small delay to let state settle, then export
-                  setTimeout(() => handleExport(), 100)
+                  // Export directly with the fresh data — don't rely on state
+                  await doExport(freshData, true)
                 }
-              } catch (err) { console.error('Failed to fetch insights:', err) }
-              finally { setIsLoading(false) }
-            }}
+              } catch (err) { console.error('Failed to export with insights:', err) }
+              finally { setIsExporting(false) }
+            }}}
             disabled={isExporting || isLoading || !reportData}
             className="flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-medium text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 disabled:opacity-50 shadow-sm transition-all"
           >
