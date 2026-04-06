@@ -405,42 +405,47 @@ export default function PdfReportPage() {
         }
       }
 
-      // ─── COVER PAGE ───
+      // ─── PAGE 1: COVER — centered title ───
       if (enabledSectionIds.includes('cover_page')) {
         doc.setFillColor(BRAND.r,BRAND.g,BRAND.b); doc.rect(0,0,W,H,'F')
-        // Decorative circles
-        doc.setFillColor(255,255,255); doc.setGState(new (doc as any).GState({ opacity: 0.08 }))
-        doc.circle(W - 2, 1.5, 3, 'F')
-        doc.circle(-1, H - 1, 2.5, 'F')
+        doc.setFillColor(255,255,255); doc.setGState(new (doc as any).GState({ opacity: 0.06 }))
+        doc.circle(W - 2, 1.5, 4, 'F'); doc.circle(1, H - 0.5, 3, 'F')
         doc.setGState(new (doc as any).GState({ opacity: 1 }))
-        // Title
-        doc.setFontSize(44); doc.setTextColor(255,255,255); doc.setFont('times','bold')
-        doc.text('MEDIA PRESENCE', 0.8, 2.4)
-        doc.text('ANALYSIS REPORT', 0.8, 3.2)
-        // Decorative line separator
-        doc.setDrawColor(255,255,255); doc.setLineWidth(0.02)
-        doc.line(0.8, 3.5, 5.0, 3.5)
-        // Client name
-        doc.setFontSize(20); doc.setFont('helvetica','normal')
-        doc.text(clientName, 0.8, 4.2)
-        // Date range
-        doc.setFontSize(14)
-        doc.text(`${rangeStart} – ${rangeEnd}`, 0.8, 4.8)
-        // Industries
-        if (data.industries.length > 0) {
-          doc.setFontSize(12)
-          doc.text(`Industries: ${data.industries.join(', ')}`, 0.8, 5.3)
-        }
-        // Footer area - logo (smaller)
-        try {
-          doc.addImage('/Ovaview-Media-Monitoring-Logo.png', 'PNG', 0.8, 6.55, 1.4, 0.42)
-        } catch {
-          doc.setFontSize(10); doc.text('Ovaview Media Monitoring', 0.8, 6.7)
-        }
-        doc.setFontSize(10)
-        doc.text(format(new Date(), 'MMMM d, yyyy HH:mm'), 0.8, 7.15)
-        // Mark first page as used so next section gets its own page
+        doc.setFillColor(249,115,22); doc.rect(0,0,W,0.08,'F')
+        // Centered title
+        doc.setFontSize(48); doc.setTextColor(255,255,255); doc.setFont('times','bold')
+        doc.text('MEDIA PRESENCE', W / 2, H / 2 - 0.5, { align: 'center' })
+        doc.text('ANALYSIS REPORT', W / 2, H / 2 + 0.4, { align: 'center' })
+        doc.setDrawColor(249,115,22); doc.setLineWidth(0.03)
+        doc.line(W / 2 - 3, H / 2 + 0.7, W / 2 + 3, H / 2 + 0.7)
+        // Footer
+        try { doc.addImage('/Ovaview-Media-Monitoring-Logo.png', 'PNG', W / 2 - 0.7, H - 1.0, 1.4, 0.42) } catch { doc.setFontSize(10); doc.setTextColor(255,255,255); doc.text('Ovaview Media Monitoring', W / 2, H - 0.7, { align: 'center' }) }
+        doc.setFontSize(10); doc.setTextColor(200,220,240); doc.setFont('helvetica','normal')
+        doc.text(format(new Date(), 'MMMM d, yyyy'), W / 2, H - 0.4, { align: 'center' })
         isFirstPage = false
+
+        // ─── PAGE 2: DETAILS — company info centered ───
+        addPage()
+        doc.setFillColor(30,58,95); doc.rect(0,0,W,H,'F')
+        doc.setFillColor(249,115,22); doc.rect(0,0,W,0.08,'F')
+        doc.setFillColor(255,255,255); doc.setGState(new (doc as any).GState({ opacity: 0.04 }))
+        doc.circle(W - 3, H - 2, 3.5, 'F')
+        doc.setGState(new (doc as any).GState({ opacity: 1 }))
+        doc.setFontSize(16); doc.setTextColor(180,200,220); doc.setFont('helvetica','normal')
+        doc.text('THIS REPORT IS AN ANALYSIS OF THE PR PRESENCE OF', W / 2, H / 2 - 1.2, { align: 'center' })
+        doc.setFontSize(38); doc.setTextColor(255,255,255); doc.setFont('times','bold')
+        doc.text(clientName.toUpperCase(), W / 2, H / 2, { align: 'center' })
+        doc.setDrawColor(249,115,22); doc.setLineWidth(0.03)
+        const nameW = Math.min(clientName.length * 0.28, 6)
+        doc.line(W / 2 - nameW / 2, H / 2 + 0.3, W / 2 + nameW / 2, H / 2 + 0.3)
+        doc.setFontSize(14); doc.setTextColor(180,200,220); doc.setFont('helvetica','normal')
+        doc.text('THE DATA WAS CAPTURED FROM', W / 2, H / 2 + 0.9, { align: 'center' })
+        doc.setFontSize(16); doc.setTextColor(249,115,22); doc.setFont('helvetica','bold')
+        doc.text(`${rangeStart} – ${rangeEnd}`, W / 2, H / 2 + 1.3, { align: 'center' })
+        if (data.industries && data.industries.length > 0) {
+          doc.setFontSize(12); doc.setTextColor(150,175,200); doc.setFont('helvetica','normal')
+          doc.text(`Industries: ${data.industries.join(', ')}`, W / 2, H / 2 + 1.9, { align: 'center' })
+        }
       }
 
       // ─── SECTION DIVIDER: MEDIA PRESENCE ANALYSIS ───
