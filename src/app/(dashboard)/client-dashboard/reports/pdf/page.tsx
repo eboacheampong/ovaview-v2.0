@@ -289,7 +289,6 @@ export default function PdfReportPage() {
   }, [reportData, includeInsights, clientId, days, enabledSectionIds, BRAND])
 
   const doExport = async (data: ReportData, forceInsights?: boolean) => {
-    setIsExporting(true)
     try {
       const jsPDF = (await import('jspdf')).default
       const autoTable = (await import('jspdf-autotable')).default
@@ -388,7 +387,7 @@ export default function PdfReportPage() {
         doc.circle(-1, H - 1, 2.5, 'F')
         doc.setGState(new (doc as any).GState({ opacity: 1 }))
         // Title
-        doc.setFontSize(44); doc.setTextColor(255,255,255); doc.setFont('helvetica','bold')
+        doc.setFontSize(44); doc.setTextColor(255,255,255); doc.setFont('times','bold')
         doc.text('MEDIA PRESENCE', 0.8, 2.4)
         doc.text('ANALYSIS REPORT', 0.8, 3.2)
         // Decorative line separator
@@ -428,9 +427,9 @@ export default function PdfReportPage() {
           { l: 'Total Mentions', v: (s.totalMentions || 0).toString(), c: [31,41,55] },
           { l: 'Media Reach', v: fmtNum(s.totalReach), c: [31,41,55] },
           { l: 'Interactions', v: fmtNum(s.totalInteractions), c: [31,41,55] },
-          { l: 'Positive', v: (s.positive || 0).toString(), c: [249,115,22] },
-          { l: 'Negative', v: (s.negative || 0).toString(), c: [30,58,95] },
-          { l: 'Neutral', v: (s.neutral || 0).toString(), c: [75,130,195] },
+          { l: 'Positive', v: (s.positive || 0).toString(), c: [31,41,55] },
+          { l: 'Negative', v: (s.negative || 0).toString(), c: [31,41,55] },
+          { l: 'Neutral', v: (s.neutral || 0).toString(), c: [31,41,55] },
         ]
         kpis.forEach((k, i) => {
           const kx = 0.6 + i * 2.0, ky = 1.5
@@ -1010,11 +1009,17 @@ export default function PdfReportPage() {
             {showPreview ? 'Hide Preview' : 'Show Preview'}
           </button>
           <button
-            onClick={() => { setIncludeInsights(false); handleExport() }}
+            onClick={async () => {
+              if (!reportData) return
+              setIsExporting(true)
+              try { await doExport(reportData, false) }
+              catch (err) { console.error('Export failed:', err) }
+              finally { setIsExporting(false) }
+            }}
             disabled={isExporting || isLoading || !reportData}
             className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 disabled:opacity-50 transition-colors"
           >
-            <Download className="h-4 w-4" />
+            {isExporting && !includeInsights ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
             Export Report
           </button>
           <button
