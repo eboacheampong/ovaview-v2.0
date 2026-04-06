@@ -101,13 +101,13 @@ const SENTIMENT_FILTERS = [
   { label: 'Negative', value: 'negative' },
 ]
 
-// Professional color palette — Ovaview orange + navy blue as primaries, 
+// Professional color palette — Ovaview orange + brand color as primaries, 
 // with complementary muted tones for charts
 const CC: [number, number, number][] = [
   [249,115,22],  // Ovaview Orange (primary)
-  [30,58,95],    // Navy Blue (secondary)
+  [45,45,45],    // Dark charcoal (secondary)
   [75,130,195],  // Steel Blue
-  [45,85,130],   // Dark Teal Blue
+  [100,100,100], // Medium Gray
   [210,140,50],  // Warm Gold
   [120,160,200], // Light Steel
   [180,100,40],  // Burnt Sienna
@@ -307,7 +307,7 @@ export default function PdfReportPage() {
       }
       const accent = () => { doc.setFillColor(BRAND.r,BRAND.g,BRAND.b); doc.rect(0,0,W,0.06,'F') }
       const pageTitle = (t:string, y=0.7) => {
-        doc.setFontSize(24); doc.setTextColor(30,58,95); doc.setFont('times','bold'); doc.text(t,0.6,y)
+        doc.setFontSize(24); doc.setTextColor(BRAND.r,BRAND.g,BRAND.b); doc.setFont('times','bold'); doc.text(t,0.6,y)
         // Subtle underline
         doc.setDrawColor(249,115,22); doc.setLineWidth(0.02); doc.line(0.6, y + 0.12, 0.6 + Math.min(t.length * 0.14, 4), y + 0.12)
       }
@@ -378,13 +378,11 @@ export default function PdfReportPage() {
         doc.addPage([W, H], 'landscape')
       }
 
-      // Section title page — full-page divider with large centered title
+      // Section title page — full-page divider with large centered title (uses brand color)
       const sectionTitlePage = (title: string, subtitle?: string) => {
         addPage()
-        // Navy background
-        doc.setFillColor(30,58,95); doc.rect(0,0,W,H,'F')
-        // Decorative accent bar at top
-        doc.setFillColor(249,115,22); doc.rect(0,0,W,0.08,'F')
+        // Brand color background
+        doc.setFillColor(BRAND.r,BRAND.g,BRAND.b); doc.rect(0,0,W,H,'F')
         // Decorative circles
         doc.setFillColor(255,255,255); doc.setGState(new (doc as any).GState({ opacity: 0.05 }))
         doc.circle(W - 3, 2, 4, 'F')
@@ -396,11 +394,11 @@ export default function PdfReportPage() {
         const titleY = H / 2 - (titleLines.length * 0.6) / 2
         doc.text(titleLines, W / 2, titleY, { align: 'center' })
         // Orange underline
-        doc.setDrawColor(249,115,22); doc.setLineWidth(0.03)
+        doc.setDrawColor(255,255,255); doc.setLineWidth(0.03)
         doc.line(W / 2 - 2, titleY + titleLines.length * 0.55, W / 2 + 2, titleY + titleLines.length * 0.55)
         // Subtitle
         if (subtitle) {
-          doc.setFontSize(14); doc.setTextColor(180,200,220); doc.setFont('helvetica','normal')
+          doc.setFontSize(14); doc.setTextColor(255,255,255); doc.setFont('helvetica','normal')
           doc.text(subtitle, W / 2, titleY + titleLines.length * 0.55 + 0.5, { align: 'center' })
         }
       }
@@ -424,26 +422,25 @@ export default function PdfReportPage() {
         doc.text(format(new Date(), 'MMMM d, yyyy'), W / 2, H - 0.4, { align: 'center' })
         isFirstPage = false
 
-        // ─── PAGE 2: DETAILS — company info centered ───
+        // ─── PAGE 2: DETAILS — white background, company info centered ───
         addPage()
-        doc.setFillColor(30,58,95); doc.rect(0,0,W,H,'F')
-        doc.setFillColor(249,115,22); doc.rect(0,0,W,0.08,'F')
-        doc.setFillColor(255,255,255); doc.setGState(new (doc as any).GState({ opacity: 0.04 }))
-        doc.circle(W - 3, H - 2, 3.5, 'F')
-        doc.setGState(new (doc as any).GState({ opacity: 1 }))
-        doc.setFontSize(16); doc.setTextColor(180,200,220); doc.setFont('helvetica','normal')
+        // White background (clean like the reference Brief page)
+        doc.setFillColor(255,255,255); doc.rect(0,0,W,H,'F')
+        // Brand color accent bar at top
+        doc.setFillColor(BRAND.r,BRAND.g,BRAND.b); doc.rect(0,0,W,0.08,'F')
+        doc.setFontSize(16); doc.setTextColor(120,120,120); doc.setFont('helvetica','normal')
         doc.text('THIS REPORT IS AN ANALYSIS OF THE PR PRESENCE OF', W / 2, H / 2 - 1.2, { align: 'center' })
-        doc.setFontSize(38); doc.setTextColor(255,255,255); doc.setFont('times','bold')
+        doc.setFontSize(38); doc.setTextColor(BRAND.r,BRAND.g,BRAND.b); doc.setFont('times','bold')
         doc.text(clientName.toUpperCase(), W / 2, H / 2, { align: 'center' })
-        doc.setDrawColor(249,115,22); doc.setLineWidth(0.03)
+        doc.setDrawColor(BRAND.r,BRAND.g,BRAND.b); doc.setLineWidth(0.03)
         const nameW = Math.min(clientName.length * 0.28, 6)
         doc.line(W / 2 - nameW / 2, H / 2 + 0.3, W / 2 + nameW / 2, H / 2 + 0.3)
-        doc.setFontSize(14); doc.setTextColor(180,200,220); doc.setFont('helvetica','normal')
+        doc.setFontSize(14); doc.setTextColor(120,120,120); doc.setFont('helvetica','normal')
         doc.text('THE DATA WAS CAPTURED FROM', W / 2, H / 2 + 0.9, { align: 'center' })
-        doc.setFontSize(16); doc.setTextColor(249,115,22); doc.setFont('helvetica','bold')
+        doc.setFontSize(16); doc.setTextColor(BRAND.r,BRAND.g,BRAND.b); doc.setFont('helvetica','bold')
         doc.text(`${rangeStart} – ${rangeEnd}`, W / 2, H / 2 + 1.3, { align: 'center' })
         if (data.industries && data.industries.length > 0) {
-          doc.setFontSize(12); doc.setTextColor(150,175,200); doc.setFont('helvetica','normal')
+          doc.setFontSize(12); doc.setTextColor(150,150,150); doc.setFont('helvetica','normal')
           doc.text(`Industries: ${data.industries.join(', ')}`, W / 2, H / 2 + 1.9, { align: 'center' })
         }
       }
@@ -725,8 +722,8 @@ export default function PdfReportPage() {
         const barW = Math.min((chartW2 - barGap * (sources.length + 1)) / sources.length, 0.7)
         const totalBW = sources.length * barW + (sources.length - 1) * barGap
         const offX = (chartW2 - totalBW) / 2
-        // Alternating orange/navy bars
-        const barColors: [number,number,number][] = [[249,115,22],[30,58,95]]
+        // Alternating orange/dark bars
+        const barColors: [number,number,number][] = [[249,115,22],[45,45,45]]
         sources.forEach((src, i) => {
           const c = barColors[i % 2], barH = (src.count / maxVal) * chartH2
           const bx = chartX + offX + i * (barW + barGap), by = chartY + chartH2 - barH
@@ -761,7 +758,7 @@ export default function PdfReportPage() {
           doc.text(label.charAt(0).toUpperCase() + label.slice(1), 0.6, y + 0.22)
           const barX = 2.8, maxBarW = 7.0
           const bw = (kw.count / maxKw) * maxBarW
-          const kwBarColors: [number,number,number][] = [[249,115,22],[30,58,95]]
+          const kwBarColors: [number,number,number][] = [[249,115,22],[45,45,45]]
           const c = kwBarColors[i % 2]
           doc.setFillColor(c[0], c[1], c[2]); doc.roundedRect(barX, y, bw, barH, 0.04, 0.04, 'F')
           doc.setFontSize(9); doc.setTextColor(31,41,55); doc.setFont('helvetica','bold')
