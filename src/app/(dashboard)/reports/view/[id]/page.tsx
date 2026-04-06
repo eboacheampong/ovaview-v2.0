@@ -528,39 +528,29 @@ function MediaReportView({ data, report, brandColor }: { data: any; report: any;
         </div>
       )}
 
-      {/* Key Publishers & Authors — dark bar chart */}
+      {/* Key Publishers & Authors — horizontal bar chart with full names */}
       {data?.topAuthors?.length > 0 && (
         <div className="px-5 sm:px-6 pb-5">
           <SectionHeader icon="✍️" color={brandColor}>Key Publishers & Authors</SectionHeader>
-          <div className="border-2 border-gray-200 rounded-b-lg p-5">
-            <div className="flex items-end gap-3 justify-center mb-4" style={{ height: '180px' }}>
-              {data.topAuthors.slice(0, 8).map((a: { name: string; mentions: number; reach: number }, i: number) => {
-                const maxMentions = Math.max(...data.topAuthors.map((x: { mentions: number }) => x.mentions))
-                const barHeight = maxMentions > 0 ? Math.max((a.mentions / maxMentions) * 150, 20) : 20
-                return (
-                  <div key={i} className="flex flex-col items-center gap-1 flex-1 min-w-0">
-                    <span className="text-xs font-bold text-[#2d2d2d]">{a.mentions}</span>
-                    <div className="w-full rounded-t-md bg-[#2d2d2d] transition-colors cursor-default min-w-[28px] max-w-[56px] mx-auto"
-                      style={{ height: `${barHeight}px` }}
-                      onMouseEnter={e => (e.currentTarget.style.backgroundColor = brandColor)}
-                      onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#2d2d2d')}
-                      title={`${a.name}: ${a.mentions} mentions, ${formatNumber(a.reach)} reach`} />
-                    <span className="text-[9px] text-gray-500 font-medium text-center leading-tight truncate w-full px-0.5">
-                      {a.name.length > 12 ? a.name.substring(0, 12) + '…' : a.name}
-                    </span>
+          <div className="border-2 border-gray-200 rounded-b-lg p-5 space-y-2.5">
+            {data.topAuthors.map((a: { name: string; mentions: number; reach: number }, i: number) => {
+              const maxMentions = Math.max(...data.topAuthors.map((x: { mentions: number }) => x.mentions))
+              const pct = maxMentions > 0 ? Math.max((a.mentions / maxMentions) * 100, 5) : 5
+              return (
+                <div key={i} className="flex items-center gap-3">
+                  <div className="w-36 min-w-[9rem] text-right shrink-0">
+                    <p className="text-xs font-semibold text-gray-800 truncate">{a.name}</p>
+                    <p className="text-[10px] text-gray-400">{formatNumber(a.reach)} reach</p>
                   </div>
-                )
-              })}
-            </div>
-            <div className="border-t border-gray-200 pt-3 space-y-1.5">
-              {data.topAuthors.map((a: { name: string; mentions: number; reach: number }, i: number) => (
-                <div key={i} className="flex items-center gap-2 text-xs">
-                  <span className="w-5 h-5 rounded text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0" style={{ backgroundColor: brandColor }}>{i + 1}</span>
-                  <span className="font-semibold text-gray-800 flex-1 truncate">{a.name}</span>
-                  <span className="text-gray-500">{a.mentions} articles · {formatNumber(a.reach)} reach</span>
+                  <div className="flex-1 bg-gray-100 rounded h-6 overflow-hidden">
+                    <div className="h-full rounded flex items-center justify-end pr-2 transition-all" style={{ width: `${pct}%`, backgroundColor: brandColor }}>
+                      {pct > 15 && <span className="text-[10px] font-bold text-white">{a.mentions}</span>}
+                    </div>
+                  </div>
+                  {pct <= 15 && <span className="text-xs font-bold text-gray-700 w-6">{a.mentions}</span>}
                 </div>
-              ))}
-            </div>
+              )
+            })}
           </div>
         </div>
       )}

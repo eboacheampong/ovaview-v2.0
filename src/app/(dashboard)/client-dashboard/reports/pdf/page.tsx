@@ -746,8 +746,8 @@ export default function PdfReportPage() {
         const barW = Math.min((chartW2 - barGap * (sources.length + 1)) / sources.length, 0.7)
         const totalBW = sources.length * barW + (sources.length - 1) * barGap
         const offX = (chartW2 - totalBW) / 2
-        // Alternating orange/dark bars
-        const barColors: [number,number,number][] = [[249,115,22],[45,45,45]]
+        // Alternating brand/dark bars
+        const barColors: [number,number,number][] = [[BRAND.r,BRAND.g,BRAND.b],[45,45,45]]
         sources.forEach((src, i) => {
           const c = barColors[i % 2], barH = (src.count / maxVal) * chartH2
           const bx = chartX + offX + i * (barW + barGap), by = chartY + chartH2 - barH
@@ -782,7 +782,7 @@ export default function PdfReportPage() {
           doc.text(label.charAt(0).toUpperCase() + label.slice(1), 0.6, y + 0.22)
           const barX = 2.8, maxBarW = 7.0
           const bw = (kw.count / maxKw) * maxBarW
-          const kwBarColors: [number,number,number][] = [[249,115,22],[45,45,45]]
+          const kwBarColors: [number,number,number][] = [[BRAND.r,BRAND.g,BRAND.b],[45,45,45]]
           const c = kwBarColors[i % 2]
           doc.setFillColor(c[0], c[1], c[2]); doc.roundedRect(barX, y, bw, barH, 0.04, 0.04, 'F')
           doc.setFontSize(9); doc.setTextColor(31,41,55); doc.setFont('helvetica','bold')
@@ -858,40 +858,41 @@ export default function PdfReportPage() {
         }
       }
 
-      // ─── JOURNALISTS — vertical bar chart ───
+      // ─── JOURNALISTS — horizontal bar chart with full names ───
       if (enabledSectionIds.includes('journalists') && data.topJournalists.length > 0) {
         addPage(); accent(); pageTitle('Top Journalists & Authors')
-        const journalists = data.topJournalists.slice(0, 10)
+        const journalists = data.topJournalists.slice(0, 12)
         const maxCount = Math.max(...journalists.map(j => j.count), 1)
-        const chartX = 1.2, chartY = 1.5, chartW = W - 2.4, chartH = 5.5
-        const barGap = 0.3
-        const barW = (chartW - barGap * (journalists.length + 1)) / journalists.length
-        const maxBarH = chartH - 1.2 // leave room for labels
+        const startY = 1.2, barH = 0.42, gap = 0.15
+        const nameColW = 3.5, barX = 4.0, maxBarW = 7.5
 
-        // Draw bars
         journalists.forEach((j, i) => {
-          const x = chartX + barGap + i * (barW + barGap)
-          const bh = (j.count / maxCount) * maxBarH
-          const y = chartY + (maxBarH - bh)
+          const y = startY + i * (barH + gap)
+          if (y + barH > FOOTER_Y) return
+
+          // Name + outlet
+          doc.setFontSize(10); doc.setTextColor(31,41,55); doc.setFont('helvetica','bold')
+          const fullName = j.name.length > 28 ? j.name.slice(0, 27) + '…' : j.name
+          doc.text(fullName, 0.6, y + 0.18)
+          if (j.outlet) {
+            doc.setFontSize(8); doc.setTextColor(156,163,175); doc.setFont('helvetica','normal')
+            const outlet = j.outlet.length > 30 ? j.outlet.slice(0, 29) + '…' : j.outlet
+            doc.text(outlet, 0.6, y + 0.36)
+          }
 
           // Bar
+          const bw = Math.max((j.count / maxCount) * maxBarW, 0.3)
           doc.setFillColor(BRAND.r, BRAND.g, BRAND.b)
-          doc.roundedRect(x, y, barW, bh, 0.05, 0.05, 'F')
+          doc.roundedRect(barX, y + 0.02, bw, barH - 0.04, 0.05, 0.05, 'F')
 
-          // Count on top of bar
-          doc.setFontSize(11); doc.setTextColor(31,41,55); doc.setFont('helvetica','bold')
-          doc.text(j.count.toString(), x + barW / 2, y - 0.12, { align: 'center' })
-
-          // Name below bar (rotated or truncated)
-          doc.setFontSize(8); doc.setTextColor(107,114,128); doc.setFont('helvetica','normal')
-          const name = j.name.length > 14 ? j.name.slice(0, 13) + '…' : j.name
-          doc.text(name, x + barW / 2, chartY + maxBarH + 0.3, { align: 'center' })
-
-          // Outlet below name
-          if (j.outlet) {
-            doc.setFontSize(7); doc.setTextColor(156,163,175)
-            const outlet = j.outlet.length > 16 ? j.outlet.slice(0, 15) + '…' : j.outlet
-            doc.text(outlet, x + barW / 2, chartY + maxBarH + 0.55, { align: 'center' })
+          // Count on bar or after bar
+          doc.setFontSize(10); doc.setFont('helvetica','bold')
+          if (bw > 0.8) {
+            doc.setTextColor(255,255,255)
+            doc.text(j.count.toString(), barX + bw - 0.3, y + 0.27)
+          } else {
+            doc.setTextColor(31,41,55)
+            doc.text(j.count.toString(), barX + bw + 0.15, y + 0.27)
           }
         })
       }
@@ -928,43 +929,70 @@ export default function PdfReportPage() {
       }
 
       // ─── MENTIONS TABLE ───
+      // ─── RECENT MENTIONS — card-style like the reference Major Stories page ───
       if (enabledSectionIds.includes('mentions_table') && data.mentions.length > 0) {
-        addPage(); accent(); pageTitle('Recent Mentions')
-        doc.setFontSize(11); doc.setTextColor(107,114,128); doc.setFont('helvetica','normal')
-        doc.text(`Showing ${Math.min(data.mentions.length, 40)} most recent mentions`, 0.6, 1.1)
-        const tableW = 11.5
-        const tableX = (W - tableW) / 2
-        const mentionRows = data.mentions.slice(0, 40).map(m => [
-          format(new Date(m.date), 'MMM d, yyyy'),
-          m.type === 'social' ? (m.platform || 'Social') : m.type.charAt(0).toUpperCase() + m.type.slice(1),
-          (m.title || '').length > 45 ? (m.title || '').slice(0, 44) + '...' : (m.title || ''),
-          (m.source || '').length > 18 ? (m.source || '').slice(0, 17) + '...' : (m.source || ''),
-          (m.sentiment || 'neutral').charAt(0).toUpperCase() + (m.sentiment || 'neutral').slice(1),
-          fmtNum(m.reach),
-        ])
-        autoTable(doc, {
-          startY: 1.35,
-          head: [['Date', 'Type', 'Title', 'Source', 'Sentiment', 'Reach']],
-          body: mentionRows,
-          theme: 'striped',
-          headStyles: {
-            fillColor: [BRAND.r, BRAND.g, BRAND.b], textColor: 255, fontSize: 10,
-            font: 'helvetica', fontStyle: 'bold', halign: 'left', cellPadding: 0.12,
-          },
-          bodyStyles: { fontSize: 9, textColor: [75,85,99], cellPadding: 0.1 },
-          alternateRowStyles: { fillColor: [249,250,251] },
-          columnStyles: {
-            0: { cellWidth: 1.3 },
-            1: { cellWidth: 1.0, halign: 'center' },
-            2: { cellWidth: 4.8 },
-            3: { cellWidth: 2.0 },
-            4: { cellWidth: 1.1, halign: 'center' },
-            5: { cellWidth: 1.0, halign: 'right' },
-          },
-          margin: { left: tableX, right: tableX, bottom: 1.0 },
-          styles: { lineColor: [229,231,235], lineWidth: 0.01 },
-          tableWidth: tableW,
-        })
+        const mentionsPerPage = 6
+        const allMentions = data.mentions.slice(0, 24) // max 4 pages
+        let pageIdx = 0
+
+        while (pageIdx * mentionsPerPage < allMentions.length) {
+          const pageMentions = allMentions.slice(pageIdx * mentionsPerPage, (pageIdx + 1) * mentionsPerPage)
+          addPage(); accent(); pageTitle(pageIdx === 0 ? 'Recent Mentions' : 'Recent Mentions (cont.)')
+
+          const startY = 1.1, cardH = 1.05, cardGap = 0.15
+          const cols = 2, cardW = (W - 1.2 - 0.3) / cols
+
+          pageMentions.forEach((m, i) => {
+            const col = i % cols, row = Math.floor(i / cols)
+            const cx = 0.6 + col * (cardW + 0.3)
+            const cy = startY + row * (cardH + cardGap)
+            if (cy + cardH > FOOTER_Y) return
+
+            // Card border with left accent
+            const sentColor: [number,number,number] = m.sentiment === 'positive' ? [16,185,129] : m.sentiment === 'negative' ? [239,68,68] : [156,163,175]
+            doc.setDrawColor(229,231,235); doc.setLineWidth(0.01)
+            doc.roundedRect(cx, cy, cardW, cardH, 0.06, 0.06, 'S')
+            doc.setFillColor(sentColor[0], sentColor[1], sentColor[2])
+            doc.rect(cx, cy + 0.06, 0.04, cardH - 0.12, 'F')
+
+            // Date + Type badge
+            doc.setFontSize(8); doc.setTextColor(156,163,175); doc.setFont('helvetica','normal')
+            const dateStr = format(new Date(m.date), 'MMM d, yyyy')
+            doc.text(dateStr, cx + 0.2, cy + 0.2)
+            const typeLabel = m.type === 'social' ? (m.platform || 'Social') : m.type.charAt(0).toUpperCase() + m.type.slice(1)
+            doc.setFillColor(BRAND.r, BRAND.g, BRAND.b)
+            const typeLabelW = typeLabel.length * 0.06 + 0.15
+            doc.roundedRect(cx + cardW - typeLabelW - 0.15, cy + 0.08, typeLabelW, 0.2, 0.03, 0.03, 'F')
+            doc.setFontSize(7); doc.setTextColor(255,255,255); doc.setFont('helvetica','bold')
+            doc.text(typeLabel.toUpperCase(), cx + cardW - typeLabelW / 2 - 0.15, cy + 0.21, { align: 'center' })
+
+            // Title
+            doc.setFontSize(10); doc.setTextColor(31,41,55); doc.setFont('helvetica','bold')
+            const title = (m.title || '').length > 55 ? (m.title || '').slice(0, 54) + '…' : (m.title || '')
+            doc.text(title, cx + 0.2, cy + 0.42)
+
+            // Summary
+            if (m.summary) {
+              doc.setFontSize(8); doc.setTextColor(107,114,128); doc.setFont('helvetica','normal')
+              const summary = m.summary.length > 80 ? m.summary.slice(0, 79) + '…' : m.summary
+              doc.text(summary, cx + 0.2, cy + 0.6)
+            }
+
+            // Bottom row: source · sentiment · reach
+            doc.setFontSize(7); doc.setTextColor(156,163,175); doc.setFont('helvetica','normal')
+            const source = (m.source || '').length > 20 ? (m.source || '').slice(0, 19) + '…' : (m.source || '')
+            const sentLabel = (m.sentiment || 'neutral').charAt(0).toUpperCase() + (m.sentiment || 'neutral').slice(1)
+            const bottomText = `${source}  ·  ${sentLabel}  ·  ${fmtNum(m.reach)} reach`
+            doc.text(bottomText, cx + 0.2, cy + 0.82)
+
+            // Author if available
+            if (m.author && m.author.length > 2) {
+              doc.setFontSize(7); doc.setTextColor(107,114,128)
+              doc.text(`By ${m.author.length > 25 ? m.author.slice(0, 24) + '…' : m.author}`, cx + 0.2, cy + 0.95)
+            }
+          })
+          pageIdx++
+        }
       }
 
       // ─── CONCLUSIONS ───
@@ -1530,18 +1558,25 @@ export default function PdfReportPage() {
                   </PreviewCard>
                 )}
 
-                {/* Journalists Preview — bar chart */}
+                {/* Journalists Preview — horizontal bar chart with full names */}
                 {enabledSectionIds.includes('journalists') && reportData.topJournalists.length > 0 && (
                   <PreviewCard id="journalists" active={activePreviewSection === 'journalists'} label="Top Journalists & Authors">
-                    <div className="flex items-end gap-1 h-28">
+                    <div className="space-y-1.5">
                       {reportData.topJournalists.slice(0, 8).map((j, i) => {
                         const max = Math.max(...reportData.topJournalists.slice(0, 8).map(x => x.count), 1)
-                        const h = Math.max((j.count / max) * 100, 8)
+                        const pct = Math.max((j.count / max) * 100, 5)
                         return (
-                          <div key={i} className="flex flex-col items-center flex-1 min-w-0">
-                            <span className="text-[9px] font-bold text-gray-700 mb-0.5">{j.count}</span>
-                            <div className="w-full rounded-t" style={{ height: `${h}%`, backgroundColor: brandColor, minWidth: '12px' }} title={`${j.name} — ${j.outlet}`} />
-                            <span className="text-[7px] text-gray-500 mt-1 truncate w-full text-center leading-tight">{j.name.split(' ').pop()}</span>
+                          <div key={i} className="flex items-center gap-2">
+                            <div className="w-28 min-w-[7rem] text-right">
+                              <p className="text-[10px] font-semibold text-gray-700 truncate">{j.name}</p>
+                              <p className="text-[8px] text-gray-400 truncate">{j.outlet}</p>
+                            </div>
+                            <div className="flex-1 bg-gray-100 rounded h-4 overflow-hidden">
+                              <div className="h-full rounded flex items-center justify-end pr-1" style={{ width: `${pct}%`, backgroundColor: brandColor }}>
+                                {pct > 20 && <span className="text-[8px] font-bold text-white">{j.count}</span>}
+                              </div>
+                            </div>
+                            {pct <= 20 && <span className="text-[9px] font-bold text-gray-700 w-5">{j.count}</span>}
                           </div>
                         )
                       })}
