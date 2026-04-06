@@ -133,6 +133,22 @@ function cleanAIText(text: string): string {
     .trim()
 }
 
+/** Sanitize text for jsPDF — strip emoji and non-Latin characters that cause spacing issues */
+function sanitizeForPdf(text: string): string {
+  if (!text) return ''
+  return text
+    // eslint-disable-next-line no-control-regex
+    .replace(/[\u{1F600}-\u{1F9FF}|\u{2600}-\u{26FF}|\u{2700}-\u{27BF}|\u{1F300}-\u{1F5FF}|\u{1F680}-\u{1F6FF}|\u{1FA00}-\u{1FAFF}|\u{200D}|\u{FE0F}|\u{20E3}|\u{E0020}-\u{E007F}]/gu, '')
+    .replace(/[\u0080-\u00FF]/g, c => {
+      // Keep common Latin-1 characters
+      const code = c.charCodeAt(0)
+      if ((code >= 0xC0 && code <= 0xFF) || code === 0xA9 || code === 0xAE) return c
+      return ''
+    })
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+}
+
 /* ─── Preview Card Component ─── */
 function PreviewCard({ id, active, label, insight, showInsight, brandColor, children }: {
   id: string
@@ -345,56 +361,105 @@ export default function PdfReportPage() {
         return y + boxH + 0.15
       }
 
-      // Full-page insight: dedicated page, centered vertically & horizontally, formal statement style
+      // Full-page insight: dedicated page with modern card UI, numbered points, centered
       const fullPageInsight = (rawText: string, sectionTitle: string) => {
         if (!rawText) return
         const text = cleanAIText(rawText)
         addPage(); accent(); pageTitle(`${sectionTitle} — Insights`)
 
-        // Parse into paragraphs/bullets for formal formatting
-        const paragraphs = text.split('\n').filter(l => l.trim())
-        const textW = W - 2.4 // generous margins
-        const startX = 1.2
-        doc.setFontSize(12); doc.setFont('helvetica','normal'); doc.setTextColor(45,45,45)
+        // Split text into sentences/points for structured display
+        const raw = text.split(/(?<=[.!?])\s+|\n/).filter(s => s.trim().length > 10)
+        // Group into logical points — each sentence or bullet becomes a numbered point
+        const points: string[] = []
+        let currentPoint = ''
+        for (const sentence of raw) {
+          const trimmed = sentence.trim().replace(/^[\d]+[\.\)]\s*/, '').replace(/^[-•]\s*/, '')
+          if (currentPoint.length + trimmed.length > 200 && currentPoint.length > 0) {
+            points.push(currentPoint.trim())
+            currentPoint = trimmed
+          } else {
+            currentPoint += (currentPoint ? ' ' : '') + trimmed
+          }
+        }
+        if (currentPoint.trim()) points.push(currentPoint.trim())
 
-        // Calculate total height to center vertically
-        let totalH = 0
-        const rendered: { type: 'para' | 'bullet'; lines: string[]; h: number }[] = []
-        for (const para of paragraphs) {
-          const trimmed = para.trim()
-          const bulletMatch = trimmed.match(/^(\d+[\.\)]\s*|[-•]\s*)(.+)/)
-          const bodyText = bulletMatch ? bulletMatch[2] : trimmed
-          const isBullet = !!bulletMatch
-          const lines = doc.splitTextToSize(bodyText, isBullet ? textW - 0.4 : textW)
-          const h = lines.length * 0.26 + 0.15
-          rendered.push({ type: isBullet ? 'bullet' : 'para', lines, h })
-          totalH += h
+        // If only 1 point, try to split it further
+        if (points.length === 1 && points[0].length > 150) {
+          const sentences = points[0].split(/(?<=[.!?])\s+/).filter(s => s.trim().length > 5)
+          if (sentences.length > 1) {
+            points.length = 0
+            points.push(...sentences)
+          }
         }
 
-        // Center vertically between header (0.65) and footer
-        const contentArea = FOOTER_Y - 1.1
-        const offsetY = Math.max(1.1, 1.1 + (contentArea - totalH) / 2)
-        let y = offsetY
+        // Layout constants
+        const cardX = 0.8, cardW = W - 1.6
+        const cardPadding = 0.3
+        const pointGap = 0.2
+        const lineH = 0.24
+        const numberSize = 0.35
 
-        for (const block of rendered) {
-          if (y > FOOTER_Y - 0.5) {
+        // Pre-calculate heights
+        doc.setFontSize(11); doc.setFont('helvetica','normal')
+        const pointData = points.map((p, i) => {
+          const lines = doc.splitTextToSize(p, cardW - cardPadding * 2 - numberSize - 0.3)
+          return { text: p, lines, h: Math.max(lines.length * lineH + 0.15, 0.5), num: i + 1 }
+        })
+        const totalContentH = pointData.reduce((s, p) => s + p.h + pointGap, 0) + 0.8 // header + padding
+
+        // Center the card vertically
+        const availableH = FOOTER_Y - 1.1
+        const cardH = Math.min(totalContentH, availableH - 0.2)
+        const cardY = Math.max(1.1, 1.1 + (availableH - cardH) / 2)
+
+        // Draw main card with brand-color top border
+        doc.setFillColor(255, 255, 255)
+        doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.01)
+        doc.roundedRect(cardX, cardY, cardW, cardH, 0.1, 0.1, 'FD')
+        // Brand color top bar on card
+        doc.setFillColor(BRAND.r, BRAND.g, BRAND.b)
+        doc.rect(cardX + 0.1, cardY, cardW - 0.2, 0.06, 'F')
+
+        // Card header
+        let y = cardY + 0.4
+        doc.setFontSize(14); doc.setFont('helvetica','bold'); doc.setTextColor(BRAND.r, BRAND.g, BRAND.b)
+        doc.text('Key Findings & Analysis', cardX + cardPadding, y)
+        y += 0.15
+        // Subtle divider line
+        doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.01)
+        doc.line(cardX + cardPadding, y, cardX + cardW - cardPadding, y)
+        y += 0.25
+
+        // Render each point as a numbered item with brand-color number badge
+        for (const point of pointData) {
+          if (y + point.h > cardY + cardH - 0.2) {
+            // Overflow to new page
             addPage(); accent(); pageTitle(`${sectionTitle} — Insights (cont.)`)
-            y = 1.2
-          }
-          if (block.type === 'bullet') {
+            const newCardY = 1.1
+            const remainingPoints = pointData.slice(pointData.indexOf(point))
+            const remainH = remainingPoints.reduce((s, p) => s + p.h + pointGap, 0) + 0.5
+            const newCardH = Math.min(remainH, FOOTER_Y - newCardY - 0.2)
+            doc.setFillColor(255, 255, 255)
+            doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.01)
+            doc.roundedRect(cardX, newCardY, cardW, newCardH, 0.1, 0.1, 'FD')
             doc.setFillColor(BRAND.r, BRAND.g, BRAND.b)
-            doc.circle(startX + 0.08, y + 0.02, 0.04, 'F')
-            doc.setFontSize(12); doc.setFont('helvetica','normal'); doc.setTextColor(45,45,45)
-            block.lines.forEach((line: string, li: number) => {
-              doc.text(line, startX + 0.35, y + li * 0.26)
-            })
-          } else {
-            doc.setFontSize(12); doc.setFont('helvetica','normal'); doc.setTextColor(45,45,45)
-            block.lines.forEach((line: string, li: number) => {
-              doc.text(line, startX, y + li * 0.26)
-            })
+            doc.rect(cardX + 0.1, newCardY, cardW - 0.2, 0.06, 'F')
+            y = newCardY + 0.35
           }
-          y += block.h
+
+          // Number badge
+          doc.setFillColor(BRAND.r, BRAND.g, BRAND.b)
+          doc.circle(cardX + cardPadding + 0.15, y + 0.02, 0.15, 'F')
+          doc.setFontSize(10); doc.setFont('helvetica','bold'); doc.setTextColor(255, 255, 255)
+          doc.text(point.num.toString(), cardX + cardPadding + 0.15, y + 0.06, { align: 'center' })
+
+          // Point text
+          doc.setFontSize(11); doc.setFont('helvetica','normal'); doc.setTextColor(45, 45, 45)
+          point.lines.forEach((line: string, li: number) => {
+            doc.text(line, cardX + cardPadding + numberSize + 0.15, y + li * lineH)
+          })
+
+          y += point.h + pointGap
         }
       }
 
@@ -660,8 +725,9 @@ export default function PdfReportPage() {
       // ─── COVERAGE TREND ───
       if (enabledSectionIds.includes('coverage_trend') && data.chart.length > 0) {
         addPage(); accent(); pageTitle('Coverage Trend')
-        const chartX = 1.2, chartY = 1.3, chartW = 10.5, chartH = 3.8
+        const chartX = 1.2, chartY = 1.3, chartW = 10.5, chartH = 5.0
         const maxVal = Math.max(...data.chart.map(c => c.mentions), 1)
+        const n = data.chart.length
         doc.setDrawColor(229,231,235); doc.setLineWidth(0.01)
         doc.line(chartX, chartY, chartX, chartY + chartH)
         doc.line(chartX, chartY + chartH, chartX + chartW, chartY + chartH)
@@ -670,16 +736,23 @@ export default function PdfReportPage() {
           doc.setFontSize(9); doc.setTextColor(156,163,175); doc.text(val.toString(), chartX - 0.1, ty + 0.03, { align: 'right' })
           if (t > 0) { doc.setDrawColor(243,244,246); doc.line(chartX, ty, chartX + chartW, ty) }
         }
-        const barGap = data.chart.length > 30 ? 0.02 : 0.06
-        const barW = Math.min((chartW - barGap * (data.chart.length + 1)) / data.chart.length, 0.5)
-        const totalBW = data.chart.length * barW + (data.chart.length - 1) * barGap
-        const offX = (chartW - totalBW) / 2
+        // Bars spread across full width — wider when fewer, narrower when many
+        const maxBarW = n <= 5 ? 1.2 : n <= 10 ? 0.7 : n <= 20 ? 0.4 : 0.25
+        const slotW = chartW / n
+        const barW = Math.min(slotW * 0.7, maxBarW)
         data.chart.forEach((d, i) => {
           const barH = (d.mentions / maxVal) * chartH
-          const bx = chartX + offX + i * (barW + barGap), by = chartY + chartH - barH
-          doc.setFillColor(BRAND.r, BRAND.g, BRAND.b); doc.roundedRect(bx, by, barW, barH, 0.02, 0.02, 'F')
-          if (data.chart.length <= 15 || i % Math.ceil(data.chart.length / 10) === 0) {
-            doc.setFontSize(7); doc.setTextColor(107,114,128)
+          const bx = chartX + i * slotW + (slotW - barW) / 2
+          const by = chartY + chartH - barH
+          doc.setFillColor(BRAND.r, BRAND.g, BRAND.b); doc.roundedRect(bx, by, barW, Math.max(barH, 0.02), 0.02, 0.02, 'F')
+          // Count on top
+          if (d.mentions > 0 && (n <= 20 || i % Math.ceil(n / 15) === 0)) {
+            doc.setFontSize(n <= 10 ? 10 : 8); doc.setTextColor(31,41,55); doc.setFont('helvetica','bold')
+            doc.text(d.mentions.toString(), bx + barW / 2, by - 0.1, { align: 'center' })
+          }
+          // Date label
+          if (n <= 15 || i % Math.ceil(n / 10) === 0) {
+            doc.setFontSize(n <= 10 ? 9 : 7); doc.setTextColor(107,114,128); doc.setFont('helvetica','normal')
             doc.text(format(new Date(d.date), 'MMM d'), bx + barW / 2, chartY + chartH + 0.2, { align: 'center' })
           }
         })
@@ -740,12 +813,12 @@ export default function PdfReportPage() {
       // ─── SENTIMENT OVER TIME ───
       if (enabledSectionIds.includes('sentiment_trend') && data.chart.length > 0) {
         addPage(); accent(); pageTitle('Sentiment Over Time')
-        const chartX = 1.5, chartY = 1.3, chartW = 10.2, chartH = 3.6
+        const chartX = 1.5, chartY = 1.3, chartW = 10.2, chartH = 5.0
         const maxVal = Math.max(...data.chart.map(c => c.positive + c.neutral + c.negative), 1)
+        const n = data.chart.length
         doc.setDrawColor(229,231,235); doc.setLineWidth(0.01)
         doc.line(chartX, chartY, chartX, chartY + chartH)
         doc.line(chartX, chartY + chartH, chartX + chartW, chartY + chartH)
-        // Y-axis tick labels and grid lines
         for (let t = 0; t <= 5; t++) {
           const val = Math.round((maxVal * t) / 5)
           const ty = chartY + chartH - (chartH * t) / 5
@@ -753,29 +826,27 @@ export default function PdfReportPage() {
           doc.text(val.toString(), chartX - 0.15, ty + 0.04, { align: 'right' })
           if (t > 0) { doc.setDrawColor(240,240,240); doc.setLineWidth(0.005); doc.line(chartX, ty, chartX + chartW, ty) }
         }
-        const barGap = data.chart.length > 30 ? 0.02 : 0.06
-        const barW = Math.min((chartW - barGap * (data.chart.length + 1)) / data.chart.length, 0.5)
-        const totalBW = data.chart.length * barW + (data.chart.length - 1) * barGap
-        const offX = (chartW - totalBW) / 2
+        // Bars spread across full width
+        const maxBarW = n <= 5 ? 1.0 : n <= 10 ? 0.6 : n <= 20 ? 0.35 : 0.2
+        const slotW = chartW / n
+        const barW = Math.min(slotW * 0.7, maxBarW)
         data.chart.forEach((d, i) => {
-          const bx = chartX + offX + i * (barW + barGap)
+          const bx = chartX + i * slotW + (slotW - barW) / 2
           const total = d.positive + d.neutral + d.negative
           const pH = (d.positive / maxVal) * chartH
           const nH = (d.neutral / maxVal) * chartH
           const ngH = (d.negative / maxVal) * chartH
           let by = chartY + chartH
-          if (d.positive > 0) { by -= pH; doc.setFillColor(16,185,129); doc.rect(bx, by, barW - 0.01, pH, 'F') }
-          if (d.neutral > 0) { by -= nH; doc.setFillColor(156,163,175); doc.rect(bx, by, barW - 0.01, nH, 'F') }
-          if (d.negative > 0) { by -= ngH; doc.setFillColor(239,68,68); doc.rect(bx, by, barW - 0.01, ngH, 'F') }
-          // Total count on top of each bar
-          if (total > 0 && (data.chart.length <= 20 || i % Math.ceil(data.chart.length / 15) === 0)) {
+          if (d.positive > 0) { by -= pH; doc.setFillColor(16,185,129); doc.rect(bx, by, barW, pH, 'F') }
+          if (d.neutral > 0) { by -= nH; doc.setFillColor(156,163,175); doc.rect(bx, by, barW, nH, 'F') }
+          if (d.negative > 0) { by -= ngH; doc.setFillColor(239,68,68); doc.rect(bx, by, barW, ngH, 'F') }
+          if (total > 0 && (n <= 20 || i % Math.ceil(n / 15) === 0)) {
             const topY = chartY + chartH - (total / maxVal) * chartH
-            doc.setFontSize(7); doc.setTextColor(55,65,81); doc.setFont('helvetica','bold')
-            doc.text(total.toString(), bx + (barW - 0.01) / 2, topY - 0.08, { align: 'center' })
+            doc.setFontSize(n <= 10 ? 9 : 7); doc.setTextColor(55,65,81); doc.setFont('helvetica','bold')
+            doc.text(total.toString(), bx + barW / 2, topY - 0.08, { align: 'center' })
           }
-          // X-axis date labels
-          if (data.chart.length <= 15 || i % Math.ceil(data.chart.length / 10) === 0) {
-            doc.setFontSize(7); doc.setTextColor(130,130,130); doc.setFont('helvetica','normal')
+          if (n <= 15 || i % Math.ceil(n / 10) === 0) {
+            doc.setFontSize(n <= 10 ? 9 : 7); doc.setTextColor(130,130,130); doc.setFont('helvetica','normal')
             doc.text(format(new Date(d.date), 'MMM d'), bx + barW / 2, chartY + chartH + 0.22, { align: 'center' })
           }
         })
@@ -792,8 +863,9 @@ export default function PdfReportPage() {
       if (enabledSectionIds.includes('top_sources') && data.topSources.length > 0) {
         addPage(); accent(); pageTitle('Top Media Sources')
         const sources = data.topSources.slice(0, 10)
+        const n = sources.length
         const maxVal = Math.max(...sources.map(s => s.count), 1)
-        const chartX = 1.5, chartY = 1.3, chartW2 = 10.0, chartH2 = 3.8
+        const chartX = 1.5, chartY = 1.3, chartW2 = 10.0, chartH2 = 5.0
         doc.setDrawColor(229,231,235); doc.setLineWidth(0.01)
         doc.line(chartX, chartY, chartX, chartY + chartH2)
         doc.line(chartX, chartY + chartH2, chartX + chartW2, chartY + chartH2)
@@ -802,17 +874,16 @@ export default function PdfReportPage() {
           doc.setFontSize(9); doc.setTextColor(156,163,175); doc.text(val.toString(), chartX - 0.1, ty + 0.03, { align: 'right' })
           if (t > 0) { doc.setDrawColor(243,244,246); doc.line(chartX, ty, chartX + chartW2, ty) }
         }
-        const barGap = 0.15
-        const barW = Math.min((chartW2 - barGap * (sources.length + 1)) / sources.length, 0.7)
-        const totalBW = sources.length * barW + (sources.length - 1) * barGap
-        const offX = (chartW2 - totalBW) / 2
-        // Alternating brand/dark bars
+        // Bars spread across full width
+        const maxBarW = n <= 5 ? 1.2 : n <= 8 ? 0.8 : 0.6
+        const slotW = chartW2 / n
+        const barW = Math.min(slotW * 0.7, maxBarW)
         const barColors: [number,number,number][] = [[BRAND.r,BRAND.g,BRAND.b],[45,45,45]]
         sources.forEach((src, i) => {
           const c = barColors[i % 2], barH = (src.count / maxVal) * chartH2
-          const bx = chartX + offX + i * (barW + barGap), by = chartY + chartH2 - barH
-          doc.setFillColor(c[0], c[1], c[2]); doc.roundedRect(bx, by, barW, barH, 0.03, 0.03, 'F')
-          doc.setFontSize(7); doc.setTextColor(75,85,99)
+          const bx = chartX + i * slotW + (slotW - barW) / 2, by = chartY + chartH2 - barH
+          doc.setFillColor(c[0], c[1], c[2]); doc.roundedRect(bx, by, barW, Math.max(barH, 0.02), 0.03, 0.03, 'F')
+          doc.setFontSize(n <= 6 ? 9 : 7); doc.setTextColor(75,85,99)
           const lbl = src.name.length > 14 ? src.name.slice(0, 13) + '…' : src.name
           doc.text(lbl, bx + barW / 2, chartY + chartH2 + 0.2, { align: 'center' })
           doc.setFontSize(8); doc.setTextColor(31,41,55); doc.setFont('helvetica','bold')
@@ -995,22 +1066,27 @@ export default function PdfReportPage() {
         let isFirstMentionPage = true
 
         for (const m of allMentions) {
+          // Sanitize text for PDF rendering
+          const safeTitle = sanitizeForPdf(m.title || '')
+          const safeSummary = sanitizeForPdf(m.summary || '')
+          const safeSource = sanitizeForPdf(m.source || '')
+          const safeAuthor = sanitizeForPdf(m.author || '')
+
           // Calculate card height dynamically
           doc.setFontSize(11); doc.setFont('helvetica','bold')
-          const titleLines = doc.splitTextToSize(m.title || '', W - 1.8)
+          const titleLines = doc.splitTextToSize(safeTitle, W - 1.8)
           const titleH = Math.min(titleLines.length, 2) * 0.2
 
           let summaryH = 0
           let summaryLines: string[] = []
-          const summaryText = m.summary || ''
-          if (summaryText) {
+          if (safeSummary) {
             doc.setFontSize(10); doc.setFont('helvetica','normal')
-            summaryLines = doc.splitTextToSize(summaryText, W - 1.8)
+            summaryLines = doc.splitTextToSize(safeSummary, W - 1.8)
             summaryH = Math.min(summaryLines.length, 3) * 0.18 + 0.08
           }
 
           const metaH = 0.2
-          const authorH = (m.author && m.author.length > 2) ? 0.2 : 0
+          const authorH = (safeAuthor.length > 2) ? 0.2 : 0
           const cardH = 0.35 + titleH + summaryH + metaH + authorH + 0.15
 
           // New page if needed
@@ -1060,15 +1136,15 @@ export default function PdfReportPage() {
 
           // Source · Sentiment · Reach
           doc.setFontSize(9); doc.setTextColor(107,114,128); doc.setFont('helvetica','normal')
-          const source = (m.source || '').length > 35 ? (m.source || '').slice(0, 34) + '…' : (m.source || '')
+          const source = safeSource.length > 35 ? safeSource.slice(0, 34) + '…' : safeSource
           const sentLabel = (m.sentiment || 'neutral').charAt(0).toUpperCase() + (m.sentiment || 'neutral').slice(1)
           doc.text(`${source}  ·  ${sentLabel}  ·  ${fmtNum(m.reach)} reach`, cx + 0.25, ty)
           ty += metaH
 
           // Author
-          if (m.author && m.author.length > 2) {
+          if (safeAuthor.length > 2) {
             doc.setFontSize(9); doc.setTextColor(156,163,175)
-            doc.text(`By ${m.author}`, cx + 0.25, ty)
+            doc.text(`By ${safeAuthor}`, cx + 0.25, ty)
           }
 
           y += cardH + 0.12
