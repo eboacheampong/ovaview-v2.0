@@ -412,9 +412,9 @@ export default function PdfReportPage() {
         const totalContentH = pointData.reduce((s, p) => s + p.h + pointGap, 0) + 0.8 // header + padding
 
         // Center the card vertically
-        const availableH = FOOTER_Y - 1.1
+        const availableH = FOOTER_Y - 1.3
         const cardH = Math.min(totalContentH, availableH - 0.2)
-        const cardY = Math.max(1.1, 1.1 + (availableH - cardH) / 2)
+        const cardY = Math.max(1.3, 1.3 + (availableH - cardH) / 2)
 
         // Draw main card with brand-color top border
         doc.setFillColor(255, 255, 255)
@@ -439,7 +439,7 @@ export default function PdfReportPage() {
           if (y + point.h > cardY + cardH - 0.2) {
             // Overflow to new page
             addPage(); accent(); pageTitle(`${sectionTitle} — Insights (cont.)`)
-            const newCardY = 1.1
+            const newCardY = 1.3
             const remainingPoints = pointData.slice(pointData.indexOf(point))
             const remainH = remainingPoints.reduce((s, p) => s + p.h + pointGap, 0) + 0.5
             const newCardH = Math.min(remainH, FOOTER_Y - newCardY - 0.2)
@@ -581,57 +581,47 @@ export default function PdfReportPage() {
         doc.setFontSize(11); doc.setTextColor(107,114,128); doc.setFont('helvetica','normal')
         doc.text(`${clientName} — ${rangeStart} to ${rangeEnd}`, 0.6, 1.1)
 
-        // Modern KPI cards with brand color accents and trend indicators
+        // Clean KPI cards
         const kpis = [
-          { l: 'Total Mentions', v: (s.totalMentions || 0).toString(), icon: '📊', trend: null },
-          { l: 'Media Reach', v: fmtNum(s.totalReach), icon: '📡', trend: null },
-          { l: 'Interactions', v: fmtNum(s.totalInteractions), icon: '💬', trend: null },
-          { l: 'Positive', v: (s.positive || 0).toString(), icon: '✅', trend: s.positive > 0 ? Math.round((s.positive / Math.max(s.totalMentions, 1)) * 100) : 0 },
-          { l: 'Negative', v: (s.negative || 0).toString(), icon: '⚠️', trend: null },
-          { l: 'Neutral', v: (s.neutral || 0).toString(), icon: '◻️', trend: null },
+          { l: 'Total Mentions', v: (s.totalMentions || 0).toString(), sub: '' },
+          { l: 'Media Reach', v: fmtNum(s.totalReach), sub: '' },
+          { l: 'Interactions', v: fmtNum(s.totalInteractions), sub: '' },
+          { l: 'Positive', v: (s.positive || 0).toString(), sub: s.positive > 0 ? `${Math.round((s.positive / Math.max(s.totalMentions, 1)) * 100)}% of total` : '' },
+          { l: 'Negative', v: (s.negative || 0).toString(), sub: s.negative > 0 ? `${Math.round((s.negative / Math.max(s.totalMentions, 1)) * 100)}% of total` : '' },
+          { l: 'Neutral', v: (s.neutral || 0).toString(), sub: s.neutral > 0 ? `${Math.round((s.neutral / Math.max(s.totalMentions, 1)) * 100)}% of total` : '' },
         ]
-        const cardW = 1.85, cardH = 1.4, cardGap = 0.12
+        const cardW = 1.85, cardH = 1.3, cardGap = 0.12
         const totalW = kpis.length * cardW + (kpis.length - 1) * cardGap
         const startX = (W - totalW) / 2
         kpis.forEach((k, i) => {
-          const kx = startX + i * (cardW + cardGap), ky = 1.4
+          const kx = startX + i * (cardW + cardGap), ky = 1.45
 
-          // Card background
+          // Card with subtle border
           doc.setFillColor(255,255,255)
-          doc.roundedRect(kx, ky, cardW, cardH, 0.08, 0.08, 'F')
-          // Border
+          doc.roundedRect(kx, ky, cardW, cardH, 0.06, 0.06, 'F')
           doc.setDrawColor(229,231,235); doc.setLineWidth(0.01)
-          doc.roundedRect(kx, ky, cardW, cardH, 0.08, 0.08, 'S')
-          // Brand color top accent
-          doc.setFillColor(BRAND.r, BRAND.g, BRAND.b)
-          doc.rect(kx + 0.08, ky, cardW - 0.16, 0.04, 'F')
+          doc.roundedRect(kx, ky, cardW, cardH, 0.06, 0.06, 'S')
 
           // Label
           doc.setFontSize(8); doc.setTextColor(156,163,175); doc.setFont('helvetica','bold')
-          doc.text(k.l.toUpperCase(), kx + 0.15, ky + 0.35)
+          doc.text(k.l.toUpperCase(), kx + 0.15, ky + 0.3)
 
-          // Value — large and bold
-          doc.setFontSize(30); doc.setTextColor(31,41,55); doc.setFont('helvetica','bold')
-          doc.text(k.v, kx + 0.15, ky + 0.95)
+          // Value
+          doc.setFontSize(28); doc.setTextColor(31,41,55); doc.setFont('helvetica','bold')
+          doc.text(k.v, kx + 0.15, ky + 0.85)
 
-          // Trend indicator for positive sentiment
-          if (k.trend !== null && k.trend > 0) {
-            doc.setFontSize(9); doc.setTextColor(16,185,129); doc.setFont('helvetica','bold')
-            doc.text(`${k.trend}% of total`, kx + 0.15, ky + 1.2)
-          }
-
-          // Subtle bottom line in brand color for first 3 cards
-          if (i < 3) {
-            doc.setFillColor(BRAND.r, BRAND.g, BRAND.b)
-            doc.setGState(new (doc as any).GState({ opacity: 0.15 }))
-            doc.rect(kx + 0.15, ky + cardH - 0.15, cardW - 0.3, 0.04, 'F')
-            doc.setGState(new (doc as any).GState({ opacity: 1 }))
+          // Sub text (percentage)
+          if (k.sub) {
+            const isPositive = k.l === 'Positive'
+            doc.setFontSize(9); doc.setFont('helvetica','normal')
+            doc.setTextColor(isPositive ? 16 : 107, isPositive ? 185 : 114, isPositive ? 129 : 128)
+            doc.text(k.sub, kx + 0.15, ky + 1.1)
           }
         })
 
-        // Insight below KPIs — bigger and more prominent
+        // Executive summary insight — use full page format for elaboration
         if (hasInsights && data.insights.executive_summary) {
-          insightBox(data.insights.executive_summary, 0.6, 3.2, W - 1.2, FOOTER_Y - 3.2 - 0.1)
+          fullPageInsight(data.insights.executive_summary, 'Executive Summary')
         }
       }
 
