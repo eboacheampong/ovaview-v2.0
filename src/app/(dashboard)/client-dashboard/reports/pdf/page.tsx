@@ -101,8 +101,18 @@ const SENTIMENT_FILTERS = [
   { label: 'Negative', value: 'negative' },
 ]
 
+// Professional color palette — Ovaview orange + navy blue as primaries, 
+// with complementary muted tones for charts
 const CC: [number, number, number][] = [
-  [249,115,22],[59,130,246],[16,185,129],[139,92,246],[6,182,212],[236,72,153],[234,179,8],[99,102,241],[244,63,94],
+  [249,115,22],  // Ovaview Orange (primary)
+  [30,58,95],    // Navy Blue (secondary)
+  [75,130,195],  // Steel Blue
+  [45,85,130],   // Dark Teal Blue
+  [210,140,50],  // Warm Gold
+  [120,160,200], // Light Steel
+  [180,100,40],  // Burnt Sienna
+  [90,115,155],  // Slate Blue
+  [160,120,70],  // Warm Bronze
 ]
 
 const hexToRgb = (hex: string) => {
@@ -298,7 +308,9 @@ export default function PdfReportPage() {
       }
       const accent = () => { doc.setFillColor(BRAND.r,BRAND.g,BRAND.b); doc.rect(0,0,W,0.06,'F') }
       const pageTitle = (t:string, y=0.7) => {
-        doc.setFontSize(26); doc.setTextColor(31,41,55); doc.setFont('helvetica','bold'); doc.text(t,0.6,y)
+        doc.setFontSize(24); doc.setTextColor(30,58,95); doc.setFont('times','bold'); doc.text(t,0.6,y)
+        // Subtle underline
+        doc.setDrawColor(249,115,22); doc.setLineWidth(0.02); doc.line(0.6, y + 0.12, 0.6 + Math.min(t.length * 0.14, 4), y + 0.12)
       }
 
       // Improved insight box: strips markdown, respects page boundary, bigger text
