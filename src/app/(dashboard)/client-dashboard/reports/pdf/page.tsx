@@ -763,7 +763,7 @@ export default function PdfReportPage() {
             (i + 1).toString(),
             (j.name || '').length > 30 ? (j.name || '').slice(0, 29) + '…' : (j.name || ''),
             (j.outlet || '').length > 25 ? (j.outlet || '').slice(0, 24) + '…' : (j.outlet || ''),
-            (j.count || j.articles || 0).toString(),
+            (j.count || 0).toString(),
             fmtNum(j.reach || 0),
           ]),
           theme: 'striped',
