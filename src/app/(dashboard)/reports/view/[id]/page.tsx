@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft, Download, RefreshCw, Loader2, Check } from 'lucide-react'
 import Link from 'next/link'
@@ -71,7 +71,7 @@ function formatNumber(num: number): string {
 }
 
 function changeLabel(val: number): JSX.Element {
-  if (val > 0) return <span className="text-green-600 text-xs font-semibold">↑{Math.abs(val)}%</span>
+  if (val > 0) return <span className="text-emerald-600 text-xs font-semibold">↑{Math.abs(val)}%</span>
   if (val < 0) return <span className="text-red-500 text-xs font-semibold">↓{Math.abs(val)}%</span>
   return <span className="text-gray-400 text-xs">0%</span>
 }
@@ -147,9 +147,65 @@ const typeLabels: Record<string, string> = {
   custom_media: 'Media Insights Report',
 }
 
+/* ─── Branded section header (golden amber bar like the reference) ─── */
+function SectionHeader({ children, icon }: { children: React.ReactNode; icon?: string }) {
+  return (
+    <div className="bg-[#d4940a] px-6 py-3 flex items-center gap-2">
+      {icon && <span className="text-base">{icon}</span>}
+      <span className="text-sm font-bold text-white uppercase tracking-wider">{children}</span>
+    </div>
+  )
+}
+
+/* ─── Branded page banner (full-width golden header like the reference cover page) ─── */
+function ReportBanner({ title, subtitle, dateLabel, clientName }: { title: string; subtitle?: string; dateLabel?: string; clientName?: string }) {
+  return (
+    <div className="relative bg-gradient-to-br from-[#d4940a] via-[#c8880a] to-[#b87a08] px-6 sm:px-10 py-10 sm:py-14 overflow-hidden">
+      {/* Decorative circles */}
+      <div className="absolute top-4 right-4 w-24 h-24 rounded-full border-[3px] border-white/15" />
+      <div className="absolute top-8 right-8 w-16 h-16 rounded-full border-[3px] border-white/10" />
+      <div className="absolute -bottom-6 -left-6 w-32 h-32 rounded-full bg-white/5" />
+
+      <div className="relative z-10">
+        <div className="flex items-center justify-between mb-6">
+          <div className="text-xs font-bold text-white/70 uppercase tracking-[0.2em]">
+            Media Presence Analysis
+          </div>
+          <div className="text-xs font-bold text-white/80 tracking-wide">
+            OVAVIEW
+          </div>
+        </div>
+        <h1 className="text-2xl sm:text-3xl font-extrabold text-white leading-tight mb-2 max-w-2xl">
+          {title}
+        </h1>
+        {subtitle && <p className="text-sm text-white/80 mb-1">{subtitle}</p>}
+        {clientName && <p className="text-sm text-white/70">Project: {clientName}</p>}
+        {dateLabel && (
+          <p className="text-xs text-white/60 mt-3 font-medium tracking-wide">{dateLabel}</p>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/* ─── Stat card with stroke border ─── */
+function StatCard({ label, value, change, compLabel }: { label: string; value: string | number; change?: number | null; compLabel?: string }) {
+  return (
+    <div className="border-2 border-[#d4940a]/30 rounded-lg p-4 text-center bg-white hover:border-[#d4940a]/50 transition-colors">
+      <div className="text-2xl font-extrabold text-[#2d2d2d]">{value}</div>
+      <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mt-1">{label}</div>
+      {change !== null && change !== undefined && (
+        <div className="mt-2">
+          {changeLabel(change)}
+          {compLabel && <span className="text-[10px] text-gray-400 ml-1">{compLabel}</span>}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function ViewSentReportPage() {
   const params = useParams()
-  const router = useRouter()
   const id = params.id as string
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [report, setReport] = useState<any>(null)
@@ -193,7 +249,7 @@ export default function ViewSentReportPage() {
 
   if (loading) return (
     <div className="flex items-center justify-center min-h-[60vh]">
-      <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+      <Loader2 className="h-8 w-8 animate-spin text-[#d4940a]" />
     </div>
   )
 
@@ -249,64 +305,66 @@ function AIReportView({ data, report }: { data: any; report: any }) {
   const trends = parseTrends(data?.aiTrends || '')
   const recommendations = parseRecommendations(data?.aiRecommendations || '')
 
-  return (
-    <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-      <div className="bg-gradient-to-br from-[#0f172a] via-[#1e293b] to-[#334155] p-6 sm:p-8">
-        <div className="text-xs font-bold text-orange-400 uppercase tracking-widest mb-2">
-          🤖 AI Insights Report ({report.dateRangeStart && report.dateRangeEnd ? buildSmartDateLabel(report.dateRangeStart, report.dateRangeEnd) : 'Custom'})
-        </div>
-        <h2 className="text-xl sm:text-2xl font-bold text-white leading-tight mb-2">{data?.headline || report.subject}</h2>
-        <p className="text-sm text-slate-400">Project: {data?.projectName || report.clientName}</p>
-        {report.dateRangeStart && (
-          <p className="text-xs text-slate-500 mt-1">
-            {new Date(report.dateRangeStart).toISOString().split('T')[0]} – {new Date(report.dateRangeEnd).toISOString().split('T')[0]}
-          </p>
-        )}
-      </div>
+  const dateLabel = report.dateRangeStart && report.dateRangeEnd
+    ? `${new Date(report.dateRangeStart).toISOString().split('T')[0]} – ${new Date(report.dateRangeEnd).toISOString().split('T')[0]}`
+    : undefined
 
-      <div className="border-b">
-        <div className="bg-[#0f172a] px-6 py-3">
-          <span className="text-xs font-bold text-orange-400 uppercase tracking-wider">🧠 AI Insights</span>
-        </div>
-        <div className="p-6 space-y-3">
-          {insights.map((p, i) => <p key={i} className="text-sm text-gray-700 leading-relaxed">{p}</p>)}
+  return (
+    <div className="bg-white rounded-xl shadow-sm border-2 border-gray-100 overflow-hidden">
+      <ReportBanner
+        title={data?.headline || report.subject || 'AI Insights Report'}
+        subtitle={report.dateRangeStart && report.dateRangeEnd
+          ? `AI Insights Report (${buildSmartDateLabel(report.dateRangeStart, report.dateRangeEnd)})`
+          : 'AI Insights Report'}
+        clientName={data?.projectName || report.clientName}
+        dateLabel={dateLabel}
+      />
+
+      {/* AI Insights */}
+      <div>
+        <SectionHeader icon="🧠">AI Insights</SectionHeader>
+        <div className="p-6 space-y-4">
+          {insights.map((p, i) => (
+            <div key={i} className="border-2 border-gray-200 rounded-lg p-4 hover:border-[#d4940a]/40 transition-colors">
+              <p className="text-sm text-gray-700 leading-relaxed">{p}</p>
+            </div>
+          ))}
           {insights.length === 0 && <p className="text-sm text-gray-400 italic">No insights available</p>}
         </div>
       </div>
 
-      <div className="border-b">
-        <div className="bg-gray-50 px-6 py-3 border-b">
-          <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">📈 Trends – Period over Period</span>
-        </div>
+      {/* Trends */}
+      <div>
+        <SectionHeader icon="📈">Trends – Period over Period</SectionHeader>
         <div className="p-6">
-          <ul className="space-y-2">
+          <div className="space-y-2">
             {trends.map((t, i) => (
-              <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
-                <span className="text-orange-500 font-bold mt-0.5">•</span><span>{t}</span>
-              </li>
+              <div key={i} className="flex items-start gap-3 border-l-4 border-[#d4940a] pl-4 py-2">
+                <span className="text-sm text-gray-700 leading-relaxed">{t}</span>
+              </div>
             ))}
-          </ul>
+          </div>
           {trends.length === 0 && <p className="text-sm text-gray-400 italic">No trends available</p>}
         </div>
       </div>
 
-      <div className="border-b">
-        <div className="bg-amber-50 px-6 py-3 border-b border-amber-200">
-          <span className="text-xs font-bold text-amber-700 uppercase tracking-wider">💡 Recommendations</span>
-        </div>
-        <div className="p-6 space-y-4">
+      {/* Recommendations */}
+      <div>
+        <SectionHeader icon="💡">Recommendations</SectionHeader>
+        <div className="p-6 space-y-3">
           {recommendations.map((r, i) => (
-            <div key={i} className="flex items-start gap-3">
-              <div className="flex-shrink-0 w-6 h-6 rounded-full bg-orange-500 text-white text-xs font-bold flex items-center justify-center mt-0.5">{i + 1}</div>
-              <p className="text-sm text-gray-700 leading-relaxed">{r}</p>
+            <div key={i} className="flex items-start gap-4 border-2 border-gray-200 rounded-lg p-4 hover:border-[#d4940a]/40 transition-colors">
+              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-[#d4940a] text-white text-sm font-bold flex items-center justify-center">{i + 1}</div>
+              <p className="text-sm text-gray-700 leading-relaxed pt-1">{r}</p>
             </div>
           ))}
           {recommendations.length === 0 && <p className="text-sm text-gray-400 italic">No recommendations available</p>}
         </div>
       </div>
 
-      <div className="bg-gray-50 p-4 text-center">
-        <p className="text-xs text-gray-400 uppercase tracking-wider font-semibold">Powered by Ovaview Media Monitoring</p>
+      {/* Footer */}
+      <div className="bg-[#2d2d2d] p-4 text-center">
+        <p className="text-xs text-white/60 uppercase tracking-wider font-semibold">Powered by Ovaview Media Monitoring</p>
       </div>
     </div>
   )
@@ -319,86 +377,101 @@ function MediaReportView({ data, report }: { data: any; report: any }) {
 
   if (!stats) return <p className="text-gray-400 text-sm italic p-6">No media data available</p>
 
+  const dateLabel = report.dateRangeStart && report.dateRangeEnd
+    ? `${new Date(report.dateRangeStart).toISOString().split('T')[0]} – ${new Date(report.dateRangeEnd).toISOString().split('T')[0]}`
+    : undefined
+  const compLabel = report.dateRangeStart && report.dateRangeEnd ? buildComparisonLabel(report.dateRangeStart, report.dateRangeEnd) : ''
+
   return (
-    <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-      <div className="bg-gradient-to-br from-[#1e293b] to-[#334155] p-6 sm:p-8">
-        <div className="text-xs font-bold text-orange-400 uppercase tracking-widest mb-2">
-          {report.dateRangeStart && report.dateRangeEnd
-            ? `Media & AI Insights (${buildSmartDateLabel(report.dateRangeStart, report.dateRangeEnd)})`
-            : 'Media & AI Insights'}
-        </div>
-        <h2 className="text-xl sm:text-2xl font-bold text-white mb-1">Top Mentions for {report.clientName}</h2>
-        <p className="text-sm text-slate-400">Media performance summary</p>
-        {report.dateRangeStart && (
-          <p className="text-xs text-slate-500 mt-1">
-            {new Date(report.dateRangeStart).toISOString().split('T')[0]} – {new Date(report.dateRangeEnd).toISOString().split('T')[0]}
-          </p>
-        )}
-      </div>
+    <div className="bg-white rounded-xl shadow-sm border-2 border-gray-100 overflow-hidden">
+      <ReportBanner
+        title={`Media Presence Analysis – ${report.clientName}`}
+        subtitle={report.dateRangeStart && report.dateRangeEnd
+          ? buildSmartDateLabel(report.dateRangeStart, report.dateRangeEnd)
+          : 'Media & AI Insights'}
+        clientName={report.clientName}
+        dateLabel={dateLabel}
+      />
 
-      <div className="p-4 sm:p-6">
+      {/* Stats cards */}
+      <div className="p-5 sm:p-6">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {[
-            { label: 'Total Mentions', value: stats.total, change: comparison?.mentionChangePercent },
-            { label: 'Total Reach', value: formatNumber(stats.totalReach || 0), change: comparison?.reachChangePercent },
-            { label: 'Positive', value: stats.positive, change: comparison?.previous?.positive > 0 ? Math.round(((stats.positive - comparison.previous.positive) / comparison.previous.positive) * 100) : 0 },
-            { label: 'Negative', value: stats.negative, change: null },
-          ].map((s, i) => (
-            <div key={i} className="bg-white border rounded-xl p-3 text-center">
-              <div className="text-xl font-extrabold text-gray-900">{s.value}</div>
-              <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">{s.label}</div>
-              {s.change !== null && s.change !== undefined && <div className="mt-1">{changeLabel(s.change)} <span className="text-[10px] text-gray-400">{report.dateRangeStart && report.dateRangeEnd ? buildComparisonLabel(report.dateRangeStart, report.dateRangeEnd) : ''}</span></div>}
-            </div>
-          ))}
+          <StatCard label="Total Mentions" value={stats.total} change={comparison?.mentionChangePercent} compLabel={compLabel} />
+          <StatCard label="Total Reach" value={formatNumber(stats.totalReach || 0)} change={comparison?.reachChangePercent} compLabel={compLabel} />
+          <StatCard label="Positive" value={stats.positive} change={comparison?.previous?.positive > 0 ? Math.round(((stats.positive - comparison.previous.positive) / comparison.previous.positive) * 100) : 0} compLabel={compLabel} />
+          <StatCard label="Negative" value={stats.negative} />
         </div>
       </div>
 
+      {/* AI Summary */}
       {data?.aiSummary && (
-        <div className="px-4 sm:px-6 pb-5">
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-            <div className="text-[10px] font-bold text-amber-500 uppercase tracking-wider mb-2">🤖 AI Summary</div>
+        <div className="px-5 sm:px-6 pb-5">
+          <SectionHeader icon="🤖">AI Summary</SectionHeader>
+          <div className="border-2 border-[#d4940a]/20 rounded-b-lg p-5 bg-[#fdf8ef]">
             <p className="text-sm text-stone-700 leading-relaxed">{data.aiSummary}</p>
           </div>
         </div>
       )}
 
+      {/* Sentiment Breakdown */}
       {data?.sentimentBreakdown && (
-        <div className="px-4 sm:px-6 pb-5">
-          <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Sentiment Breakdown</div>
-          <div className="flex rounded-md overflow-hidden h-2 mb-2">
-            {data.sentimentBreakdown.positive > 0 && <div style={{ width: `${data.sentimentBreakdown.positive}%` }} className="bg-green-500" />}
-            {data.sentimentBreakdown.neutral > 0 && <div style={{ width: `${data.sentimentBreakdown.neutral}%` }} className="bg-gray-400" />}
-            {data.sentimentBreakdown.negative > 0 && <div style={{ width: `${data.sentimentBreakdown.negative}%` }} className="bg-red-500" />}
-          </div>
-          <div className="flex justify-between text-xs">
-            <span className="text-green-600 font-semibold">● Positive {data.sentimentBreakdown.positive}%</span>
-            <span className="text-gray-400 font-semibold">● Neutral {data.sentimentBreakdown.neutral}%</span>
-            <span className="text-red-500 font-semibold">● Negative {data.sentimentBreakdown.negative}%</span>
+        <div className="px-5 sm:px-6 pb-5">
+          <SectionHeader icon="📊">Sentiment Breakdown</SectionHeader>
+          <div className="border-2 border-gray-200 rounded-b-lg p-5">
+            <div className="flex rounded-md overflow-hidden h-4 mb-3">
+              {data.sentimentBreakdown.positive > 0 && (
+                <div style={{ width: `${data.sentimentBreakdown.positive}%` }} className="bg-emerald-500 flex items-center justify-center">
+                  {data.sentimentBreakdown.positive > 10 && <span className="text-[9px] font-bold text-white">{data.sentimentBreakdown.positive}%</span>}
+                </div>
+              )}
+              {data.sentimentBreakdown.neutral > 0 && (
+                <div style={{ width: `${data.sentimentBreakdown.neutral}%` }} className="bg-gray-400 flex items-center justify-center">
+                  {data.sentimentBreakdown.neutral > 10 && <span className="text-[9px] font-bold text-white">{data.sentimentBreakdown.neutral}%</span>}
+                </div>
+              )}
+              {data.sentimentBreakdown.negative > 0 && (
+                <div style={{ width: `${data.sentimentBreakdown.negative}%` }} className="bg-red-500 flex items-center justify-center">
+                  {data.sentimentBreakdown.negative > 10 && <span className="text-[9px] font-bold text-white">{data.sentimentBreakdown.negative}%</span>}
+                </div>
+              )}
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-emerald-500" /> Positive {data.sentimentBreakdown.positive}%</span>
+              <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-gray-400" /> Neutral {data.sentimentBreakdown.neutral}%</span>
+              <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-red-500" /> Negative {data.sentimentBreakdown.negative}%</span>
+            </div>
           </div>
         </div>
       )}
 
+      {/* Source Distribution — horizontal bar chart style */}
       {data?.sourceDistribution?.length > 0 && (
-        <div className="px-4 sm:px-6 pb-5">
-          <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-3">Source Distribution</div>
-          <div className="space-y-2">
+        <div className="px-5 sm:px-6 pb-5">
+          <SectionHeader icon="📡">Source Distribution</SectionHeader>
+          <div className="border-2 border-gray-200 rounded-b-lg p-5 space-y-3">
             {data.sourceDistribution.map((s: { source: string; percentage: number }, i: number) => (
-              <div key={i} className="flex items-center gap-2">
-                <span className="text-xs font-semibold text-gray-500 w-14">{s.source}</span>
-                <div className="flex-1 bg-gray-100 rounded h-1.5 overflow-hidden">
-                  <div className="h-full rounded" style={{ width: `${Math.max(s.percentage, 2)}%`, background: sourceColors[s.source] || '#94a3b8' }} />
+              <div key={i} className="flex items-center gap-3">
+                <span className="text-xs font-bold text-gray-600 w-14 text-right">{s.source}</span>
+                <div className="flex-1 bg-gray-100 rounded-sm h-6 overflow-hidden relative">
+                  <div
+                    className="h-full rounded-sm flex items-center transition-all duration-500"
+                    style={{ width: `${Math.max(s.percentage, 3)}%`, background: sourceColors[s.source] || '#94a3b8' }}
+                  >
+                    {s.percentage > 8 && <span className="text-[10px] font-bold text-white ml-2">{s.percentage}%</span>}
+                  </div>
                 </div>
-                <span className="text-xs font-bold text-gray-900 w-10 text-right">{s.percentage}%</span>
+                <span className="text-xs font-bold text-gray-900 w-12 text-right">{s.percentage}%</span>
               </div>
             ))}
           </div>
         </div>
       )}
 
-      <div className="px-4 sm:px-6 pb-5">
-        <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-3">📊 Mentions vs Reach by Type</div>
-        <div className="border rounded-lg overflow-hidden">
-          <div className="grid grid-cols-3 bg-gray-50 text-[10px] font-bold text-gray-500 px-3 py-2">
+      {/* Mentions vs Reach by Type */}
+      <div className="px-5 sm:px-6 pb-5">
+        <SectionHeader icon="📊">Mentions vs Reach by Type</SectionHeader>
+        <div className="border-2 border-gray-200 rounded-b-lg overflow-hidden">
+          <div className="grid grid-cols-3 bg-[#2d2d2d] text-[10px] font-bold text-white/80 px-4 py-2.5 uppercase tracking-wider">
             <span>Type</span><span className="text-center">Mentions</span><span className="text-right">Reach</span>
           </div>
           {[
@@ -408,9 +481,9 @@ function MediaReportView({ data, report }: { data: any; report: any }) {
             { type: 'Print', count: stats.print, color: '#10b981' },
             { type: 'Social', count: stats.social, color: '#ec4899' },
           ].filter(t => t.count > 0).map((t, i) => (
-            <div key={i} className="grid grid-cols-3 px-3 py-2 border-t text-sm items-center">
-              <span className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-sm" style={{ background: t.color }} />
+            <div key={i} className="grid grid-cols-3 px-4 py-3 border-t border-gray-100 text-sm items-center hover:bg-gray-50 transition-colors">
+              <span className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-sm" style={{ background: t.color }} />
                 <span className="font-semibold text-gray-700">{t.type}</span>
               </span>
               <span className="text-center font-bold text-gray-900">{t.count}</span>
@@ -422,23 +495,39 @@ function MediaReportView({ data, report }: { data: any; report: any }) {
         </div>
       </div>
 
+      {/* Recent Mentions — styled with rectangular bordered cards */}
       {stats.topMentions?.length > 0 && (
-        <div className="px-4 sm:px-6 pb-5">
-          <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-3">Mentions & Reach – Most Interesting</div>
-          <div className="space-y-2">
-            {stats.topMentions.slice(0, 6).map((m: { title: string; source: string; sentiment: string | null; reach: number; url: string | null; followers?: number }, i: number) => {
-              const sentColor = m.sentiment?.toLowerCase() === 'positive' ? 'bg-green-500' :
-                m.sentiment?.toLowerCase() === 'negative' ? 'bg-red-500' : 'bg-gray-400'
+        <div className="px-5 sm:px-6 pb-5">
+          <SectionHeader icon="📰">Recent Mentions</SectionHeader>
+          <div className="space-y-3 mt-4">
+            {stats.topMentions.slice(0, 6).map((m: { title: string; source: string; sentiment: string | null; reach: number; url: string | null; followers?: number; date?: string; summary?: string }, i: number) => {
+              const sentColor = m.sentiment?.toLowerCase() === 'positive' ? 'border-l-emerald-500' :
+                m.sentiment?.toLowerCase() === 'negative' ? 'border-l-red-500' : 'border-l-gray-400'
+              const sentBg = m.sentiment?.toLowerCase() === 'positive' ? 'bg-emerald-50 text-emerald-700' :
+                m.sentiment?.toLowerCase() === 'negative' ? 'bg-red-50 text-red-700' : 'bg-gray-100 text-gray-600'
               return (
-                <div key={i} className="flex items-start gap-2 py-2 border-b border-gray-100 last:border-0" style={{ breakInside: 'avoid' }}>
-                  <span className={`w-2 h-2 rounded-full ${sentColor} mt-1.5 flex-shrink-0`} />
-                  <div className="min-w-0">
-                    <a href={m.url || '#'} className="text-sm font-semibold text-gray-900 hover:text-blue-600 leading-tight block">
-                      {m.title.length > 90 ? m.title.substring(0, 90) + '...' : m.title}
-                    </a>
-                    <div className="text-xs text-gray-400 mt-0.5">
-                      {m.source} · {formatNumber(m.reach)} reach{m.followers ? ` · ${formatNumber(m.followers)} followers` : ''}
+                <div key={i} className={`border-2 border-gray-200 rounded-lg p-4 border-l-4 ${sentColor} hover:shadow-md transition-all`} style={{ breakInside: 'avoid' }}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <a href={m.url || '#'} className="text-sm font-bold text-[#2d2d2d] hover:text-[#d4940a] leading-tight block transition-colors">
+                        {m.title.length > 100 ? m.title.substring(0, 100) + '...' : m.title}
+                      </a>
+                      {m.summary && (
+                        <p className="text-xs text-gray-500 mt-1.5 leading-relaxed line-clamp-2">{m.summary}</p>
+                      )}
+                      <div className="flex items-center gap-2 mt-2">
+                        <span className="text-[10px] font-bold text-gray-500 uppercase">{m.source}</span>
+                        <span className="text-gray-300">·</span>
+                        <span className="text-[10px] text-gray-400">{formatNumber(m.reach)} reach</span>
+                        {m.followers && <>
+                          <span className="text-gray-300">·</span>
+                          <span className="text-[10px] text-gray-400">{formatNumber(m.followers)} followers</span>
+                        </>}
+                      </div>
                     </div>
+                    <span className={`text-[9px] font-bold px-2 py-1 rounded-full uppercase flex-shrink-0 ${sentBg}`}>
+                      {m.sentiment || 'Neutral'}
+                    </span>
                   </div>
                 </div>
               )
@@ -447,16 +536,20 @@ function MediaReportView({ data, report }: { data: any; report: any }) {
         </div>
       )}
 
+      {/* Social Media by Platform */}
       {stats.socialByPlatform?.length > 0 && (
-        <div className="px-4 sm:px-6 pb-5">
-          <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-3">📱 Social Media by Platform</div>
-          <div className="border rounded-lg overflow-hidden">
+        <div className="px-5 sm:px-6 pb-5">
+          <SectionHeader icon="📱">Social Media by Platform</SectionHeader>
+          <div className="border-2 border-gray-200 rounded-b-lg overflow-hidden">
+            <div className="grid grid-cols-3 bg-[#2d2d2d] text-[10px] font-bold text-white/80 px-4 py-2.5 uppercase tracking-wider">
+              <span>Platform</span><span className="text-center">Mentions</span><span className="text-right">Reach</span>
+            </div>
             {stats.socialByPlatform.map((p: { platform: string; count: number; reach: number }, i: number) => {
               const pct = stats.social > 0 ? Math.round((p.count / stats.social) * 100) : 0
               return (
-                <div key={i} className="grid grid-cols-3 px-3 py-2 border-t first:border-0 text-sm items-center">
-                  <span className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full" style={{ background: platformColors[p.platform] || '#94a3b8' }} />
+                <div key={i} className="grid grid-cols-3 px-4 py-3 border-t border-gray-100 text-sm items-center hover:bg-gray-50 transition-colors">
+                  <span className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full" style={{ background: platformColors[p.platform] || '#94a3b8' }} />
                     <span className="font-semibold text-gray-700">{platformNames[p.platform] || p.platform}</span>
                   </span>
                   <span className="text-center">
@@ -471,23 +564,48 @@ function MediaReportView({ data, report }: { data: any; report: any }) {
         </div>
       )}
 
+      {/* Top Authors / Publishers — dark vertical bar chart style */}
       {data?.topAuthors?.length > 0 && (
-        <div className="px-4 sm:px-6 pb-5">
-          <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-3">Top Authors / Sources</div>
-          <div className="space-y-2">
-            {data.topAuthors.map((a: { name: string; mentions: number; reach: number }, i: number) => (
-              <div key={i} className="flex items-center gap-2 py-1.5 border-b border-gray-100 last:border-0">
-                <div className="w-5 h-5 rounded-full bg-orange-500 text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0">{i + 1}</div>
-                <span className="text-sm font-semibold text-gray-900 flex-1 truncate">{a.name}</span>
-                <span className="text-xs text-gray-500">{a.mentions} mentions · {formatNumber(a.reach)} reach</span>
-              </div>
-            ))}
+        <div className="px-5 sm:px-6 pb-5">
+          <SectionHeader icon="✍️">Key Publishers & Authors</SectionHeader>
+          <div className="border-2 border-gray-200 rounded-b-lg p-5">
+            {/* Bar chart */}
+            <div className="flex items-end gap-3 justify-center mb-4" style={{ height: '180px' }}>
+              {data.topAuthors.slice(0, 8).map((a: { name: string; mentions: number; reach: number }, i: number) => {
+                const maxMentions = Math.max(...data.topAuthors.map((x: { mentions: number }) => x.mentions))
+                const barHeight = maxMentions > 0 ? Math.max((a.mentions / maxMentions) * 150, 20) : 20
+                return (
+                  <div key={i} className="flex flex-col items-center gap-1 flex-1 min-w-0">
+                    <span className="text-xs font-bold text-[#2d2d2d]">{a.mentions}</span>
+                    <div
+                      className="w-full rounded-t-md bg-[#2d2d2d] hover:bg-[#d4940a] transition-colors cursor-default min-w-[28px] max-w-[56px] mx-auto"
+                      style={{ height: `${barHeight}px` }}
+                      title={`${a.name}: ${a.mentions} mentions, ${formatNumber(a.reach)} reach`}
+                    />
+                    <span className="text-[9px] text-gray-500 font-medium text-center leading-tight truncate w-full px-0.5">
+                      {a.name.length > 12 ? a.name.substring(0, 12) + '…' : a.name}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+            {/* Legend list */}
+            <div className="border-t border-gray-200 pt-3 space-y-1.5">
+              {data.topAuthors.map((a: { name: string; mentions: number; reach: number }, i: number) => (
+                <div key={i} className="flex items-center gap-2 text-xs">
+                  <span className="w-5 h-5 rounded bg-[#2d2d2d] text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0">{i + 1}</span>
+                  <span className="font-semibold text-gray-800 flex-1 truncate">{a.name}</span>
+                  <span className="text-gray-500">{a.mentions} articles · {formatNumber(a.reach)} reach</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}
 
-      <div className="bg-gray-50 p-4 text-center border-t">
-        <p className="text-xs text-gray-400 uppercase tracking-wider font-semibold">Powered by Ovaview Media Monitoring</p>
+      {/* Footer */}
+      <div className="bg-[#2d2d2d] p-4 text-center">
+        <p className="text-xs text-white/60 uppercase tracking-wider font-semibold">Powered by Ovaview Media Monitoring</p>
       </div>
     </div>
   )
@@ -502,46 +620,46 @@ function DailyReportView({ data, report }: { data: any; report: any }) {
     return labels[type] || 'MEDIA'
   }
 
-  const getSentimentColor = (sentiment?: string | null) => {
-    if (!sentiment) return 'bg-gray-400'
+  const getSentimentBorder = (sentiment?: string | null) => {
+    if (!sentiment) return 'border-l-gray-400'
     const s = sentiment.toLowerCase()
-    if (s === 'positive') return 'bg-green-500'
-    if (s === 'negative') return 'bg-red-500'
-    return 'bg-gray-400'
+    if (s === 'positive') return 'border-l-emerald-500'
+    if (s === 'negative') return 'border-l-red-500'
+    return 'border-l-gray-400'
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-      <div className="bg-gradient-to-br from-[#1e293b] to-[#334155] p-6 sm:p-8">
-        <div className="text-xs font-bold text-orange-400 uppercase tracking-widest mb-2">📰 Daily Media Update</div>
-        <h2 className="text-xl sm:text-2xl font-bold text-white mb-1">{items.length} Mention{items.length !== 1 ? 's' : ''} for {report.clientName}</h2>
-        <p className="text-sm text-slate-400">Daily media update sent {new Date(report.sentAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
-      </div>
+    <div className="bg-white rounded-xl shadow-sm border-2 border-gray-100 overflow-hidden">
+      <ReportBanner
+        title={`${items.length} Mention${items.length !== 1 ? 's' : ''} for ${report.clientName}`}
+        subtitle="Daily Media Update"
+        dateLabel={`Sent ${new Date(report.sentAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`}
+      />
 
-      <div className="p-4 sm:p-6 space-y-3">
+      <div className="p-5 sm:p-6 space-y-3">
         {items.length === 0 && <p className="text-sm text-gray-400 italic text-center py-8">No media items in this report</p>}
         {items.map((item: { id: string; title: string; summary?: string; type: string; sourceUrl?: string; publication?: string; date: string; sentiment?: string }, i: number) => (
-          <div key={i} className="border rounded-lg p-3 hover:bg-gray-50 transition-colors">
-            <div className="flex items-start gap-2">
-              <span className={`w-2 h-2 rounded-full ${getSentimentColor(item.sentiment)} mt-1.5 flex-shrink-0`} />
+          <div key={i} className={`border-2 border-gray-200 rounded-lg p-4 border-l-4 ${getSentimentBorder(item.sentiment)} hover:shadow-md transition-all`}>
+            <div className="flex items-start gap-3">
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="bg-orange-50 text-orange-600 text-[9px] font-bold px-1.5 py-0.5 rounded border border-orange-200 uppercase">{getTypeLabel(item.type)}</span>
-                  {item.publication && <span className="text-xs text-gray-400">{item.publication}</span>}
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="bg-[#2d2d2d] text-white text-[9px] font-bold px-2 py-0.5 rounded uppercase">{getTypeLabel(item.type)}</span>
+                  {item.publication && <span className="text-xs text-gray-400 font-medium">{item.publication}</span>}
                 </div>
-                <a href={item.sourceUrl || '#'} className="text-sm font-semibold text-gray-900 hover:text-blue-600 leading-tight block">
+                <a href={item.sourceUrl || '#'} className="text-sm font-bold text-[#2d2d2d] hover:text-[#d4940a] leading-tight block transition-colors">
                   {item.title.length > 100 ? item.title.substring(0, 100) + '...' : item.title}
                 </a>
-                {item.summary && <p className="text-xs text-gray-500 mt-1 line-clamp-2">{item.summary.substring(0, 150)}</p>}
-                <p className="text-[10px] text-gray-400 mt-1">{formatTimeAgo(item.date)}</p>
+                {item.summary && <p className="text-xs text-gray-500 mt-1.5 line-clamp-2 leading-relaxed">{item.summary.substring(0, 150)}</p>}
+                <p className="text-[10px] text-gray-400 mt-2 font-medium">{formatTimeAgo(item.date)}</p>
               </div>
             </div>
           </div>
         ))}
       </div>
 
-      <div className="bg-gray-50 p-4 text-center border-t">
-        <p className="text-xs text-gray-400 uppercase tracking-wider font-semibold">Powered by Ovaview Media Monitoring</p>
+      {/* Footer */}
+      <div className="bg-[#2d2d2d] p-4 text-center">
+        <p className="text-xs text-white/60 uppercase tracking-wider font-semibold">Powered by Ovaview Media Monitoring</p>
       </div>
     </div>
   )
