@@ -313,29 +313,64 @@ export default function PdfReportPage() {
         doc.text(t, 0.6, 0.42)
       }
 
-      // Improved insight box: strips markdown, respects page boundary, bigger text
+      // Modern insight box: brand color accent, generous spacing, overflows to new page if needed
       const insightBox = (rawText: string, x: number, y: number, w: number, maxH: number): number => {
         if (!rawText) return y
         const text = cleanAIText(rawText)
-        doc.setFontSize(10.5); doc.setFont('helvetica','normal'); doc.setTextColor(55,65,81)
-        const lines = doc.splitTextToSize(text, w - 0.6)
-        const lineH = 0.2
-        const availH = Math.min(maxH, FOOTER_Y - y - 0.1)
-        if (availH < 0.6) return y
-        const boxH = Math.min(lines.length * lineH + 0.5, availH)
-        // Box background — light warm tone
-        doc.setFillColor(255,251,245); doc.setDrawColor(249,115,22)
-        doc.setLineWidth(0.015)
-        doc.roundedRect(x, y, w, boxH, 0.06, 0.06, 'FD')
-        // Left accent bar
-        doc.setFillColor(249,115,22); doc.rect(x, y + 0.06, 0.04, boxH - 0.12, 'F')
-        // Label
-        doc.setFontSize(8); doc.setFont('helvetica','bold'); doc.setTextColor(249,115,22)
-        doc.text('INSIGHT', x + 0.25, y + 0.22)
-        // Body — normal weight, not italic
-        doc.setFont('helvetica','normal'); doc.setTextColor(55,65,81); doc.setFontSize(10.5)
-        const maxLines = Math.floor((boxH - 0.5) / lineH)
-        doc.text(lines.slice(0, maxLines), x + 0.25, y + 0.45)
+        doc.setFontSize(11); doc.setFont('helvetica','normal'); doc.setTextColor(45,45,45)
+        const lines = doc.splitTextToSize(text, w - 0.8)
+        const lineH = 0.22
+        const headerH = 0.45
+        const totalNeeded = lines.length * lineH + headerH + 0.4
+
+        // If not enough space on current page, start a new page
+        if (y + Math.min(totalNeeded, 2.0) > FOOTER_Y) {
+          addPage(); accent(); pageTitle('Insights (cont.)')
+          y = 1.1
+        }
+
+        const availH = FOOTER_Y - y - 0.1
+        const boxH = Math.min(totalNeeded, availH)
+
+        // Modern card: white bg, brand-color left bar, subtle shadow border
+        doc.setFillColor(255,255,255)
+        doc.setDrawColor(229,231,235); doc.setLineWidth(0.01)
+        doc.roundedRect(x, y, w, boxH, 0.08, 0.08, 'FD')
+        // Brand color left accent bar
+        doc.setFillColor(BRAND.r, BRAND.g, BRAND.b)
+        doc.rect(x, y + 0.08, 0.05, boxH - 0.16, 'F')
+        // Brand color top accent line
+        doc.setFillColor(BRAND.r, BRAND.g, BRAND.b)
+        doc.rect(x + 0.08, y, w - 0.16, 0.04, 'F')
+        // Label with brand color
+        doc.setFontSize(9); doc.setFont('helvetica','bold'); doc.setTextColor(BRAND.r, BRAND.g, BRAND.b)
+        doc.text('AI INSIGHT', x + 0.3, y + 0.3)
+        // Body text — comfortable size and spacing
+        doc.setFont('helvetica','normal'); doc.setTextColor(55,65,81); doc.setFontSize(11)
+        const maxLines = Math.floor((boxH - headerH - 0.3) / lineH)
+        lines.slice(0, maxLines).forEach((line: string, li: number) => {
+          doc.text(line, x + 0.3, y + headerH + 0.1 + li * lineH)
+        })
+
+        // If text overflowed, continue on next page
+        if (lines.length > maxLines && maxLines > 0) {
+          addPage(); accent(); pageTitle('Insights (cont.)')
+          const remainingLines = lines.slice(maxLines)
+          const newY = 1.1
+          const newBoxH = Math.min(remainingLines.length * lineH + 0.5, FOOTER_Y - newY - 0.1)
+          doc.setFillColor(255,255,255)
+          doc.setDrawColor(229,231,235); doc.setLineWidth(0.01)
+          doc.roundedRect(x, newY, w, newBoxH, 0.08, 0.08, 'FD')
+          doc.setFillColor(BRAND.r, BRAND.g, BRAND.b)
+          doc.rect(x, newY + 0.08, 0.05, newBoxH - 0.16, 'F')
+          doc.setFont('helvetica','normal'); doc.setTextColor(55,65,81); doc.setFontSize(11)
+          const maxLines2 = Math.floor((newBoxH - 0.3) / lineH)
+          remainingLines.slice(0, maxLines2).forEach((line: string, li: number) => {
+            doc.text(line, x + 0.3, newY + 0.2 + li * lineH)
+          })
+          return newY + newBoxH + 0.2
+        }
+
         return y + boxH + 0.2
       }
 
@@ -347,27 +382,28 @@ export default function PdfReportPage() {
         doc.setFontSize(fontSize); doc.setFont('helvetica','normal'); doc.setTextColor(55,65,81)
 
         for (const para of paragraphs) {
-          if (y > FOOTER_Y - 0.3) break
+          // If running out of space, overflow to new page
+          if (y > FOOTER_Y - 0.5) {
+            addPage(); accent(); pageTitle('Conclusions (cont.)')
+            y = 1.2
+            doc.setFontSize(fontSize); doc.setFont('helvetica','normal'); doc.setTextColor(55,65,81)
+          }
           const trimmed = para.trim()
-          // Detect numbered items like "1. Something" or "- Something"
           const bulletMatch = trimmed.match(/^(\d+[\.\)]\s*|[-•]\s*)(.+)/)
           if (bulletMatch) {
             const bulletText = bulletMatch[2]
-            // Draw bullet circle
             doc.setFillColor(BRAND.r, BRAND.g, BRAND.b)
             doc.circle(x + 0.08, y - 0.05, 0.04, 'F')
-            // Wrap bullet text
             doc.setFontSize(fontSize); doc.setFont('helvetica','normal'); doc.setTextColor(55,65,81)
             const wrapped = doc.splitTextToSize(bulletText, maxW - 0.4)
-            const linesToDraw = wrapped.filter((_: string, i: number) => y + i * 0.22 < FOOTER_Y - 0.2)
+            const linesToDraw = wrapped.filter((_: string, i: number) => y + i * 0.24 < FOOTER_Y - 0.2)
             doc.text(linesToDraw, x + 0.25, y)
-            y += linesToDraw.length * 0.22 + 0.08
+            y += linesToDraw.length * 0.24 + 0.12
           } else {
-            // Regular paragraph
             const wrapped = doc.splitTextToSize(trimmed, maxW)
-            const linesToDraw = wrapped.filter((_: string, i: number) => y + i * 0.22 < FOOTER_Y - 0.2)
+            const linesToDraw = wrapped.filter((_: string, i: number) => y + i * 0.24 < FOOTER_Y - 0.2)
             doc.text(linesToDraw, x, y)
-            y += linesToDraw.length * 0.22 + 0.1
+            y += linesToDraw.length * 0.24 + 0.15
           }
         }
         return y
@@ -929,22 +965,22 @@ export default function PdfReportPage() {
       }
 
       // ─── MENTIONS TABLE ───
-      // ─── RECENT MENTIONS — card-style like the reference Major Stories page ───
+      // ─── RECENT MENTIONS — card-style with title, summary, source, sentiment, reach ───
       if (enabledSectionIds.includes('mentions_table') && data.mentions.length > 0) {
-        const mentionsPerPage = 6
-        const allMentions = data.mentions.slice(0, 24) // max 4 pages
+        const mentionsPerPage = 4 // fewer per page = more room for text
+        const allMentions = data.mentions.slice(0, 24)
         let pageIdx = 0
 
         while (pageIdx * mentionsPerPage < allMentions.length) {
           const pageMentions = allMentions.slice(pageIdx * mentionsPerPage, (pageIdx + 1) * mentionsPerPage)
           addPage(); accent(); pageTitle(pageIdx === 0 ? 'Recent Mentions' : 'Recent Mentions (cont.)')
 
-          const startY = 1.1, cardH = 1.05, cardGap = 0.15
-          const cols = 2, cardW = (W - 1.2 - 0.3) / cols
+          const startY = 1.1, cardH = 1.55, cardGap = 0.2
+          const cols = 2, cardW = (W - 1.2 - 0.4) / cols
 
           pageMentions.forEach((m, i) => {
             const col = i % cols, row = Math.floor(i / cols)
-            const cx = 0.6 + col * (cardW + 0.3)
+            const cx = 0.6 + col * (cardW + 0.4)
             const cy = startY + row * (cardH + cardGap)
             if (cy + cardH > FOOTER_Y) return
 
@@ -953,42 +989,47 @@ export default function PdfReportPage() {
             doc.setDrawColor(229,231,235); doc.setLineWidth(0.01)
             doc.roundedRect(cx, cy, cardW, cardH, 0.06, 0.06, 'S')
             doc.setFillColor(sentColor[0], sentColor[1], sentColor[2])
-            doc.rect(cx, cy + 0.06, 0.04, cardH - 0.12, 'F')
+            doc.rect(cx, cy + 0.06, 0.05, cardH - 0.12, 'F')
 
             // Date + Type badge
             doc.setFontSize(8); doc.setTextColor(156,163,175); doc.setFont('helvetica','normal')
             const dateStr = format(new Date(m.date), 'MMM d, yyyy')
-            doc.text(dateStr, cx + 0.2, cy + 0.2)
+            doc.text(dateStr, cx + 0.25, cy + 0.22)
             const typeLabel = m.type === 'social' ? (m.platform || 'Social') : m.type.charAt(0).toUpperCase() + m.type.slice(1)
             doc.setFillColor(BRAND.r, BRAND.g, BRAND.b)
-            const typeLabelW = typeLabel.length * 0.06 + 0.15
-            doc.roundedRect(cx + cardW - typeLabelW - 0.15, cy + 0.08, typeLabelW, 0.2, 0.03, 0.03, 'F')
+            const typeLabelW = typeLabel.length * 0.06 + 0.2
+            doc.roundedRect(cx + cardW - typeLabelW - 0.15, cy + 0.1, typeLabelW, 0.2, 0.03, 0.03, 'F')
             doc.setFontSize(7); doc.setTextColor(255,255,255); doc.setFont('helvetica','bold')
-            doc.text(typeLabel.toUpperCase(), cx + cardW - typeLabelW / 2 - 0.15, cy + 0.21, { align: 'center' })
+            doc.text(typeLabel.toUpperCase(), cx + cardW - typeLabelW / 2 - 0.15, cy + 0.23, { align: 'center' })
 
-            // Title
+            // Title — wrap to 2 lines
             doc.setFontSize(10); doc.setTextColor(31,41,55); doc.setFont('helvetica','bold')
-            const title = (m.title || '').length > 55 ? (m.title || '').slice(0, 54) + '…' : (m.title || '')
-            doc.text(title, cx + 0.2, cy + 0.42)
+            const titleLines = doc.splitTextToSize(m.title || '', cardW - 0.5)
+            titleLines.slice(0, 2).forEach((line: string, li: number) => {
+              doc.text(line, cx + 0.25, cy + 0.45 + li * 0.18)
+            })
 
-            // Summary
-            if (m.summary) {
-              doc.setFontSize(8); doc.setTextColor(107,114,128); doc.setFont('helvetica','normal')
-              const summary = m.summary.length > 80 ? m.summary.slice(0, 79) + '…' : m.summary
-              doc.text(summary, cx + 0.2, cy + 0.6)
+            // Summary / description — wrap to 3 lines
+            const summaryText = m.summary || m.title || ''
+            if (summaryText && summaryText !== m.title) {
+              doc.setFontSize(9); doc.setTextColor(107,114,128); doc.setFont('helvetica','normal')
+              const summaryLines = doc.splitTextToSize(summaryText, cardW - 0.5)
+              const summaryStartY = cy + 0.45 + Math.min(titleLines.length, 2) * 0.18 + 0.1
+              summaryLines.slice(0, 3).forEach((line: string, li: number) => {
+                doc.text(line, cx + 0.25, summaryStartY + li * 0.17)
+              })
             }
 
             // Bottom row: source · sentiment · reach
-            doc.setFontSize(7); doc.setTextColor(156,163,175); doc.setFont('helvetica','normal')
-            const source = (m.source || '').length > 20 ? (m.source || '').slice(0, 19) + '…' : (m.source || '')
+            doc.setFontSize(8); doc.setTextColor(107,114,128); doc.setFont('helvetica','normal')
+            const source = (m.source || '').length > 25 ? (m.source || '').slice(0, 24) + '…' : (m.source || '')
             const sentLabel = (m.sentiment || 'neutral').charAt(0).toUpperCase() + (m.sentiment || 'neutral').slice(1)
-            const bottomText = `${source}  ·  ${sentLabel}  ·  ${fmtNum(m.reach)} reach`
-            doc.text(bottomText, cx + 0.2, cy + 0.82)
+            doc.text(`${source}  ·  ${sentLabel}  ·  ${fmtNum(m.reach)} reach`, cx + 0.25, cy + cardH - 0.35)
 
             // Author if available
             if (m.author && m.author.length > 2) {
-              doc.setFontSize(7); doc.setTextColor(107,114,128)
-              doc.text(`By ${m.author.length > 25 ? m.author.slice(0, 24) + '…' : m.author}`, cx + 0.2, cy + 0.95)
+              doc.setFontSize(8); doc.setTextColor(156,163,175)
+              doc.text(`By ${m.author.length > 35 ? m.author.slice(0, 34) + '…' : m.author}`, cx + 0.25, cy + cardH - 0.15)
             }
           })
           pageIdx++
