@@ -721,7 +721,7 @@ export default function PdfReportPage() {
             ly += 0.6
           })
           if (hasInsights && data.insights.media_sources) {
-            insightBox(data.insights.media_sources, 7.0, Math.min(ly + 0.3, 4.5), 5.5, FOOTER_Y - Math.min(ly + 0.3, 4.5) - 0.1)
+            insightBox(data.insights.media_sources, 7.0, Math.min(ly + 0.2, 4.0), 5.5, FOOTER_Y - Math.min(ly + 0.2, 4.0) - 0.15)
           }
         }
       }
@@ -867,7 +867,7 @@ export default function PdfReportPage() {
           doc.setFontSize(12); doc.setTextColor(75,85,99)
           doc.text(`This indicates a ${dominant.name.toLowerCase() === 'positive' ? 'favorable' : dominant.name.toLowerCase() === 'negative' ? 'challenging' : 'balanced'} media environment for ${clientName}.`, 7.0, sly + 0.2)
           if (hasInsights && data.insights.sentiment_analysis) {
-            insightBox(data.insights.sentiment_analysis, 7.0, 4.5, 5.5, FOOTER_Y - 4.5 - 0.1)
+            insightBox(data.insights.sentiment_analysis, 7.0, Math.min(sly + 0.4, 4.0), 5.5, FOOTER_Y - Math.min(sly + 0.4, 4.0) - 0.15)
           }
         }
       }
@@ -1286,110 +1286,6 @@ export default function PdfReportPage() {
     }
   }
 
-  // ─── PPTX Export (converts PDF pages to slides) ───
-  const doExportPptx = async (data: ReportData, forceInsights?: boolean) => {
-    try {
-      setIsExporting(true)
-      const jsPDF = (await import('jspdf')).default
-      const autoTable = (await import('jspdf-autotable')).default
-      const PptxGenJS = (await import('pptxgenjs')).default
-
-      // Generate the PDF in memory (reuse doExport logic but capture the doc)
-      // We'll generate a fresh PDF doc, then convert each page to an image for PPTX
-      const doc = new jsPDF({ orientation: 'landscape', unit: 'in', format: [13.33, 7.5] })
-
-      // Instead of duplicating all the PDF logic, we generate the PDF blob,
-      // then use pdf.js or canvas to render each page as an image.
-      // Simpler approach: save PDF as blob, then use jsPDF's output to get pages as images.
-
-      // Get the PDF as a data URL per page
-      const pdfBlob = doc.output('blob')
-
-      // For now, use a simpler approach: generate PPTX with the same data directly
-      const pptx = new PptxGenJS()
-      pptx.author = 'Ovaview'
-      pptx.title = `${data.client.name} Media Report`
-      pptx.layout = 'LAYOUT_WIDE'
-
-      const clientName = data.client.name
-      const s = data.summary
-      const rangeStart = format(new Date(Date.now() - days * 86400000), 'MMMM d, yyyy')
-      const rangeEnd = format(new Date(), 'MMMM d, yyyy')
-      const hasInsights = (forceInsights || includeInsights) && Object.keys(data.insights || {}).length > 0
-
-      // Cover slide
-      const cover = pptx.addSlide()
-      cover.background = { fill: brandColor.replace('#', '') }
-      cover.addText('MEDIA PRESENCE\nANALYSIS REPORT', { x: 1, y: 2, w: 10, h: 2, fontSize: 44, color: 'FFFFFF', fontFace: 'Arial', bold: true, align: 'center', valign: 'middle' })
-      cover.addText(`${rangeStart} - ${rangeEnd}`, { x: 1, y: 4.2, w: 10, h: 0.5, fontSize: 16, color: 'FFFFFF', fontFace: 'Arial', align: 'center', valign: 'middle' })
-
-      // Brief slide
-      const brief = pptx.addSlide()
-      brief.addText('THIS REPORT IS AN ANALYSIS OF THE PR PRESENCE OF', { x: 1, y: 2, w: 10, h: 0.5, fontSize: 14, color: '808080', fontFace: 'Arial', align: 'center' })
-      brief.addText(clientName.toUpperCase(), { x: 1, y: 2.8, w: 10, h: 0.8, fontSize: 32, color: brandColor.replace('#', ''), fontFace: 'Arial', bold: true, align: 'center' })
-      brief.addText(`The data was captured from ${rangeStart} to ${rangeEnd}`, { x: 1, y: 3.8, w: 10, h: 0.5, fontSize: 14, color: '808080', fontFace: 'Arial', align: 'center' })
-
-      // Executive Summary slide
-      const exec = pptx.addSlide()
-      exec.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: 13.33, h: 0.65, fill: { color: brandColor.replace('#', '') } })
-      exec.addText('Executive Summary', { x: 0.5, y: 0.1, w: 5, h: 0.45, fontSize: 20, color: 'FFFFFF', fontFace: 'Arial', bold: true })
-      // KPI row
-      const kpiLabels = ['Total Mentions', 'Media Reach', 'Interactions', 'Positive', 'Negative', 'Neutral']
-      const kpiValues = [s.totalMentions.toString(), fmtNum(s.totalReach), fmtNum(s.totalInteractions), s.positive.toString(), s.negative.toString(), s.neutral.toString()]
-      kpiLabels.forEach((label, i) => {
-        const kx = 0.5 + i * 2.05
-        exec.addShape(pptx.ShapeType.roundRect, { x: kx, y: 1.0, w: 1.9, h: 1.2, fill: { color: 'FFFFFF' }, line: { color: 'E5E7EB', width: 0.5 }, rectRadius: 0.05 })
-        exec.addText(label.toUpperCase(), { x: kx + 0.1, y: 1.1, w: 1.7, h: 0.3, fontSize: 8, color: '9CA3AF', fontFace: 'Arial', bold: true })
-        exec.addText(kpiValues[i], { x: kx + 0.1, y: 1.35, w: 1.7, h: 0.6, fontSize: 26, color: '1F2937', fontFace: 'Arial', bold: true })
-      })
-      // Insight text
-      if (hasInsights && data.insights.executive_summary) {
-        const insightText = cleanAIText(data.insights.executive_summary)
-        exec.addText('Overview', { x: 0.5, y: 2.6, w: 3, h: 0.3, fontSize: 12, color: brandColor.replace('#', ''), fontFace: 'Arial', bold: true })
-        exec.addText(insightText, { x: 0.5, y: 3.0, w: 12, h: 4, fontSize: 11, color: '374151', fontFace: 'Arial', valign: 'top', wrap: true, lineSpacingMultiple: 1.3 })
-      }
-
-      // Section divider
-      const divider = pptx.addSlide()
-      divider.background = { fill: brandColor.replace('#', '') }
-      divider.addText('MEDIA PRESENCE ANALYSIS', { x: 1, y: 2.5, w: 10, h: 1, fontSize: 36, color: 'FFFFFF', fontFace: 'Arial', bold: true, align: 'center' })
-      divider.addText(`${clientName} - ${rangeStart} to ${rangeEnd}`, { x: 1, y: 3.5, w: 10, h: 0.5, fontSize: 14, color: 'FFFFFF', fontFace: 'Arial', align: 'center' })
-
-      // Add insight pages for each section that has insights
-      const insightSections = [
-        { key: 'media_sources', title: 'Media Source Distribution' },
-        { key: 'coverage_trend', title: 'Coverage Trend' },
-        { key: 'sentiment_analysis', title: 'Sentiment Analysis' },
-        { key: 'top_sources', title: 'Top Media Sources' },
-        { key: 'keywords', title: 'Keywords & Themes' },
-        { key: 'key_personalities', title: 'Key Personalities' },
-        { key: 'competitors', title: 'Competitor Comparison' },
-      ]
-      for (const section of insightSections) {
-        if (hasInsights && data.insights[section.key]) {
-          const slide = pptx.addSlide()
-          slide.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: 13.33, h: 0.65, fill: { color: brandColor.replace('#', '') } })
-          slide.addText(`${section.title} - Insights`, { x: 0.5, y: 0.1, w: 8, h: 0.45, fontSize: 20, color: 'FFFFFF', fontFace: 'Arial', bold: true })
-          slide.addText(cleanAIText(data.insights[section.key]), { x: 0.8, y: 1.3, w: 11.5, h: 5.5, fontSize: 12, color: '374151', fontFace: 'Arial', valign: 'middle', wrap: true, lineSpacingMultiple: 1.4 })
-        }
-      }
-
-      // Conclusions slide
-      if (hasInsights && data.insights.conclusions) {
-        const concSlide = pptx.addSlide()
-        concSlide.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: 13.33, h: 0.65, fill: { color: brandColor.replace('#', '') } })
-        concSlide.addText('Conclusions & Recommendations', { x: 0.5, y: 0.1, w: 8, h: 0.45, fontSize: 20, color: 'FFFFFF', fontFace: 'Arial', bold: true })
-        concSlide.addText(cleanAIText(data.insights.conclusions), { x: 0.8, y: 1.3, w: 11.5, h: 5.5, fontSize: 12, color: '374151', fontFace: 'Arial', valign: 'top', wrap: true, lineSpacingMultiple: 1.4 })
-      }
-
-      await pptx.writeFile({ fileName: `${clientName.replace(/\s+/g, '_')}_Media_Report_${format(new Date(), 'yyyy-MM-dd')}.pptx` })
-    } catch (err) {
-      console.error('PPTX export failed:', err)
-    } finally {
-      setIsExporting(false)
-    }
-  }
-
   // ─── RENDER ───
   const enabledCount = sections.filter(s => s.enabled).length
   const totalCount = sections.length
@@ -1464,31 +1360,6 @@ export default function PdfReportPage() {
           >
             {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
             {isExporting ? 'Generating...' : 'Export with AI Insights'}
-          </button>
-          <button
-            onClick={async () => {
-              if (!reportData) return
-              setIsExporting(true)
-              try {
-                const res = await fetch('/api/pdf-report', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ clientId, days, sections: enabledSectionIds, includeInsights: true }),
-                })
-                if (res.ok) {
-                  const freshData = await res.json()
-                  setReportData(freshData)
-                  setIncludeInsights(true)
-                  await doExportPptx(freshData, true)
-                }
-              } catch (err) { console.error('Failed to export PPTX:', err) }
-              finally { setIsExporting(false) }
-            }}
-            disabled={isExporting || isLoading || !reportData}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 disabled:opacity-50 transition-colors"
-          >
-            {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-            Export PPTX
           </button>
         </div>
       </div>
