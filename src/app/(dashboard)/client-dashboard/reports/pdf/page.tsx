@@ -582,32 +582,27 @@ export default function PdfReportPage() {
         doc.text(`${clientName} — ${rangeStart} to ${rangeEnd}`, 0.6, 1.1)
 
         // Calculate trends from chart data (first half vs second half)
-        let mentionTrend = 0, reachTrend = 0, interactionTrend = 0
+        let mentionTrend = 0
         if (data.chart && data.chart.length >= 4) {
           const mid = Math.floor(data.chart.length / 2)
-          const firstHalf = data.chart.slice(0, mid)
-          const secondHalf = data.chart.slice(mid)
-          const firstMentions = firstHalf.reduce((sum: number, d: any) => sum + (d.mentions || 0), 0)
-          const secondMentions = secondHalf.reduce((sum: number, d: any) => sum + (d.mentions || 0), 0)
+          const firstMentions = data.chart.slice(0, mid).reduce((sum: number, d: any) => sum + (d.mentions || 0), 0)
+          const secondMentions = data.chart.slice(mid).reduce((sum: number, d: any) => sum + (d.mentions || 0), 0)
           if (firstMentions > 0) mentionTrend = Math.round(((secondMentions - firstMentions) / firstMentions) * 100)
-          // Estimate reach/interaction trends proportionally
-          reachTrend = mentionTrend
-          interactionTrend = mentionTrend
         }
 
-        // KPI cards with trend indicators
+        // KPI cards
         const kpis = [
-          { l: 'Total Mentions', v: (s.totalMentions || 0).toString(), sub: '', trend: mentionTrend },
-          { l: 'Media Reach', v: fmtNum(s.totalReach), sub: '', trend: reachTrend },
-          { l: 'Interactions', v: fmtNum(s.totalInteractions), sub: '', trend: interactionTrend },
-          { l: 'Positive', v: (s.positive || 0).toString(), sub: s.positive > 0 ? `${Math.round((s.positive / Math.max(s.totalMentions, 1)) * 100)}% of total` : '', trend: 0 },
-          { l: 'Negative', v: (s.negative || 0).toString(), sub: s.negative > 0 ? `${Math.round((s.negative / Math.max(s.totalMentions, 1)) * 100)}% of total` : '', trend: 0 },
-          { l: 'Neutral', v: (s.neutral || 0).toString(), sub: s.neutral > 0 ? `${Math.round((s.neutral / Math.max(s.totalMentions, 1)) * 100)}% of total` : '', trend: 0 },
+          { l: 'Total Mentions', v: (s.totalMentions || 0).toString(), trend: mentionTrend },
+          { l: 'Media Reach', v: fmtNum(s.totalReach), trend: mentionTrend },
+          { l: 'Interactions', v: fmtNum(s.totalInteractions), trend: mentionTrend },
+          { l: 'Positive', v: (s.positive || 0).toString(), trend: 0, pct: s.positive > 0 ? `${Math.round((s.positive / Math.max(s.totalMentions, 1)) * 100)}% of total` : '' },
+          { l: 'Negative', v: (s.negative || 0).toString(), trend: 0, pct: s.negative > 0 ? `${Math.round((s.negative / Math.max(s.totalMentions, 1)) * 100)}% of total` : '' },
+          { l: 'Neutral', v: (s.neutral || 0).toString(), trend: 0, pct: s.neutral > 0 ? `${Math.round((s.neutral / Math.max(s.totalMentions, 1)) * 100)}% of total` : '' },
         ]
         const cardW = 1.85, cardH = 1.35, cardGap = 0.12
         const totalW = kpis.length * cardW + (kpis.length - 1) * cardGap
         const startX = (W - totalW) / 2
-        kpis.forEach((k, i) => {
+        kpis.forEach((k: any, i: number) => {
           const kx = startX + i * (cardW + cardGap), ky = 1.45
 
           doc.setFillColor(255,255,255)
@@ -623,26 +618,63 @@ export default function PdfReportPage() {
           doc.setFontSize(28); doc.setTextColor(31,41,55); doc.setFont('helvetica','bold')
           doc.text(k.v, kx + 0.15, ky + 0.85)
 
-          // Trend indicator or percentage
-          if (k.trend !== 0 && i < 3) {
+          // Trend for first 3 cards (using safe ASCII characters)
+          if (i < 3 && k.trend !== 0) {
             const isUp = k.trend > 0
             doc.setFontSize(9); doc.setFont('helvetica','bold')
             doc.setTextColor(isUp ? 16 : 239, isUp ? 185 : 68, isUp ? 129 : 68)
-            doc.text(`${isUp ? '▲' : '▼'} ${Math.abs(k.trend)}% vs prev period`, kx + 0.15, ky + 1.12)
+            const arrow = isUp ? '+' : '-'
+            doc.text(`${arrow}${Math.abs(k.trend)}% vs prev period`, kx + 0.15, ky + 1.12)
           } else if (i < 3) {
             doc.setFontSize(9); doc.setTextColor(156,163,175); doc.setFont('helvetica','normal')
-            doc.text('— no change', kx + 0.15, ky + 1.12)
-          } else if (k.sub) {
-            const isPositive = k.l === 'Positive'
+            doc.text('No change', kx + 0.15, ky + 1.12)
+          } else if (k.pct) {
+            // Sentiment percentage
+            const isPos = k.l === 'Positive'
+            const isNeg = k.l === 'Negative'
             doc.setFontSize(9); doc.setFont('helvetica','normal')
-            doc.setTextColor(isPositive ? 16 : k.l === 'Negative' ? 239 : 107, isPositive ? 185 : k.l === 'Negative' ? 68 : 114, isPositive ? 129 : k.l === 'Negative' ? 68 : 128)
-            doc.text(k.sub, kx + 0.15, ky + 1.12)
+            doc.setTextColor(isPos ? 16 : isNeg ? 239 : 107, isPos ? 185 : isNeg ? 68 : 114, isPos ? 129 : isNeg ? 68 : 128)
+            doc.text(k.pct, kx + 0.15, ky + 1.12)
           }
         })
 
-        // Insight on same page below KPIs
+        // Formal written summary below KPIs (not the generic insight card)
+        const summaryY = 3.15
         if (hasInsights && data.insights.executive_summary) {
-          insightBox(data.insights.executive_summary, 0.6, 3.15, W - 1.2, FOOTER_Y - 3.15 - 0.1)
+          const text = cleanAIText(data.insights.executive_summary)
+          // Split into sentences for bullet-point presentation
+          const sentences = text.split(/(?<=[.!?])\s+/).filter(s => s.trim().length > 10)
+
+          // Divider line
+          doc.setDrawColor(229,231,235); doc.setLineWidth(0.01)
+          doc.line(0.6, summaryY, W - 0.6, summaryY)
+
+          // Section label
+          doc.setFontSize(11); doc.setFont('helvetica','bold'); doc.setTextColor(BRAND.r, BRAND.g, BRAND.b)
+          doc.text('Overview', 0.6, summaryY + 0.3)
+
+          // Render as formal bullet points
+          let y = summaryY + 0.55
+          const textW = W - 1.6
+          doc.setFontSize(11); doc.setFont('helvetica','normal'); doc.setTextColor(55,65,81)
+
+          sentences.forEach((sentence, idx) => {
+            if (y > FOOTER_Y - 0.3) return
+            const trimmed = sentence.trim().replace(/^[\d]+[\.\)]\s*/, '').replace(/^[-*]\s*/, '')
+            if (trimmed.length < 5) return
+
+            // Bullet dot
+            doc.setFillColor(BRAND.r, BRAND.g, BRAND.b)
+            doc.circle(0.75, y - 0.04, 0.04, 'F')
+
+            // Text
+            doc.setFontSize(11); doc.setFont('helvetica','normal'); doc.setTextColor(55,65,81)
+            const wrapped = doc.splitTextToSize(trimmed, textW)
+            wrapped.slice(0, 3).forEach((line: string, li: number) => {
+              doc.text(line, 0.95, y + li * 0.22)
+            })
+            y += Math.min(wrapped.length, 3) * 0.22 + 0.12
+          })
         }
       }
 
