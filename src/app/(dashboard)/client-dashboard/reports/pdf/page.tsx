@@ -341,7 +341,7 @@ export default function PdfReportPage() {
         doc.setFontSize(11); doc.setFont('helvetica','normal'); doc.setTextColor(45,45,45)
         const lines = doc.splitTextToSize(text, textW)
         const lineH = 0.22
-        const headerH = 0.38
+        const headerH = 0.5
         const availH = Math.min(maxH, FOOTER_Y - y - 0.1)
         if (availH < 0.6) return y
         const boxH = Math.min(lines.length * lineH + headerH + 0.3, availH)
@@ -355,8 +355,8 @@ export default function PdfReportPage() {
         doc.rect(x, y + 0.06, 0.04, boxH - 0.12, 'F')
         // Label
         doc.setFontSize(9); doc.setFont('helvetica','bold'); doc.setTextColor(BRAND.r, BRAND.g, BRAND.b)
-        doc.text('INSIGHT', x + 0.25, y + 0.25)
-        // Body — bigger text
+        doc.text('INSIGHT', x + 0.25, y + 0.28)
+        // Body — bigger text with proper gap from label
         doc.setFont('helvetica','normal'); doc.setTextColor(55,65,81); doc.setFontSize(11)
         const maxLines = Math.floor((boxH - headerH - 0.15) / lineH)
         lines.slice(0, maxLines).forEach((line: string, li: number) => {
